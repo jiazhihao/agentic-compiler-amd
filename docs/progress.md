@@ -7,8 +7,8 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 | Milestone | Issue | State |
 |---|---|---|
 | M0 Bootstrap | #2 | PR #14 open |
-| M1 Measure: runtime, battery, timing | #3 | PR open |
-| M2 Corpus and amdclang baselines | #4 | open |
+| M1 Measure: runtime, battery, timing | #3 | PR #16 open |
+| M2 Corpus and amdclang baselines | #4 | PR open |
 | M3 Own the assembly: ISA table and `mir` | #5 | open |
 | M4 Static safety | #6 | open |
 | M5 The agent loop on assembly | #9 | open |
@@ -19,6 +19,33 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 | Stretch: machine-model calibration, attention | #7, #12 | not scheduled |
 
 ## Log
+
+### 2026-11-19 — M2: corpus and amdclang baselines (#4)
+- 12 HIP kernels with manifests and NumPy / einsum references; every one passes the full
+  battery (49 to 105 cases each, including shape variants of every dynamic symbol).
+- Baselines in `tests/baselines/amdclang-gfx950.json` (`make baseline`), `amdclang -O3`,
+  protocol `agc-timing-amd-1`, cache flushed:
+
+| Kernel | Bench shape | Median ms | VGPR / SGPR | LDS bytes | Instructions | A/A |
+|---|---|---|---|---|---|---|
+| `axpy` | N=67108864 | 0.183 | 6 / 12 | 0 | 22 | 0.999 |
+| `cast_bf16` | N=67108864 | 0.159 | 6 / 11 | 0 | 26 | 1.002 |
+| `gelu` | N=67108864 | 0.191 | 8 / 12 | 0 | 70 | 1.000 |
+| `gemm_naive` | M=2048 × N=2048 × K=2048 | 4.046 | 12 / 18 | 0 | 63 | 1.000 |
+| `gemm_tiled` | M=2048 × N=2048 × K=2048 | 0.909 | 46 / 20 | 2048 | 121 | 1.000 |
+| `layernorm` | rows=32768 × cols=4096 | 0.452 | 14 / 46 | 1024 | 313 | 1.000 |
+| `matvec` | rows=16384 × cols=4096 | 0.560 | 6 / 16 | 0 | 39 | 1.002 |
+| `rmsnorm` | rows=32768 × cols=4096 | 0.365 | 10 / 27 | 1024 | 196 | 1.000 |
+| `row_argmax` | rows=32768 × cols=4096 | 0.199 | 7 / 19 | 2048 | 184 | 1.002 |
+| `row_sum` | rows=32768 × cols=4096 | 0.188 | 7 / 17 | 1024 | 129 | 1.002 |
+| `softmax` | rows=32768 × cols=4096 | 0.433 | 16 / 41 | 1024 | 384 | 0.999 |
+| `transpose` | rows=4096 × cols=8192 | 0.123 | 8 / 14 | 0 | 35 | 0.998 |
+
+- Every kernel is at the hardware occupancy limit (8 waves per SIMD): none is register-limited.
+- amdclang uses no MFMA and no wide (`dwordx4`) loads anywhere in the corpus; the rowwise
+  kernels are 129 to 384 instructions, mostly the LDS tree reduction.
+- Build cache keys now include the contents of quoted includes.
+- Open: no library baselines yet (hipBLASLt for GEMM comes with M7).
 
 ### 2026-11-19 — M1: runtime, battery, timing (#3)
 - Built: `gfx950.yaml` + occupancy; HIP module API through ctypes; amdclang / assemble / link /

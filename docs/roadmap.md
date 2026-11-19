@@ -62,11 +62,11 @@ Exit: AXPY builds, passes the battery and is timed; an A/A paired run (the same 
 object twice) gives a ratio whose CI contains 1.0 and is within ±2 %.
 
 ### M2 — Corpus and amdclang baselines (#4)
-- [ ] About 12 HIP kernels with manifests and references, chosen to cover the code
+- [x] About 12 HIP kernels with manifests and references, chosen to cover the code
       shapes that matter: elementwise (axpy, gelu, bf16 cast), rowwise reductions (sum,
       max/argmax), softmax, rmsnorm, layernorm, transpose, matvec, GEMM naive, GEMM
       tiled through LDS.
-- [ ] `tests/baselines/amdclang-gfx950.json`: time, registers, LDS, occupancy per kernel.
+- [x] `tests/baselines/amdclang-gfx950.json`: time, registers, LDS, occupancy per kernel.
 
 Exit: every corpus kernel passes the battery and has a baseline; `make test` covers it.
 

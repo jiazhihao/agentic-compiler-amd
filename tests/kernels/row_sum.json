@@ -1,0 +1,71 @@
+{
+ "name": "row_sum",
+ "source": "row_sum.hip",
+ "entry": "row_sum",
+ "shapes": {
+  "rows": 384,
+  "cols": 1000
+ },
+ "bench_shapes": {
+  "rows": 32768,
+  "cols": 4096
+ },
+ "dynamic": [
+  "rows",
+  "cols"
+ ],
+ "params": [
+  {
+   "name": "x",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "rows",
+    "cols"
+   ]
+  },
+  {
+   "name": "out",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "rows"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "rows",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "rows"
+  },
+  {
+   "name": "cols",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "cols"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "rows"
+  ],
+  "block": [
+   256
+  ]
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "row_sum"
+ },
+ "tolerance": {
+  "out": {
+   "cond": 2e-05
+  }
+ },
+ "tags": [
+  "rowwise",
+  "reduction"
+ ]
+}

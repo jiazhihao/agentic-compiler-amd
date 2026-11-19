@@ -1,0 +1,96 @@
+{
+ "name": "gemm_tiled",
+ "source": "gemm_tiled.hip",
+ "entry": "gemm_tiled",
+ "shapes": {
+  "M": 192,
+  "N": 160,
+  "K": 224
+ },
+ "bench_shapes": {
+  "M": 2048,
+  "N": 2048,
+  "K": 2048
+ },
+ "dynamic": [
+  "M",
+  "N",
+  "K"
+ ],
+ "params": [
+  {
+   "name": "A",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "M",
+    "K"
+   ]
+  },
+  {
+   "name": "B",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "K",
+    "N"
+   ]
+  },
+  {
+   "name": "C",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "M",
+    "N"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "M",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "M"
+  },
+  {
+   "name": "N",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "N"
+  },
+  {
+   "name": "K",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "K"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "cdiv(N, 16)",
+   "cdiv(M, 16)"
+  ],
+  "block": [
+   16,
+   16
+  ]
+ },
+ "reference": {
+  "kind": "einsum",
+  "expr": "mk,kn->mn",
+  "inputs": [
+   "A",
+   "B"
+  ],
+  "output": "C"
+ },
+ "tolerance": {
+  "C": {
+   "cond": 2e-05
+  }
+ },
+ "tags": [
+  "contraction",
+  "gemm"
+ ]
+}

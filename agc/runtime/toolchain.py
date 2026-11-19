@@ -90,6 +90,20 @@ class HipBuild:
 
 
 HIP_FLAGS = ["-O3"]
+_INCLUDE = re.compile(r'^\s*#\s*include\s*"([^"]+)"', re.M)
+
+
+def _local_includes(path: Path, include_dirs=(), seen: dict | None = None) -> dict[str, str]:
+    """Contents of the quoted includes of `path`, recursively: part of the build's cache key."""
+    seen = {} if seen is None else seen
+    for name in _INCLUDE.findall(path.read_text()):
+        for d in (path.parent, *map(Path, include_dirs)):
+            f = (d / name).resolve()
+            if f.exists() and str(f) not in seen:
+                seen[str(f)] = f.read_text()
+                _local_includes(f, include_dirs, seen)
+                break
+    return seen
 
 
 def hip_build(source: str | Path, flags: list[str] | None = None, mcpu: str = DEFAULT_MCPU,
@@ -99,7 +113,7 @@ def hip_build(source: str | Path, flags: list[str] | None = None, mcpu: str = DE
     text = path.read_text()
     flags = list(HIP_FLAGS if flags is None else flags)
     incs = [f"-I{Path(d).resolve()}" for d in (path.resolve().parent, *include_dirs)]
-    key = _key("hip", text, flags, mcpu, incs)
+    key = _key("hip", text, flags, mcpu, incs, _local_includes(path, include_dirs))
     d = cache_dir() / key
     if (d / "out.hsaco").exists() and (d / "out.s").exists():
         return HipBuild((d / "out.hsaco").read_bytes(), (d / "out.s").read_text(), flags, key)

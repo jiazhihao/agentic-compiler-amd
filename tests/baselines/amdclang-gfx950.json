@@ -1,0 +1,454 @@
+{
+ "protocol": "agc-timing-amd-1",
+ "toolchain": {
+  "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
+  "rocm": "7.14.60850"
+ },
+ "compiler": "amdclang -O3",
+ "recorded": "2026-11-19",
+ "kernels": {
+  "axpy": {
+   "symbols": {
+    "N": 67108864
+   },
+   "battery_cases": 49,
+   "median_ms": 0.18274,
+   "ci95_median_ms": [
+    0.18208,
+    0.18398
+   ],
+   "n": 30,
+   "converged": true,
+   "resources": {
+    "vgprs": 6,
+    "agprs": 0,
+    "sgprs": 12,
+    "lds_bytes": 0,
+    "scratch_bytes": 0,
+    "vgpr_spills": 0,
+    "sgpr_spills": 0
+   },
+   "waves_per_simd": 8,
+   "occupancy_limiter": "hardware",
+   "instructions": 22,
+   "aa_speedup": 0.9988,
+   "aa_ci95": [
+    0.9906,
+    1.0036
+   ],
+   "device": 0,
+   "clock_levels": [
+    "0: 500Mhz ",
+    "1: 1846Mhz *",
+    "2: 2400Mhz "
+   ]
+  },
+  "cast_bf16": {
+   "symbols": {
+    "N": 67108864
+   },
+   "battery_cases": 49,
+   "median_ms": 0.15894,
+   "ci95_median_ms": [
+    0.15852,
+    0.15962
+   ],
+   "n": 30,
+   "converged": true,
+   "resources": {
+    "vgprs": 6,
+    "agprs": 0,
+    "sgprs": 11,
+    "lds_bytes": 0,
+    "scratch_bytes": 0,
+    "vgpr_spills": 0,
+    "sgpr_spills": 0
+   },
+   "waves_per_simd": 8,
+   "occupancy_limiter": "hardware",
+   "instructions": 26,
+   "aa_speedup": 1.0025,
+   "aa_ci95": [
+    0.999,
+    1.0093
+   ],
+   "device": 0,
+   "clock_levels": [
+    "0: 500Mhz ",
+    "1: 1843Mhz *",
+    "2: 2400Mhz "
+   ]
+  },
+  "gelu": {
+   "symbols": {
+    "N": 67108864
+   },
+   "battery_cases": 49,
+   "median_ms": 0.1913,
+   "ci95_median_ms": [
+    0.18998,
+    0.19212
+   ],
+   "n": 30,
+   "converged": true,
+   "resources": {
+    "vgprs": 8,
+    "agprs": 0,
+    "sgprs": 12,
+    "lds_bytes": 0,
+    "scratch_bytes": 0,
+    "vgpr_spills": 0,
+    "sgpr_spills": 0
+   },
+   "waves_per_simd": 8,
+   "occupancy_limiter": "hardware",
+   "instructions": 70,
+   "aa_speedup": 0.9998,
+   "aa_ci95": [
+    0.9964,
+    1.0026
+   ],
+   "device": 0,
+   "clock_levels": [
+    "0: 500Mhz ",
+    "1: 1836Mhz *",
+    "2: 2400Mhz "
+   ]
+  },
+  "gemm_naive": {
+   "symbols": {
+    "M": 2048,
+    "N": 2048,
+    "K": 2048
+   },
+   "battery_cases": 105,
+   "median_ms": 4.04616,
+   "ci95_median_ms": [
+    4.04546,
+    4.05067
+   ],
+   "n": 30,
+   "converged": true,
+   "resources": {
+    "vgprs": 12,
+    "agprs": 0,
+    "sgprs": 18,
+    "lds_bytes": 0,
+    "scratch_bytes": 0,
+    "vgpr_spills": 0,
+    "sgpr_spills": 0
+   },
+   "waves_per_simd": 8,
+   "occupancy_limiter": "hardware",
+   "instructions": 63,
+   "aa_speedup": 1.0001,
+   "aa_ci95": [
+    0.9997,
+    1.0005
+   ],
+   "device": 0,
+   "clock_levels": [
+    "0: 500Mhz ",
+    "1: 1784Mhz *",
+    "2: 2400Mhz "
+   ]
+  },
+  "gemm_tiled": {
+   "symbols": {
+    "M": 2048,
+    "N": 2048,
+    "K": 2048
+   },
+   "battery_cases": 105,
+   "median_ms": 0.90865,
+   "ci95_median_ms": [
+    0.90625,
+    0.91293
+   ],
+   "n": 30,
+   "converged": true,
+   "resources": {
+    "vgprs": 46,
+    "agprs": 0,
+    "sgprs": 20,
+    "lds_bytes": 2048,
+    "scratch_bytes": 0,
+    "vgpr_spills": 0,
+    "sgpr_spills": 0
+   },
+   "waves_per_simd": 8,
+   "occupancy_limiter": "hardware",
+   "instructions": 121,
+   "aa_speedup": 0.9998,
+   "aa_ci95": [
+    0.9985,
+    1.0011
+   ],
+   "device": 0,
+   "clock_levels": [
+    "0: 500Mhz ",
+    "1: 1772Mhz *",
+    "2: 2400Mhz "
+   ]
+  },
+  "layernorm": {
+   "symbols": {
+    "rows": 32768,
+    "cols": 4096
+   },
+   "battery_cases": 77,
+   "median_ms": 0.45216,
+   "ci95_median_ms": [
+    0.45138,
+    0.45564
+   ],
+   "n": 30,
+   "converged": true,
+   "resources": {
+    "vgprs": 14,
+    "agprs": 0,
+    "sgprs": 46,
+    "lds_bytes": 1024,
+    "scratch_bytes": 0,
+    "vgpr_spills": 0,
+    "sgpr_spills": 0
+   },
+   "waves_per_simd": 8,
+   "occupancy_limiter": "hardware",
+   "instructions": 313,
+   "aa_speedup": 1.0004,
+   "aa_ci95": [
+    0.9988,
+    1.0028
+   ],
+   "device": 0,
+   "clock_levels": [
+    "0: 500Mhz ",
+    "1: 1790Mhz *",
+    "2: 2400Mhz "
+   ]
+  },
+  "matvec": {
+   "symbols": {
+    "rows": 16384,
+    "cols": 4096
+   },
+   "battery_cases": 77,
+   "median_ms": 0.55998,
+   "ci95_median_ms": [
+    0.55896,
+    0.56116
+   ],
+   "n": 30,
+   "converged": true,
+   "resources": {
+    "vgprs": 6,
+    "agprs": 0,
+    "sgprs": 16,
+    "lds_bytes": 0,
+    "scratch_bytes": 0,
+    "vgpr_spills": 0,
+    "sgpr_spills": 0
+   },
+   "waves_per_simd": 8,
+   "occupancy_limiter": "hardware",
+   "instructions": 39,
+   "aa_speedup": 1.0015,
+   "aa_ci95": [
+    0.9992,
+    1.0038
+   ],
+   "device": 0,
+   "clock_levels": [
+    "0: 500Mhz ",
+    "1: 1591Mhz *",
+    "2: 2400Mhz "
+   ]
+  },
+  "rmsnorm": {
+   "symbols": {
+    "rows": 32768,
+    "cols": 4096
+   },
+   "battery_cases": 77,
+   "median_ms": 0.36496,
+   "ci95_median_ms": [
+    0.36442,
+    0.36613
+   ],
+   "n": 30,
+   "converged": true,
+   "resources": {
+    "vgprs": 10,
+    "agprs": 0,
+    "sgprs": 27,
+    "lds_bytes": 1024,
+    "scratch_bytes": 0,
+    "vgpr_spills": 0,
+    "sgpr_spills": 0
+   },
+   "waves_per_simd": 8,
+   "occupancy_limiter": "hardware",
+   "instructions": 196,
+   "aa_speedup": 1.0005,
+   "aa_ci95": [
+    0.999,
+    1.0029
+   ],
+   "device": 0,
+   "clock_levels": [
+    "0: 500Mhz ",
+    "1: 1792Mhz *",
+    "2: 2400Mhz "
+   ]
+  },
+  "row_argmax": {
+   "symbols": {
+    "rows": 32768,
+    "cols": 4096
+   },
+   "battery_cases": 77,
+   "median_ms": 0.19866,
+   "ci95_median_ms": [
+    0.19824,
+    0.19964
+   ],
+   "n": 30,
+   "converged": true,
+   "resources": {
+    "vgprs": 7,
+    "agprs": 0,
+    "sgprs": 19,
+    "lds_bytes": 2048,
+    "scratch_bytes": 0,
+    "vgpr_spills": 0,
+    "sgpr_spills": 0
+   },
+   "waves_per_simd": 8,
+   "occupancy_limiter": "hardware",
+   "instructions": 184,
+   "aa_speedup": 1.0021,
+   "aa_ci95": [
+    0.9987,
+    1.0042
+   ],
+   "device": 0,
+   "clock_levels": [
+    "0: 500Mhz ",
+    "1: 1656Mhz *",
+    "2: 2400Mhz "
+   ]
+  },
+  "row_sum": {
+   "symbols": {
+    "rows": 32768,
+    "cols": 4096
+   },
+   "battery_cases": 77,
+   "median_ms": 0.18764,
+   "ci95_median_ms": [
+    0.18726,
+    0.18806
+   ],
+   "n": 30,
+   "converged": true,
+   "resources": {
+    "vgprs": 7,
+    "agprs": 0,
+    "sgprs": 17,
+    "lds_bytes": 1024,
+    "scratch_bytes": 0,
+    "vgpr_spills": 0,
+    "sgpr_spills": 0
+   },
+   "waves_per_simd": 8,
+   "occupancy_limiter": "hardware",
+   "instructions": 129,
+   "aa_speedup": 1.0023,
+   "aa_ci95": [
+    1.0,
+    1.0051
+   ],
+   "device": 0,
+   "clock_levels": [
+    "0: 500Mhz ",
+    "1: 1604Mhz *",
+    "2: 2400Mhz "
+   ]
+  },
+  "softmax": {
+   "symbols": {
+    "rows": 32768,
+    "cols": 4096
+   },
+   "battery_cases": 77,
+   "median_ms": 0.43325,
+   "ci95_median_ms": [
+    0.43163,
+    0.43445
+   ],
+   "n": 30,
+   "converged": true,
+   "resources": {
+    "vgprs": 16,
+    "agprs": 0,
+    "sgprs": 41,
+    "lds_bytes": 1024,
+    "scratch_bytes": 0,
+    "vgpr_spills": 0,
+    "sgpr_spills": 0
+   },
+   "waves_per_simd": 8,
+   "occupancy_limiter": "hardware",
+   "instructions": 384,
+   "aa_speedup": 0.9991,
+   "aa_ci95": [
+    0.9972,
+    1.0005
+   ],
+   "device": 0,
+   "clock_levels": [
+    "0: 500Mhz ",
+    "1: 1818Mhz *",
+    "2: 2400Mhz "
+   ]
+  },
+  "transpose": {
+   "symbols": {
+    "rows": 4096,
+    "cols": 8192
+   },
+   "battery_cases": 77,
+   "median_ms": 0.12296,
+   "ci95_median_ms": [
+    0.12204,
+    0.12372
+   ],
+   "n": 30,
+   "converged": true,
+   "resources": {
+    "vgprs": 8,
+    "agprs": 0,
+    "sgprs": 14,
+    "lds_bytes": 0,
+    "scratch_bytes": 0,
+    "vgpr_spills": 0,
+    "sgpr_spills": 0
+   },
+   "waves_per_simd": 8,
+   "occupancy_limiter": "hardware",
+   "instructions": 35,
+   "aa_speedup": 0.9979,
+   "aa_ci95": [
+    0.9945,
+    1.0086
+   ],
+   "device": 0,
+   "clock_levels": [
+    "0: 500Mhz ",
+    "1: 1319Mhz *",
+    "2: 2400Mhz "
+   ]
+  }
+ }
+}
