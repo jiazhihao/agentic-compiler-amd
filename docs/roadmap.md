@@ -105,13 +105,13 @@ result. The outcome (win, parity or loss, with the edit that caused it) is recor
 for each; these observations decide the pass list of M8.
 
 ### M6 — Tensor programs in, binaries out (#10)
-- [ ] `tair`: a small specification (maps, rowwise reductions, einsum contractions),
+- [x] `tair`: a small specification (maps, rowwise reductions, einsum contractions),
       text format, NumPy interpreter; manifests whose reference is the program.
-- [ ] `mir` builder with virtual registers; for generated code: linear-scan register
+- [x] `mir` builder with virtual registers; for generated code: linear-scan register
       allocation, waitcnt insertion, hazard insertion (each checked by M4's checkers).
-- [ ] Generators: elementwise (several elements per lane, wide loads), rowwise
+- [x] Generators: elementwise (several elements per lane, wide loads), rowwise
       reduction, softmax, rmsnorm/layernorm.
-- [ ] Session action `generate`; generator parameters are agent-visible knobs.
+- [x] Session action `generate`; generator parameters are agent-visible knobs.
 
 Exit: the tensor-program versions of the corpus kernels compile with no kernel
 source, pass the battery, and are paired against the amdclang build of the HIP

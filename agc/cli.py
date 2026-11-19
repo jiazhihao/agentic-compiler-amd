@@ -5,6 +5,7 @@
   agc bench  M.json [--hsaco F] [--warm]           timing; with --hsaco, paired against amdclang
   agc static M.json [--asm F.s]                    static checks on the amdclang build's assembly (or F.s)
   agc run    M.json [--edit BODY.s] [--quick]      session: import, optional edit, static check, battery, paired bench
+  agc run    M.json --generate [T] [--param k=v]   session: compile the manifest's tair program with a template
   agc info                                         device and toolchain facts
 """
 from __future__ import annotations
@@ -83,8 +84,13 @@ def cmd_run(args) -> int:
     try:
         s = Session.open(args.manifest, quick=args.quick)
         sid = s.ref_id
+        if args.generate is not None:
+            params = {k: json.loads(v) for k, v in (kv.split("=", 1) for kv in args.param)}
+            sid = s.generate(args.generate or None, params)["id"]
+        elif sid is None:
+            raise SessionError("parameter", "this manifest has no HIP source: use --generate")
         if args.edit:
-            sid = s.edit_ir("ref", Path(args.edit).read_text(), note=f"agc run --edit {args.edit}")["id"]
+            sid = s.edit_ir(sid, Path(args.edit).read_text(), note=f"agc run --edit {args.edit}")["id"]
         out = {"session": s.id, "state": sid, "static": s.static_check(sid)}
         if out["static"]["ok"]:
             out["check"] = s.check(sid)
@@ -114,6 +120,8 @@ def main(argv=None) -> int:
     p.set_defaults(fn=cmd_bench)
     p = sub.add_parser("static"); p.add_argument("manifest"); p.add_argument("--asm"); p.set_defaults(fn=cmd_static)
     p = sub.add_parser("run"); p.add_argument("manifest"); p.add_argument("--edit"); p.add_argument("--quick", action="store_true")
+    p.add_argument("--generate", nargs="?", const="", metavar="TEMPLATE", help="compile the tair program (default template if omitted)")
+    p.add_argument("--param", action="append", default=[], metavar="K=V", help="template parameter (JSON value)")
     p.set_defaults(fn=cmd_run)
     p = sub.add_parser("info"); p.set_defaults(fn=cmd_info)
     args = ap.parse_args(argv)

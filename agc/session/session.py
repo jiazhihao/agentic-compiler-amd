@@ -78,8 +78,7 @@ class Session:
         sroot = base / "sessions" / f"{m.name}-{ident}"
         s = cls(m, Store(sroot), base, quick)
         if m.source is None:
-            raise SessionError("parameter", "this manifest has no HIP source; tensor-program manifests open through a generator",
-                               suggestion="see `generate` (roadmap M6)")
+            return s                                        # a tensor program: states come from `generate`
         try:
             b = harness.reference_build(m)
             module = emit.import_asm(b.asm)
@@ -105,7 +104,8 @@ class Session:
                                        "cond": m.cond_for(p.name)} for p in m.outputs()},
                 "timing_protocol": PROTOCOL_VERSION, "noise_floor": TimingProtocol().noise_floor,
                 "states": len(self.store.all_states()), "tags": self.store.tags(), "branches": list(self.store.branches()),
-                "transforms": sorted(TRANSFORMS), "toolchain": toolchain.identity()}
+                "transforms": sorted(TRANSFORMS), "toolchain": toolchain.identity(),
+                "program": bool(m.program), "hip_source": bool(m.source)}
 
     # ---- helpers ---------------------------------------------------------------
     def resolve(self, ref: str) -> str:
@@ -127,9 +127,16 @@ class Session:
                 return k
         raise SessionError("parameter", f"kernel {entry!r} is not in the module (kernels: {[k.name for k in module.kernels]})")
 
-    def _put(self, parent: str, module: Module, action: dict) -> dict:
+    def launch_of(self, sid: str) -> dict | None:
+        """The launch geometry a generated kernel (or a state derived from one) carries; None: the manifest's."""
+        for st in reversed(self.store.ancestry(sid)):
+            if "launch" in st.action:
+                return st.action["launch"]
+        return None
+
+    def _put(self, parent: str | None, module: Module, action: dict) -> dict:
         text = asm.print_module(module)
-        if text == self.store.get(parent).ir:
+        if parent is not None and text == self.store.get(parent).ir:
             raise SessionError("parameter", "the result is identical to the parent state", suggestion="nothing to do")
         st = self.store.put("mir", text, parent, action)
         self._modules[st.id] = module
@@ -150,6 +157,8 @@ class Session:
     def state(self, ref: str = "ref", include_ir: bool = True) -> dict:
         sid = self.resolve(ref)
         rec = self.store.record(sid)
+        if self.launch_of(sid):
+            rec["launch"] = self.launch_of(sid)
         rec["names"] = [n for n, v in self.store.tags().items() if v == sid] + \
                        [n for n, b in self.store.branches().items() if b["head"] == sid]
         rec["children"] = [c.id for c in self.store.children(sid)]
@@ -305,6 +314,29 @@ class Session:
             raise SessionError("parameter", "the edit leaves no instructions")
         return self._put(pid, self._with_body(self.module(pid), blocks), {"name": "edit", "ops": ops, "note": note})
 
+    def program(self) -> dict:
+        """The tensor program of the manifest and the templates that can compile it."""
+        from .. import gen
+        from ..tair import print_program
+        try:
+            p = gen.program_of(self.manifest)
+            names = gen.applicable(self.manifest)
+        except gen.GenError as e:
+            raise SessionError("parameter", str(e)) from None
+        return {"program": print_program(p),
+                "templates": {n: {"doc": gen.TEMPLATES[n]["doc"], "params": copy.deepcopy(gen.TEMPLATES[n]["params"]),
+                                  "default": dict(gen.TEMPLATES[n]["default"])} for n in names}}
+
+    def generate(self, template: str | None = None, params: dict | None = None) -> dict:
+        """Compile the manifest's tensor program with a schedule template → a new root state. The HIP
+        source, if any, is not used: it is only the baseline `bench` compares with."""
+        from .. import gen
+        try:
+            c = gen.generate(self.manifest, template, params)
+        except gen.GenError as e:
+            raise SessionError("parameter", str(e), suggestion="program() lists the templates and their parameters") from None
+        return self._put(None, c.module, {"name": "generate", "template": c.template, "params": c.params, "launch": c.launch})
+
     def apply(self, ref: str, name: str, params: dict | None = None) -> dict:
         pid = self.resolve(ref)
         if name not in TRANSFORMS:
@@ -328,7 +360,8 @@ class Session:
         sid = self.resolve(ref)
         cached = self.store.get_result(sid, "static")
         if cached is None:
-            r = mircheck.static_check(self.module(sid))
+            # code agc generated (and anything derived from it) must not read undefined registers
+            r = mircheck.static_check(self.module(sid), strict=self.launch_of(sid) is not None)
             cached = {"ok": r["ok"], "findings": r["findings"]}
             self.store.put_result(sid, "static", cached)
         errors = [f for f in cached["findings"] if f.get("severity") != "warning"]
@@ -352,7 +385,7 @@ class Session:
         cached = self.store.get_result(sid, "check")
         if cached is None or cached.get("quick") != self.quick:
             try:
-                r = harness.check(self.manifest, hsaco, quick=self.quick, root=self.root)
+                r = harness.check(self.manifest, hsaco, quick=self.quick, root=self.root, launch=self.launch_of(sid))
             except ExecutorError as e:
                 raise SessionError("gpu", str(e)[:1500], suggestion="a hang usually means a loop that never ends or a missing s_endpgm path") from None
             cached = {"ok": bool(r.get("ok")), "quick": self.quick, "cases_run": r.get("cases_run"),
@@ -373,8 +406,19 @@ class Session:
             raise SessionError("verification", f"state {sid} fails the battery; it is not timed",
                                values={"failures": ck.get("failures"), "error": ck.get("error")},
                                suggestion="a wrong kernel has no speedup: fix it or roll back")
+        if self.ref_id is None:                             # no HIP baseline: an absolute timing only
+            try:
+                r = harness.bench(self.manifest, hsaco, root=self.root, launch=self.launch_of(sid))
+            except ExecutorError as e:
+                raise SessionError("gpu", str(e)[:1500]) from None
+            data = {"ok": bool(r.get("ok")), "outcome": "no_baseline", "against": None,
+                    "candidate_ms": round(r["timing"]["median_ms"], 5) if r.get("ok") else None,
+                    "protocol_version": PROTOCOL_VERSION, "error": r.get("error")}
+            self.store.put_result(sid, "bench", data)
+            return {"id": sid, **data}
         try:
-            r = harness.paired(self.manifest, self._hsaco(self.ref_id), hsaco, root=self.root)
+            r = harness.paired(self.manifest, self._hsaco(self.ref_id), hsaco, root=self.root,
+                               reference_launch=self.launch_of(self.ref_id), candidate_launch=self.launch_of(sid))
         except ExecutorError as e:
             raise SessionError("gpu", str(e)[:1500]) from None
         if not r.get("ok"):
@@ -432,3 +476,11 @@ class Session:
             return None
         lo, sid, b = max(wins)
         return {"id": sid, "speedup": b["speedup"], "speedup_ci95": b["speedup_ci95"]}
+
+
+def _register_builtin_transforms() -> None:
+    from ..mir import passes
+    passes.register_transforms()
+
+
+_register_builtin_transforms()

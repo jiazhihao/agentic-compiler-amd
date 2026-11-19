@@ -67,5 +67,8 @@
  "tags": [
   "rowwise",
   "reduction"
- ]
+ ],
+ "program": {
+  "file": "row_sum.tair"
+ }
 }

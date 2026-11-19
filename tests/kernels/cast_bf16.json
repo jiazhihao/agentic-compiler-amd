@@ -57,5 +57,8 @@
  },
  "tags": [
   "elementwise"
- ]
+ ],
+ "program": {
+  "file": "cast_bf16.tair"
+ }
 }

@@ -1,0 +1,4 @@
+tair rmsnorm(x: f32[R, C], w: f32[C], eps: f32) -> (y: f32[R, C]) {
+  ms = reduce mean(x * x)
+  y = x * rsqrt(ms + eps) * w
+}

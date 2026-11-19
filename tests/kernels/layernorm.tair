@@ -1,0 +1,5 @@
+tair layernorm(x: f32[R, C], g: f32[C], b: f32[C], eps: f32) -> (y: f32[R, C]) {
+  mean = reduce mean(x)
+  var = reduce mean((x - mean) * (x - mean))
+  y = (x - mean) * rsqrt(var + eps) * g + b
+}

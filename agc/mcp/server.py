@@ -23,6 +23,8 @@ ROOT = Path(os.environ.get("AGC_ROOT", ".agc"))
 server = MCPServer("agc", instructions=(
     "agc: an agentic compiler session for AMD MI355X (gfx950). Call open(manifest_path) first. States are immutable "
     "and addressed by id, tag or branch; `ref` is amdclang's build imported into machine IR (CDNA4 assembly). "
+    "A manifest may also carry a tensor program: program() shows it and generate(template, params) compiles it "
+    "straight into machine IR (no HIP involved). "
     "Loop: state(ref) to read the numbered listing -> edit / edit_ir / apply to make a new state -> static_check "
     "(ISA legality, s_waitcnt, hazards, contract) -> check (battery on the GPU) -> bench (paired against ref; "
     "`win` only if the whole 95% CI is beyond the 1% noise floor). isa(mnemonic) and arch(section) answer questions "
@@ -118,6 +120,21 @@ def edit_ir(parent: str, ir: str, note: str = "") -> dict:
 def apply(ref: str, transform: str, params: dict | None = None) -> dict:
     """Apply a named transform (see `actions`) → a new state."""
     return _s().apply(ref, transform, params)
+
+
+@tool
+def program() -> dict:
+    """The manifest's tensor program (tair text) and the schedule templates that can compile it, with their
+    parameters (the knobs to search)."""
+    return _s().program()
+
+
+@tool
+def generate(template: str | None = None, params: dict | None = None) -> dict:
+    """Compile the tensor program straight into machine IR with a template (default: the first that matches) → a new
+    state with its own launch geometry. No HIP source is used; `bench` then compares with amdclang's build of the HIP
+    source when the manifest has one."""
+    return _s().generate(template, params)
 
 
 @tool

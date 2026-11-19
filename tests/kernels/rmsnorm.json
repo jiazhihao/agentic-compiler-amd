@@ -82,5 +82,8 @@
  },
  "tags": [
   "rowwise"
- ]
+ ],
+ "program": {
+  "file": "rmsnorm.tair"
+ }
 }

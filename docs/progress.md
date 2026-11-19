@@ -11,14 +11,59 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 | M2 Corpus and amdclang baselines | #4 | PR #17 open |
 | M3 Own the assembly: ISA table and `mir` | #5 | PR #18 open |
 | M4 Static safety | #6 | PR #19 open |
-| M5 The agent loop on assembly | #9 | PR open |
-| M6 Tensor programs in, binaries out | #10 | open |
+| M5 The agent loop on assembly | #9 | PR #21 open |
+| M6 Tensor programs in, binaries out | #10 | PR open |
 | M7 GEMM on MFMA | #11 | open |
 | M8 Backend passes for imported code | #8 | open |
 | M9 Campaigns and report | #13 | open |
 | Stretch: machine-model calibration, attention | #7, #12 | not scheduled |
 
 ## Log
+
+### 2026-11-19 — M6: tensor programs in, binaries out (#10)
+- `agc/tair`: tensor programs (elementwise maps and reductions over the last axis), text form,
+  NumPy interpreter; a manifest's `program` (the input) and/or `reference` (the oracle). The
+  interpreter and the corpus's Python references are two independent definitions and agree.
+- `agc/gen/builder.py`: kernels built with virtual registers; linear-scan allocation (tuple
+  alignment, intervals extended across loops). `agc/mir/passes.py`: `fix_waits` and
+  `fix_hazards` insert exactly what the checkers ask for, at the latest point; also session
+  transforms.
+- `agc/gen/expr.py`: tair expressions to per-lane instructions (FMA fusion, constants pooled in
+  SGPRs, `exp` / `tanh` / division through `v_exp_f32` / `v_rcp_f32` under the manifest's
+  tolerance). Templates: `elementwise` (several elements per lane, wide loads and stores,
+  element computations interleaved) and `rowwise` (one wave per row, reductions combined with
+  DPP and `v_readlane`: no LDS, no barrier; 4 elements per lane per 256-column chunk; `unroll`
+  chunks per wait).
+- Session `program()` / `generate(template, params)`, MCP tools, `agc run --generate`. A
+  generated kernel carries its own launch geometry; the runtime applies it per code object.
+- Results (`scripts/generated.py` → `tests/baselines/generated-gfx950.json`): 7 tensor programs,
+  21 variants, every one on the full battery, paired against amdclang's build of the HIP version:
+
+| Program | Template | Battery | amdclang ms | agc ms | Speedup (95 % CI) | By parameter |
+|---|---|---|---|---|---|---|
+| `axpy` | elementwise | 49/49 | 0.180 | 0.170 | 1.056 (1.049 to 1.061) | 1: 0.97, 2: 1.03, 4: 1.06 |
+| `cast_bf16` | elementwise | 49/49 | 0.159 | 0.106 | 1.498 (1.492 to 1.506) | 1: 0.97, 2: 1.47, 4: 1.50 |
+| `gelu` | elementwise | 49/49 | 0.190 | 0.120 | 1.584 (1.572 to 1.589) | 1: 1.09, 2: 1.56, 4: 1.58 |
+| `layernorm` | rowwise | 77/77 | 0.472 | 0.320 | 1.474 (1.465 to 1.478) | 1: 1.29, 2: 1.40, 4: 1.47 |
+| `rmsnorm` | rowwise | 77/77 | 0.380 | 0.261 | 1.454 (1.450 to 1.463) | 1: 1.26, 2: 1.39, 4: 1.45 |
+| `row_sum` | rowwise | 77/77 | 0.188 | 0.153 | 1.228 (1.219 to 1.234) | 1: 1.20, 2: 1.21, 4: 1.23 |
+| `softmax` | rowwise | 77/77 | 0.433 | 0.328 | 1.325 (1.322 to 1.329) | 1: 1.22, 2: 1.29, 4: 1.32 |
+
+  Geomean 1.363 over amdclang (best and default parameters coincide).
+  `axpy` is memory-bound, as expected; the 1-element-per-lane elementwise variants are 3 %
+  slower than amdclang (reported as losses).
+- These kernels are not bit-identical to amdclang's: reductions are summed per lane and then
+  across lanes, and `exp`, `tanh` and division use the hardware's approximate instructions. They
+  meet the manifests' tolerances on every battery case; that is the contract.
+- A manifest with no kernel source (`tests/tensor/temperature_softmax.json`) compiles end to
+  end: 77/77 battery cases, 0.33 ms at 32768 x 4096 (no baseline to pair with).
+- Bug found by the battery's shape variants: a constant was materialized after the entry
+  block's branch, so one path read an unset SGPR. It passed on some devices by luck (the
+  register held the right value from an earlier kernel). Fixes: constants are placed at the
+  entry; generated code that reads a register undefined on any path is refused (`strict`
+  static check for generated states; imported code can only warn, since amdclang does this).
+- Open: `row_argmax` (index reductions), `transpose`, `matvec` and GEMM have no template yet
+  (GEMM is M7); 16-bit and 8-bit inputs; the elementwise tail handles one element at a time.
 
 ### 2026-11-19 — M5: the agent loop on assembly (#9)
 - `agc/store`: content-addressed immutable states, results attached per state, tags, branches

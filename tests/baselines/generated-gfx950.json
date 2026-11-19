@@ -1,0 +1,496 @@
+{
+ "kernels": {
+  "axpy": {
+   "template": "elementwise",
+   "variants": [
+    {
+     "params": {
+      "elements_per_lane": 1
+     },
+     "instructions": 22,
+     "static": true,
+     "battery": "49/49",
+     "outcome": "loss",
+     "speedup": 0.9661,
+     "ci95": [
+      0.9627,
+      0.9723
+     ],
+     "ms": 0.18684,
+     "amdclang_ms": 0.18122
+    },
+    {
+     "params": {
+      "elements_per_lane": 2
+     },
+     "instructions": 39,
+     "static": true,
+     "battery": "49/49",
+     "outcome": "win",
+     "speedup": 1.0302,
+     "ci95": [
+      1.0236,
+      1.0339
+     ],
+     "ms": 0.16328,
+     "amdclang_ms": 0.1682
+    },
+    {
+     "params": {
+      "elements_per_lane": 4
+     },
+     "instructions": 61,
+     "static": true,
+     "battery": "49/49",
+     "outcome": "win",
+     "speedup": 1.0556,
+     "ci95": [
+      1.0494,
+      1.0614
+     ],
+     "ms": 0.17032,
+     "amdclang_ms": 0.17996
+    }
+   ],
+   "best": {
+    "params": {
+     "elements_per_lane": 4
+    },
+    "instructions": 61,
+    "static": true,
+    "battery": "49/49",
+    "outcome": "win",
+    "speedup": 1.0556,
+    "ci95": [
+     1.0494,
+     1.0614
+    ],
+    "ms": 0.17032,
+    "amdclang_ms": 0.17996
+   }
+  },
+  "cast_bf16": {
+   "template": "elementwise",
+   "variants": [
+    {
+     "params": {
+      "elements_per_lane": 1
+     },
+     "instructions": 23,
+     "static": true,
+     "battery": "49/49",
+     "outcome": "loss",
+     "speedup": 0.9702,
+     "ci95": [
+      0.9662,
+      0.9733
+     ],
+     "ms": 0.16326,
+     "amdclang_ms": 0.15878
+    },
+    {
+     "params": {
+      "elements_per_lane": 2
+     },
+     "instructions": 44,
+     "static": true,
+     "battery": "49/49",
+     "outcome": "win",
+     "speedup": 1.4732,
+     "ci95": [
+      1.4641,
+      1.4769
+     ],
+     "ms": 0.10828,
+     "amdclang_ms": 0.1595
+    },
+    {
+     "params": {
+      "elements_per_lane": 4
+     },
+     "instructions": 71,
+     "static": true,
+     "battery": "49/49",
+     "outcome": "win",
+     "speedup": 1.4976,
+     "ci95": [
+      1.4922,
+      1.5064
+     ],
+     "ms": 0.10554,
+     "amdclang_ms": 0.159
+    }
+   ],
+   "best": {
+    "params": {
+     "elements_per_lane": 4
+    },
+    "instructions": 71,
+    "static": true,
+    "battery": "49/49",
+    "outcome": "win",
+    "speedup": 1.4976,
+    "ci95": [
+     1.4922,
+     1.5064
+    ],
+    "ms": 0.10554,
+    "amdclang_ms": 0.159
+   }
+  },
+  "gelu": {
+   "template": "elementwise",
+   "variants": [
+    {
+     "params": {
+      "elements_per_lane": 1
+     },
+     "instructions": 33,
+     "static": true,
+     "battery": "49/49",
+     "outcome": "win",
+     "speedup": 1.0945,
+     "ci95": [
+      1.0896,
+      1.1001
+     ],
+     "ms": 0.17532,
+     "amdclang_ms": 0.1922
+    },
+    {
+     "params": {
+      "elements_per_lane": 2
+     },
+     "instructions": 71,
+     "static": true,
+     "battery": "49/49",
+     "outcome": "win",
+     "speedup": 1.557,
+     "ci95": [
+      1.5534,
+      1.5646
+     ],
+     "ms": 0.12164,
+     "amdclang_ms": 0.18938
+    },
+    {
+     "params": {
+      "elements_per_lane": 4
+     },
+     "instructions": 139,
+     "static": true,
+     "battery": "49/49",
+     "outcome": "win",
+     "speedup": 1.5838,
+     "ci95": [
+      1.5719,
+      1.5891
+     ],
+     "ms": 0.12038,
+     "amdclang_ms": 0.19004
+    }
+   ],
+   "best": {
+    "params": {
+     "elements_per_lane": 4
+    },
+    "instructions": 139,
+    "static": true,
+    "battery": "49/49",
+    "outcome": "win",
+    "speedup": 1.5838,
+    "ci95": [
+     1.5719,
+     1.5891
+    ],
+    "ms": 0.12038,
+    "amdclang_ms": 0.19004
+   }
+  },
+  "layernorm": {
+   "template": "rowwise",
+   "variants": [
+    {
+     "params": {
+      "unroll": 1
+     },
+     "instructions": 194,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 1.2868,
+     "ci95": [
+      1.2794,
+      1.2937
+     ],
+     "ms": 0.36533,
+     "amdclang_ms": 0.47079
+    },
+    {
+     "params": {
+      "unroll": 2
+     },
+     "instructions": 301,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 1.4008,
+     "ci95": [
+      1.3937,
+      1.4054
+     ],
+     "ms": 0.33701,
+     "amdclang_ms": 0.47205
+    },
+    {
+     "params": {
+      "unroll": 4
+     },
+     "instructions": 385,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 1.4736,
+     "ci95": [
+      1.4654,
+      1.4784
+     ],
+     "ms": 0.32002,
+     "amdclang_ms": 0.47197
+    }
+   ],
+   "best": {
+    "params": {
+     "unroll": 4
+    },
+    "instructions": 385,
+    "static": true,
+    "battery": "77/77",
+    "outcome": "win",
+    "speedup": 1.4736,
+    "ci95": [
+     1.4654,
+     1.4784
+    ],
+    "ms": 0.32002,
+    "amdclang_ms": 0.47197
+   }
+  },
+  "rmsnorm": {
+   "template": "rowwise",
+   "variants": [
+    {
+     "params": {
+      "unroll": 1
+     },
+     "instructions": 131,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 1.2555,
+     "ci95": [
+      1.2496,
+      1.261
+     ],
+     "ms": 0.30496,
+     "amdclang_ms": 0.38241
+    },
+    {
+     "params": {
+      "unroll": 2
+     },
+     "instructions": 200,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 1.3915,
+     "ci95": [
+      1.3886,
+      1.3973
+     ],
+     "ms": 0.27372,
+     "amdclang_ms": 0.38113
+    },
+    {
+     "params": {
+      "unroll": 4
+     },
+     "instructions": 255,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 1.4543,
+     "ci95": [
+      1.4504,
+      1.4632
+     ],
+     "ms": 0.2614,
+     "amdclang_ms": 0.38043
+    }
+   ],
+   "best": {
+    "params": {
+     "unroll": 4
+    },
+    "instructions": 255,
+    "static": true,
+    "battery": "77/77",
+    "outcome": "win",
+    "speedup": 1.4543,
+    "ci95": [
+     1.4504,
+     1.4632
+    ],
+    "ms": 0.2614,
+    "amdclang_ms": 0.38043
+   }
+  },
+  "row_sum": {
+   "template": "rowwise",
+   "variants": [
+    {
+     "params": {
+      "unroll": 1
+     },
+     "instructions": 72,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 1.2027,
+     "ci95": [
+      1.1903,
+      1.2132
+     ],
+     "ms": 0.15566,
+     "amdclang_ms": 0.18674
+    },
+    {
+     "params": {
+      "unroll": 2
+     },
+     "instructions": 91,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 1.2138,
+     "ci95": [
+      1.2004,
+      1.2183
+     ],
+     "ms": 0.15446,
+     "amdclang_ms": 0.18688
+    },
+    {
+     "params": {
+      "unroll": 4
+     },
+     "instructions": 103,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 1.2283,
+     "ci95": [
+      1.2192,
+      1.2345
+     ],
+     "ms": 0.15322,
+     "amdclang_ms": 0.18814
+    }
+   ],
+   "best": {
+    "params": {
+     "unroll": 4
+    },
+    "instructions": 103,
+    "static": true,
+    "battery": "77/77",
+    "outcome": "win",
+    "speedup": 1.2283,
+    "ci95": [
+     1.2192,
+     1.2345
+    ],
+    "ms": 0.15322,
+    "amdclang_ms": 0.18814
+   }
+  },
+  "softmax": {
+   "template": "rowwise",
+   "variants": [
+    {
+     "params": {
+      "unroll": 1
+     },
+     "instructions": 187,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 1.2219,
+     "ci95": [
+      1.2155,
+      1.225
+     ],
+     "ms": 0.35535,
+     "amdclang_ms": 0.43327
+    },
+    {
+     "params": {
+      "unroll": 2
+     },
+     "instructions": 310,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 1.2887,
+     "ci95": [
+      1.2858,
+      1.293
+     ],
+     "ms": 0.33619,
+     "amdclang_ms": 0.43353
+    },
+    {
+     "params": {
+      "unroll": 4
+     },
+     "instructions": 412,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 1.3246,
+     "ci95": [
+      1.3219,
+      1.3287
+     ],
+     "ms": 0.32772,
+     "amdclang_ms": 0.43343
+    }
+   ],
+   "best": {
+    "params": {
+     "unroll": 4
+    },
+    "instructions": 412,
+    "static": true,
+    "battery": "77/77",
+    "outcome": "win",
+    "speedup": 1.3246,
+    "ci95": [
+     1.3219,
+     1.3287
+    ],
+    "ms": 0.32772,
+    "amdclang_ms": 0.43343
+   }
+  }
+ },
+ "protocol": "agc-timing-amd-1",
+ "toolchain": {
+  "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
+  "rocm": "7.14.60850"
+ },
+ "baseline": "amdclang -O3",
+ "recorded": "2026-11-19",
+ "geomean_best": 1.3628,
+ "geomean_default": 1.3628
+}

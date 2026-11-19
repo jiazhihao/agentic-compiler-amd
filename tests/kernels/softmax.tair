@@ -1,0 +1,5 @@
+tair softmax(x: f32[R, C]) -> (y: f32[R, C]) {
+  m = reduce max(x)
+  s = reduce sum(exp(x - m))
+  y = exp(x - m) / s
+}

@@ -25,6 +25,16 @@ The session is reached through the `agc` MCP server (`.mcp.json`), or from a she
    ±1 % is `parity`. Report `parity` and `loss` as such; never report a fallback as a win.
 7. `note(id, text)` what was tried and what happened; `tag` / `fork` / `checkpoint` to organize.
 
+## Tensor programs
+
+When the manifest has a `program` (tair), `program()` shows it with the templates that can
+compile it and their parameters, and `generate(template, params)` compiles it straight into
+machine IR: a new state with its own launch geometry, no HIP involved. Sweep the parameters
+(`elements_per_lane`, `unroll`), `check` and `bench` each, keep the best. Generated states can
+be edited like any other; `apply(id, "fix_waits")` and `apply(id, "fix_hazards")` repair waits
+and wait states after an edit. Generated kernels meet the manifest's tolerance, not
+bit-identity with amdclang: say so when reporting.
+
 ## Rules of the machine (checked for you, but know them)
 
 - One wavefront = 64 lanes. `v*` are per-lane 32-bit registers, `s*` are scalars, `a*` are

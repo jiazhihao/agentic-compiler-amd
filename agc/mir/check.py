@@ -54,7 +54,9 @@ def check_contract(k: Kernel, arch: Arch) -> list[dict]:
     return out
 
 
-def check_kernel(k: Kernel, arch: Arch | None = None) -> list[dict]:
+def check_kernel(k: Kernel, arch: Arch | None = None, strict: bool = False) -> list[dict]:
+    """`strict`: a read of a register that is undefined on some path is an error, not a warning.
+    Code agc generates must be strict; code imported from a compiler cannot be (see below)."""
     arch = arch or load_arch()
     isa = table()
     findings = verify_kernel(k, isa, arch)
@@ -69,7 +71,7 @@ def check_kernel(k: Kernel, arch: Arch | None = None) -> list[dict]:
         # compilers legitimately read registers that are undefined on some path (the unused half of
         # a 64-bit operand, a loop-carried mask before the first iteration): that is a warning.
         # A register nothing ever writes is an error.
-        findings.append({"kind": "undefined_read", "severity": "error" if never else "warning", "kernel": k.name,
+        findings.append({"kind": "undefined_read", "severity": "error" if never or strict else "warning", "kernel": k.name,
                          "block": k.blocks[b].label, "index": i, "inst": str(g.infos[b][i].inst), "register": name,
                          "message": f"reads {name}, which " + ("is never written" if never else
                                                                 "is not written on every path from the entry")})
@@ -78,10 +80,10 @@ def check_kernel(k: Kernel, arch: Arch | None = None) -> list[dict]:
     return findings
 
 
-def static_check(m: Module, encode: bool = True) -> dict:
+def static_check(m: Module, encode: bool = True, strict: bool = False) -> dict:
     """{"ok", "findings", "built" (when encoded)}. `ok`: no finding other than warnings."""
     arch = load_arch()
-    findings = [f for k in m.kernels for f in check_kernel(k, arch)]
+    findings = [f for k in m.kernels for f in check_kernel(k, arch, strict)]
     result = {"ok": all(f.get("severity") == "warning" for f in findings), "findings": findings}
     if encode and not any(f["kind"] in ("illegal_instruction", "structure") for f in findings):
         try:

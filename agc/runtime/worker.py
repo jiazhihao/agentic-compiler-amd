@@ -22,7 +22,7 @@ from pathlib import Path
 import numpy as np
 
 from ..arch.model import load as load_arch
-from ..manifest import Manifest
+from ..manifest import Manifest, eval_expr
 from . import hip, reference, toolchain
 from .compare import compare_outputs
 from .executor import RESULT_MARK
@@ -72,8 +72,9 @@ def pack_args(kmeta: dict, m: Manifest, resolved, pointers: dict[str, int]) -> b
 class Loaded:
     """A code object's kernel on the device."""
 
-    def __init__(self, dev: hip.Device, image: bytes, entry: str):
+    def __init__(self, dev: hip.Device, image: bytes, entry: str, launch: dict | None = None):
         self.dev = dev
+        self.launch = launch          # a generated kernel's own geometry: {"grid": [...], "block": [...], "lds": n}
         self.kmeta = find_kernel(toolchain.metadata(image), entry)
         self.module = dev.load(image)
         self.kernel = self.module.kernel(self.kmeta[".name"])
@@ -105,8 +106,15 @@ class Bound:
             self.dev.copy(self.live[name], src)
 
     def launch(self, k: Loaded):
-        k.kernel.launch(self.resolved.grid, self.resolved.block, pack_args(k.kmeta, self.m, self.resolved, self.pointers),
-                        stream=self.dev.stream, lds_bytes=self.resolved.lds)
+        grid, block, lds = self.resolved.grid, self.resolved.block, self.resolved.lds
+        if k.launch:
+            sym = self.resolved.symbols
+            dims = lambda v: tuple(eval_expr(e, sym) for e in v) + (1,) * (3 - len(v))
+            grid, block, lds = dims(k.launch["grid"]), dims(k.launch["block"]), eval_expr(k.launch.get("lds", 0), sym)
+            if min(grid) <= 0 or min(block) <= 0:
+                raise JobError("launch", f"launch dims must be positive: grid={grid} block={block}")
+        k.kernel.launch(grid, block, pack_args(k.kmeta, self.m, self.resolved, self.pointers),
+                        stream=self.dev.stream, lds_bytes=lds)
 
     def outputs(self) -> dict[str, np.ndarray]:
         return {p.name: self.dev.download(self.live[p.name], p.dtype.storage, self.resolved.tensors[p.name])
@@ -150,7 +158,7 @@ def job_info(job) -> dict:
 def job_check(job) -> dict:
     m = _manifest(job)
     dev = hip.Device(0)
-    cand = Loaded(dev, _image(job), m.entry)
+    cand = Loaded(dev, _image(job), m.entry, job.get("launch"))
     oracle = Loaded(dev, _image(job, "oracle_hsaco"), m.entry) if job.get("oracle_hsaco") else None
     reports, ok = [], True
     for cd in job["cases"]:
@@ -224,7 +232,7 @@ def _verify(m, case, bound, expected, scale) -> dict:
 
 def job_bench(job) -> dict:
     m, proto, dev, case, resolved, inputs, bound, timer = _bench_setup(job)
-    k = Loaded(dev, _image(job), m.entry)
+    k = Loaded(dev, _image(job), m.entry, job.get("launch"))
     oracle = Loaded(dev, _image(job, "oracle_hsaco"), m.entry) if job.get("oracle_hsaco") else None
     expected, scale = _expected(m, resolved, inputs, bound, oracle)
     for _ in range(proto.warmup):
@@ -241,8 +249,8 @@ def job_bench(job) -> dict:
 
 def job_paired(job) -> dict:
     m, proto, dev, case, resolved, inputs, bound, timer = _bench_setup(job)
-    ks = {"reference": Loaded(dev, _image(job, "reference_hsaco"), m.entry),
-          "candidate": Loaded(dev, _image(job, "candidate_hsaco"), m.entry)}
+    ks = {"reference": Loaded(dev, _image(job, "reference_hsaco"), m.entry, job.get("reference_launch")),
+          "candidate": Loaded(dev, _image(job, "candidate_hsaco"), m.entry, job.get("candidate_launch"))}
     expected, scale = _expected(m, resolved, inputs, bound, ks["reference"])
     out = {"protocol": proto.to_dict(), "case": case.label, "resources": {w: k.resources() for w, k in ks.items()}}
     for i in range(proto.warmup):
