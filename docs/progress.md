@@ -21,19 +21,19 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 ## Log
 
 ### 2026-11-19 — M7: GEMM on MFMA (#11)
-- MFMA layouts measured on the device: a probe kernel written in  (one MFMA on operands
+- MFMA layouts measured on the device: a probe kernel written in `mir` (one MFMA on operands
   loaded lane by lane) matches the layout model on the whole battery, for
-   and . The layouts are in
-   (, source ).
-- tair ; corpus kernel : , bf16 in, f32 out (the
+  `v_mfma_f32_32x32x16_bf16` and `v_mfma_f32_16x16x32_bf16`. The layouts are in
+  `gfx950.yaml` (`mfma.layouts`, source `measured`).
+- tair `einsum`; corpus kernel `gemm_bf16`: `C[M,N] = A[M,K] @ B[N,K]^T`, bf16 in, f32 out (the
   linear-layer form: both operands contiguous along K), with a HIP version for amdclang.
--  (): each lane loads its 8 bf16 of A and of B with one 
-  load, directly in MFMA operand layout; a wave computes  output tiles of
-  32 x 32 in AccVGPRs ( +  loads feed  MFMAs);  K-steps per wait;
+- `agc/gen/gemm.py` (`gemm_mfma`): each lane loads its 8 bf16 of A and of B with one `dwordx4`
+  load, directly in MFMA operand layout; a wave computes `tiles x tiles` output tiles of
+  32 x 32 in AccVGPRs (`tiles` + `tiles` loads feed `tiles^2` MFMAs); `unroll` K-steps per wait;
   edges clamped for loads and masked for stores. No LDS, no barrier.
--  + : hipBLASLt timed with the same
-  sampling, through the executor ( job). Worker job  returns raw outputs (probes).
-- Results ( → ); all 6 variants pass the
+- `agc/runtime/baselines.py` + `native/hipblaslt_bench.cpp`: hipBLASLt timed with the same
+  sampling, through the executor (`external` job). Worker job `run` returns raw outputs (probes).
+- Results (`scripts/gemm.py` → `tests/baselines/gemm-gfx950.json`); all 6 variants pass the
   battery 77/77:
 
 | Shape | M x N x K | amdclang ms | agc ms | hipBLASLt ms | vs amdclang (95 % CI) | agc / hipBLASLt time | agc TFLOPS | Best variant |
@@ -52,9 +52,9 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
   needs operands shared between the waves of a workgroup through LDS (follow-up #23).
 - The M7 target (within 1.5x of hipBLASLt on one shape) is not met; the exit criterion
   (verified at three shapes, CI-separated win over amdclang, gap reported and analysed) is.
-- Found on the way: my hipBLASLt harness passed the operands in the wrong order, which only
+- Found on the way: the hipBLASLt harness passed the operands in the wrong order, which only
   failed (illegal address) for non-square shapes; fixed before recording.
-- Open: only the  form with K a multiple of 16; no f16 / FP8; no LDS.
+- Open: only the `A @ B^T` form with K a multiple of 16; no f16 / FP8; no LDS.
 
 ### 2026-11-19 — M6: tensor programs in, binaries out (#10)
 - `agc/tair`: tensor programs (elementwise maps and reductions over the last axis), text form,
