@@ -83,6 +83,14 @@ def register_transforms() -> None:
         fix_waits(m.kernel(kernel))
         return m
 
+    @transform("unroll_loads", "unroll a counted loop so that `factor` iterations' loads are in flight per wait (wide or "
+               "offset loads; arithmetic in the original order: bit-identical)",
+               {"factor": [2, 4, 8, 16], "loop": "label of the loop block (default: the first applicable)", "wide": [True, False]})
+    def _unroll(m: Module, kernel: str, factor: int = 4, loop: str | None = None, wide: bool = True) -> Module:
+        from . import loops
+        loops.unroll_loads(m.kernel(kernel), factor, loop, wide)
+        return m
+
     @transform("fix_hazards", "insert the s_nop wait states the hazard checker asks for")
     def _fix_hazards(m: Module, kernel: str) -> Module:
         fix_hazards(m.kernel(kernel))

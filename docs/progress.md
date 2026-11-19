@@ -13,12 +13,54 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 | M4 Static safety | #6 | PR #19 open |
 | M5 The agent loop on assembly | #9 | PR #21 open |
 | M6 Tensor programs in, binaries out | #10 | PR #22 open |
-| M7 GEMM on MFMA | #11 | PR open |
-| M8 Backend passes for imported code | #8 | open |
+| M7 GEMM on MFMA | #11 | PR #24 open |
+| M8 Backend passes for imported code | #8 | PR open |
 | M9 Campaigns and report | #13 | open |
 | Stretch: machine-model calibration, attention, LDS GEMM | #7, #12, #23 | not scheduled |
 
 ## Log
+
+### 2026-11-19 — M8: backend passes for imported code, default policy (#8)
+- `agc/mir/loops.py`: recognition of single-block counted loops (counter, induction pointers
+  with constant or loop-invariant strides, loads, vector arithmetic) and `unroll_loads`: N
+  iterations' loads in flight per wait (contiguous `dword` streams become `dwordx4` /
+  `s_load_dwordxN`, others get offsets, strided streams advance between loads), the arithmetic
+  repeated in the original order, the original loop kept for the remainder. Bit-identical by
+  construction. A session transform with `factor`, `loop` and `wide` as knobs; `explain` gives
+  the reason when a loop does not qualify.
+- `agc/session/policy.py` + `agc optimize`: the default policy. Candidates are the import with
+  `unroll_loads` at 4 / 8 / 16 and the tensor program with every parameter of its template; each
+  goes through static checks, the full battery and a paired timing; the best verified win is
+  kept, otherwise the amdclang build, reported as a fallback.
+- The policy on every manifest (`scripts/policy.py` → `tests/baselines/policy-gfx950.json`):
+
+| Kernel | Path | Chosen | Speedup vs amdclang (95 % CI) | Bit-identical |
+|---|---|---|---|---|
+| `axpy` | generate | elementwise(elements_per_lane=4) | 1.048 (1.044 to 1.055) | no |
+| `cast_bf16` | generate | elementwise(elements_per_lane=4) | 1.508 (1.493 to 1.516) | no |
+| `gelu` | generate | elementwise(elements_per_lane=2) | 1.573 (1.555 to 1.580) | no |
+| `gemm_bf16` | generate | gemm_mfma(tiles=2, unroll=2) | 164.099 (161.733 to 165.260) | no |
+| `gemm_naive` | import+pass | unroll_loads(factor=16) | 2.200 (2.198 to 2.202) | yes |
+| `gemm_tiled` | amdclang | the amdclang build (no verified win) | fallback (1.0) | yes |
+| `layernorm` | generate | rowwise(unroll=4) | 1.490 (1.485 to 1.494) | no |
+| `matvec` | import+pass | unroll_loads(factor=16) | 2.738 (2.731 to 2.750) | yes |
+| `rmsnorm` | generate | rowwise(unroll=4) | 1.446 (1.440 to 1.452) | no |
+| `row_argmax` | amdclang | the amdclang build (no verified win) | fallback (1.0) | yes |
+| `row_sum` | generate | rowwise(unroll=4) | 1.222 (1.214 to 1.228) | no |
+| `softmax` | generate | rowwise(unroll=4) | 1.314 (1.310 to 1.319) | no |
+| `temperature_softmax` | generate | rowwise(unroll=4) | 0.3297 ms, no baseline | no |
+| `transpose` | amdclang | the amdclang build (no verified win) | fallback (1.0) | yes |
+
+  10 wins and 3 fallbacks over 13 kernels with a baseline. Geomean 1.389 without the MFMA
+  GEMM (fallbacks counted as 1.0), 2.006 with it. The policy is never slower than amdclang:
+  with no verified win it ships amdclang's build.
+- The pass reproduces the M5 hand edits without help: `matvec` 2.74 (hand: 2.70), `gemm_naive`
+  2.20 (hand: 2.18). On the HIP bf16 GEMM loop (`ushort` loads, not widened) it measures 0.99 and
+  0.97 and is not chosen.
+- Fallbacks: `transpose` (no loop, no template), `gemm_tiled` (LDS loop with barriers: not a
+  counted load loop; no f32 GEMM template), `row_argmax` (masked loop; no index reduction in
+  the rowwise template).
+- Open: `bulk_unmasked` for masked loops; widening of 16-bit streams; an f32 GEMM template.
 
 ### 2026-11-19 — M7: GEMM on MFMA (#11)
 - MFMA layouts measured on the device: a probe kernel written in `mir` (one MFMA on operands

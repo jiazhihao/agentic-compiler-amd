@@ -6,6 +6,7 @@
   agc static M.json [--asm F.s]                    static checks on the amdclang build's assembly (or F.s)
   agc run    M.json [--edit BODY.s] [--quick]      session: import, optional edit, static check, battery, paired bench
   agc run    M.json --generate [T] [--param k=v]   session: compile the manifest's tair program with a template
+  agc optimize M.json                              the default policy: best verified candidate, or the amdclang build
   agc info                                         device and toolchain facts
 """
 from __future__ import annotations
@@ -103,6 +104,22 @@ def cmd_run(args) -> int:
         return 2
 
 
+def cmd_optimize(args) -> int:
+    from .session import Session, SessionError
+    from .session.policy import optimize
+    try:
+        s = Session.open(args.manifest)
+        r = optimize(s, log=lambda row: print(json.dumps({k: row.get(k) for k in ("how", "outcome", "speedup", "ci95", "reason")}), file=sys.stderr))
+        if args.output:
+            from .mir import emit
+            Path(args.output).write_bytes(emit.build(s.module(r["chosen"]["state"]), check=False).hsaco)
+        _emit(r)
+        return 0
+    except SessionError as e:
+        _emit(e.to_dict())
+        return 2
+
+
 def cmd_info(args) -> int:
     _emit({**run_job({"kind": "info"}, device=args.device), "toolchain": toolchain.identity()})
     return 0
@@ -123,6 +140,8 @@ def main(argv=None) -> int:
     p.add_argument("--generate", nargs="?", const="", metavar="TEMPLATE", help="compile the tair program (default template if omitted)")
     p.add_argument("--param", action="append", default=[], metavar="K=V", help="template parameter (JSON value)")
     p.set_defaults(fn=cmd_run)
+    p = sub.add_parser("optimize"); p.add_argument("manifest"); p.add_argument("-o", "--output", help="write the chosen code object")
+    p.set_defaults(fn=cmd_optimize)
     p = sub.add_parser("info"); p.set_defaults(fn=cmd_info)
     args = ap.parse_args(argv)
     try:

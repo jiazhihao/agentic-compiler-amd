@@ -1,0 +1,869 @@
+{
+ "kernels": {
+  "axpy": {
+   "chosen": {
+    "state": "8afd4d58eed29451",
+    "path": "generate",
+    "how": "elementwise(elements_per_lane=4)",
+    "bit_identical": false,
+    "speedup": 1.048,
+    "ci95": [
+     1.0435,
+     1.055
+    ],
+    "ms": 0.17204,
+    "amdclang_ms": 0.18094
+   },
+   "fallback": false,
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "generate",
+     "how": "elementwise(elements_per_lane=1)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9749,
+     "ci95": [
+      0.966,
+      0.9787
+     ],
+     "ms": 0.19532,
+     "amdclang_ms": 0.18978
+    },
+    {
+     "path": "generate",
+     "how": "elementwise(elements_per_lane=2)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.0244,
+     "ci95": [
+      1.0151,
+      1.0378
+     ],
+     "ms": 0.16436,
+     "amdclang_ms": 0.16934
+    },
+    {
+     "path": "generate",
+     "how": "elementwise(elements_per_lane=4)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.048,
+     "ci95": [
+      1.0435,
+      1.055
+     ],
+     "ms": 0.17204,
+     "amdclang_ms": 0.18094
+    }
+   ]
+  },
+  "cast_bf16": {
+   "chosen": {
+    "state": "c0c1175a015962d4",
+    "path": "generate",
+    "how": "elementwise(elements_per_lane=4)",
+    "bit_identical": false,
+    "speedup": 1.5078,
+    "ci95": [
+     1.4932,
+     1.5157
+    ],
+    "ms": 0.10492,
+    "amdclang_ms": 0.15784
+   },
+   "fallback": false,
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "generate",
+     "how": "elementwise(elements_per_lane=1)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9681,
+     "ci95": [
+      0.9641,
+      0.9719
+     ],
+     "ms": 0.16358,
+     "amdclang_ms": 0.15812
+    },
+    {
+     "path": "generate",
+     "how": "elementwise(elements_per_lane=2)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.459,
+     "ci95": [
+      1.4501,
+      1.4732
+     ],
+     "ms": 0.10864,
+     "amdclang_ms": 0.15874
+    },
+    {
+     "path": "generate",
+     "how": "elementwise(elements_per_lane=4)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.5078,
+     "ci95": [
+      1.4932,
+      1.5157
+     ],
+     "ms": 0.10492,
+     "amdclang_ms": 0.15784
+    }
+   ]
+  },
+  "gelu": {
+   "chosen": {
+    "state": "decd45d7c223137a",
+    "path": "generate",
+    "how": "elementwise(elements_per_lane=2)",
+    "bit_identical": false,
+    "speedup": 1.5734,
+    "ci95": [
+     1.5547,
+     1.5804
+    ],
+    "ms": 0.12144,
+    "amdclang_ms": 0.19028
+   },
+   "fallback": false,
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "generate",
+     "how": "elementwise(elements_per_lane=1)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.1014,
+     "ci95": [
+      1.0923,
+      1.1068
+     ],
+     "ms": 0.17356,
+     "amdclang_ms": 0.1908
+    },
+    {
+     "path": "generate",
+     "how": "elementwise(elements_per_lane=2)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.5734,
+     "ci95": [
+      1.5547,
+      1.5804
+     ],
+     "ms": 0.12144,
+     "amdclang_ms": 0.19028
+    },
+    {
+     "path": "generate",
+     "how": "elementwise(elements_per_lane=4)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.5594,
+     "ci95": [
+      1.5498,
+      1.5681
+     ],
+     "ms": 0.12264,
+     "amdclang_ms": 0.19186
+    }
+   ]
+  },
+  "gemm_bf16": {
+   "chosen": {
+    "state": "e186ba2748a73001",
+    "path": "generate",
+    "how": "gemm_mfma(tiles=2, unroll=2)",
+    "bit_identical": false,
+    "speedup": 164.0985,
+    "ci95": [
+     161.7329,
+     165.2602
+    ],
+    "ms": 0.0911,
+    "amdclang_ms": 14.95089
+   },
+   "fallback": false,
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 0.9901,
+     "ci95": [
+      0.9888,
+      0.9994
+     ],
+     "ms": 15.12002,
+     "amdclang_ms": 14.95149
+    },
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 0.9985,
+     "ci95": [
+      0.998,
+      0.9991
+     ],
+     "ms": 14.97331,
+     "amdclang_ms": 14.95119
+    },
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=16)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9709,
+     "ci95": [
+      0.9702,
+      0.9712
+     ],
+     "ms": 15.42082,
+     "amdclang_ms": 14.97091
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=1)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 98.0137,
+     "ci95": [
+      97.2725,
+      98.8244
+     ],
+     "ms": 0.15288,
+     "amdclang_ms": 14.97223
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=2)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 104.116,
+     "ci95": [
+      103.5902,
+      104.3238
+     ],
+     "ms": 0.14362,
+     "amdclang_ms": 14.95345
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=1)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 154.42,
+     "ci95": [
+      151.2252,
+      156.1817
+     ],
+     "ms": 0.0969,
+     "amdclang_ms": 14.95932
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=2)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 164.0985,
+     "ci95": [
+      161.7329,
+      165.2602
+     ],
+     "ms": 0.0911,
+     "amdclang_ms": 14.95089
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=1)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 136.2754,
+     "ci95": [
+      135.2298,
+      136.8305
+     ],
+     "ms": 0.1097,
+     "amdclang_ms": 14.9408
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=2)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 158.7211,
+     "ci95": [
+      157.5066,
+      159.8664
+     ],
+     "ms": 0.09416,
+     "amdclang_ms": 14.96136
+    }
+   ]
+  },
+  "gemm_naive": {
+   "chosen": {
+    "state": "73063a0e9b1a8cd6",
+    "path": "import+pass",
+    "how": "unroll_loads(factor=16)",
+    "bit_identical": true,
+    "speedup": 2.1999,
+    "ci95": [
+     2.1977,
+     2.202
+    ],
+    "ms": 1.84228,
+    "amdclang_ms": 4.0495
+   },
+   "fallback": false,
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 2.1268,
+     "ci95": [
+      2.1241,
+      2.1313
+     ],
+     "ms": 1.9015,
+     "amdclang_ms": 4.04166
+    },
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 2.155,
+     "ci95": [
+      2.1498,
+      2.1581
+     ],
+     "ms": 1.87912,
+     "amdclang_ms": 4.04582
+    },
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=16)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 2.1999,
+     "ci95": [
+      2.1977,
+      2.202
+     ],
+     "ms": 1.84228,
+     "amdclang_ms": 4.0495
+    }
+   ]
+  },
+  "gemm_tiled": {
+   "chosen": {
+    "state": "ed794ff98bc5acf3",
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "fallback": true,
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    }
+   ]
+  },
+  "layernorm": {
+   "chosen": {
+    "state": "af226465786b9042",
+    "path": "generate",
+    "how": "rowwise(unroll=4)",
+    "bit_identical": false,
+    "speedup": 1.4901,
+    "ci95": [
+     1.4846,
+     1.4937
+    ],
+    "ms": 0.31698,
+    "amdclang_ms": 0.47276
+   },
+   "fallback": false,
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_2: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_22: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_42: the back edge is not `s_cbranch_scc0` on a counter compare"
+    },
+    {
+     "path": "generate",
+     "how": "rowwise(unroll=1)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.2917,
+     "ci95": [
+      1.2875,
+      1.2974
+     ],
+     "ms": 0.36396,
+     "amdclang_ms": 0.47062
+    },
+    {
+     "path": "generate",
+     "how": "rowwise(unroll=2)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.4032,
+     "ci95": [
+      1.3959,
+      1.4062
+     ],
+     "ms": 0.33616,
+     "amdclang_ms": 0.47252
+    },
+    {
+     "path": "generate",
+     "how": "rowwise(unroll=4)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.4901,
+     "ci95": [
+      1.4846,
+      1.4937
+     ],
+     "ms": 0.31698,
+     "amdclang_ms": 0.47276
+    }
+   ]
+  },
+  "matvec": {
+   "chosen": {
+    "state": "f5c0b0db8bb40d84",
+    "path": "import+pass",
+    "how": "unroll_loads(factor=16)",
+    "bit_identical": true,
+    "speedup": 2.7384,
+    "ci95": [
+     2.7305,
+     2.7501
+    ],
+    "ms": 0.20458,
+    "amdclang_ms": 0.56066
+   },
+   "fallback": false,
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 2.3068,
+     "ci95": [
+      2.2419,
+      2.327
+     ],
+     "ms": 0.24652,
+     "amdclang_ms": 0.56804
+    },
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 2.6131,
+     "ci95": [
+      2.6021,
+      2.6228
+     ],
+     "ms": 0.2159,
+     "amdclang_ms": 0.56406
+    },
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=16)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 2.7384,
+     "ci95": [
+      2.7305,
+      2.7501
+     ],
+     "ms": 0.20458,
+     "amdclang_ms": 0.56066
+    }
+   ]
+  },
+  "rmsnorm": {
+   "chosen": {
+    "state": "0cdf45c1cb259032",
+    "path": "generate",
+    "how": "rowwise(unroll=4)",
+    "bit_identical": false,
+    "speedup": 1.4455,
+    "ci95": [
+     1.4402,
+     1.4522
+    ],
+    "ms": 0.26308,
+    "amdclang_ms": 0.38106
+   },
+   "fallback": false,
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_2: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_22: the back edge is not `s_cbranch_scc0` on a counter compare"
+    },
+    {
+     "path": "generate",
+     "how": "rowwise(unroll=1)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.2606,
+     "ci95": [
+      1.2572,
+      1.2628
+     ],
+     "ms": 0.30342,
+     "amdclang_ms": 0.38182
+    },
+    {
+     "path": "generate",
+     "how": "rowwise(unroll=2)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.3912,
+     "ci95": [
+      1.3832,
+      1.3976
+     ],
+     "ms": 0.27324,
+     "amdclang_ms": 0.37976
+    },
+    {
+     "path": "generate",
+     "how": "rowwise(unroll=4)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.4455,
+     "ci95": [
+      1.4402,
+      1.4522
+     ],
+     "ms": 0.26308,
+     "amdclang_ms": 0.38106
+    }
+   ]
+  },
+  "row_argmax": {
+   "chosen": {
+    "state": "41bf133bede54db9",
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "fallback": true,
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_2: the back edge is not `s_cbranch_scc0` on a counter compare"
+    }
+   ]
+  },
+  "row_sum": {
+   "chosen": {
+    "state": "1b72515985179202",
+    "path": "generate",
+    "how": "rowwise(unroll=4)",
+    "bit_identical": false,
+    "speedup": 1.2216,
+    "ci95": [
+     1.2141,
+     1.228
+    ],
+    "ms": 0.1525,
+    "amdclang_ms": 0.18664
+   },
+   "fallback": false,
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_2: the back edge is not `s_cbranch_scc0` on a counter compare"
+    },
+    {
+     "path": "generate",
+     "how": "rowwise(unroll=1)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.1966,
+     "ci95": [
+      1.1884,
+      1.2126
+     ],
+     "ms": 0.15516,
+     "amdclang_ms": 0.18604
+    },
+    {
+     "path": "generate",
+     "how": "rowwise(unroll=2)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.2,
+     "ci95": [
+      1.1872,
+      1.2098
+     ],
+     "ms": 0.1551,
+     "amdclang_ms": 0.18534
+    },
+    {
+     "path": "generate",
+     "how": "rowwise(unroll=4)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.2216,
+     "ci95": [
+      1.2141,
+      1.228
+     ],
+     "ms": 0.1525,
+     "amdclang_ms": 0.18664
+    }
+   ]
+  },
+  "softmax": {
+   "chosen": {
+    "state": "c91bb6271aec4ae2",
+    "path": "generate",
+    "how": "rowwise(unroll=4)",
+    "bit_identical": false,
+    "speedup": 1.3139,
+    "ci95": [
+     1.31,
+     1.3186
+    ],
+    "ms": 0.32876,
+    "amdclang_ms": 0.43198
+   },
+   "fallback": false,
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_3: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_7: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_28: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_48: the back edge is not `s_cbranch_"
+    },
+    {
+     "path": "generate",
+     "how": "rowwise(unroll=1)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.218,
+     "ci95": [
+      1.2117,
+      1.2217
+     ],
+     "ms": 0.35608,
+     "amdclang_ms": 0.4327
+    },
+    {
+     "path": "generate",
+     "how": "rowwise(unroll=2)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.2923,
+     "ci95": [
+      1.2876,
+      1.2972
+     ],
+     "ms": 0.3357,
+     "amdclang_ms": 0.43312
+    },
+    {
+     "path": "generate",
+     "how": "rowwise(unroll=4)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.3139,
+     "ci95": [
+      1.31,
+      1.3186
+     ],
+     "ms": 0.32876,
+     "amdclang_ms": 0.43198
+    }
+   ]
+  },
+  "temperature_softmax": {
+   "chosen": {
+    "state": "3a270568d7777a80",
+    "path": "generate",
+    "how": "rowwise(unroll=4)",
+    "bit_identical": false,
+    "speedup": null,
+    "ci95": null,
+    "ms": 0.3297
+   },
+   "fallback": false,
+   "candidates": [
+    {
+     "path": "generate",
+     "how": "rowwise(unroll=1)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "no_baseline",
+     "speedup": null,
+     "ci95": null,
+     "ms": 0.35594,
+     "amdclang_ms": null
+    },
+    {
+     "path": "generate",
+     "how": "rowwise(unroll=2)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "no_baseline",
+     "speedup": null,
+     "ci95": null,
+     "ms": 0.33512,
+     "amdclang_ms": null
+    },
+    {
+     "path": "generate",
+     "how": "rowwise(unroll=4)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "no_baseline",
+     "speedup": null,
+     "ci95": null,
+     "ms": 0.3297,
+     "amdclang_ms": null
+    }
+   ]
+  },
+  "transpose": {
+   "chosen": {
+    "state": "50482ffb4c74b157",
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "fallback": true,
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    }
+   ]
+  }
+ },
+ "protocol": "agc-timing-amd-1",
+ "toolchain": {
+  "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
+  "rocm": "7.14.60850"
+ },
+ "baseline": "amdclang -O3",
+ "recorded": "2026-11-19",
+ "summary": {
+  "kernels": 14,
+  "with_baseline": 13,
+  "wins": 10,
+  "fallbacks": 3,
+  "geomean": 2.006,
+  "geomean_without_mfma_gemm": 1.389
+ }
+}

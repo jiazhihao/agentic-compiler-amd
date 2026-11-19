@@ -135,16 +135,17 @@ with an analysis of the gap. Target: within 1.5× of hipBLASLt on at least one s
 ### M8 — Backend passes for imported code (#8)
 The pass list comes from the M5 sessions (see progress): amdclang waits for every load in a
 loop, so the measured wins were all "more loads in flight per wait".
-- [ ] Loop analysis: single-block counted loops, induction registers, contiguous and strided
+- [x] Loop analysis: single-block counted loops, induction registers, contiguous and strided
       load streams.
-- [ ] `unroll_loads`: unroll such a loop by N with wide (`dwordx4`) or offset loads issued
+- [x] `unroll_loads`: unroll such a loop by N with wide (`dwordx4`) or offset loads issued
       before one wait, the arithmetic kept in the original order (bit-identical); remainder
       loop kept. Parameters: factor, wide loads on/off.
 - [ ] `bulk_unmasked`: for a masked per-lane loop, a prefix loop for the iterations in which
-      every lane is active.
-- [ ] Waitcnt minimization (re-derive waits; relax to the first real use); argument loads
-      merged at entry. (Measured as parity on AXPY: low priority.)
-- [ ] Default policy: import → pass pipelines → static check → battery → paired bench →
+      every lane is active. (Not built: the rowwise generator already beats amdclang on every
+      kernel with such a loop; the hand edit is kept as `tests/mir/wins/row_sum_bulk4.s`.)
+- [x] Waitcnt re-derivation (`fix_waits`: waits at the first real use, as weak as legal).
+      Merging argument loads at entry was measured as parity on AXPY and not built.
+- [x] Default policy: import → pass pipelines → static check → battery → paired bench →
       keep the fastest verified state, else the amdclang build (reported as a fallback).
 
 Exit: the default policy is never slower than amdclang on the corpus (CI), and every
