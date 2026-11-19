@@ -186,3 +186,25 @@ def test_mcp_server_over_stdio(tmp_path):
     _, out2 = asyncio.run(_mcp(tmp_path, [("open", {"manifest_path": AXPY, "quick": True}), ("list_states", {}),
                                           ("static_check", {"ref": out[3]["id"]})]))
     assert out2[0]["states"] == 2 and not out2[2]["ok"] and out2[2]["errors"][0]["kind"] == "waitcnt"
+
+
+WINS = {"matvec": ("matvec_unroll16.s", 2.0), "gemm_naive": ("gemm_naive_unroll8.s", 1.7), "row_sum": ("row_sum_bulk4.s", 1.1)}
+
+
+@pytest.mark.parametrize("name", [pytest.param(n, marks=gpu) for n in WINS])
+def test_agent_session_wins_reproduce(name, tmp_path):
+    """The edits found in the M5 agent sessions (through MCP): each is statically clean, passes the
+    full battery and is a paired win over amdclang."""
+    from agc.session import Session
+    body, at_least = WINS[name]
+    s = Session.open(KERNELS / f"{name}.json", tmp_path)
+    e = s.edit_ir("ref", (KERNELS.parent / "mir" / "wins" / body).read_text(), note="replay")
+    st = s.static_check(e["id"])
+    assert st["ok"], st["errors"]
+    c = s.check(e["id"])
+    assert c["ok"] and c["cases_run"] == c["cases_total"], c
+    b = s.bench(e["id"])
+    assert b["outcome"] == "win" and b["speedup_ci95"][0] > at_least, b
+    assert s.best()["id"] == e["id"]
+    recorded = json.loads((KERNELS.parent / "mir" / "wins" / body.replace(".s", ".trace.json")).read_text())
+    assert recorded[-1]["bench"]["outcome"] == "win" and recorded[-1]["check"]["ok"]

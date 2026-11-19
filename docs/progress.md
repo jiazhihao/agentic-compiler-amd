@@ -10,8 +10,8 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 | M1 Measure: runtime, battery, timing | #3 | PR #16 open |
 | M2 Corpus and amdclang baselines | #4 | PR #17 open |
 | M3 Own the assembly: ISA table and `mir` | #5 | PR #18 open |
-| M4 Static safety | #6 | PR open |
-| M5 The agent loop on assembly | #9 | open |
+| M4 Static safety | #6 | PR #19 open |
+| M5 The agent loop on assembly | #9 | PR open |
 | M6 Tensor programs in, binaries out | #10 | open |
 | M7 GEMM on MFMA | #11 | open |
 | M8 Backend passes for imported code | #8 | open |
@@ -19,6 +19,42 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 | Stretch: machine-model calibration, attention | #7, #12 | not scheduled |
 
 ## Log
+
+### 2026-11-19 — M5: the agent loop on assembly (#9)
+- `agc/store`: content-addressed immutable states, results attached per state, tags, branches
+  (fork / checkpoint / rollback), notes, trace export.
+- `agc/session`: `open` (amdclang build imported as `ref`), `state` (numbered listing),
+  `features`, `actions`, `edit` (addressed ops with `expect`), `edit_ir` (whole body), `apply`
+  (transform registry, empty until M8), `static_check`, `check`, `bench` (paired against `ref`),
+  `asm_diff`, `trace`, `best`, tags and branches. Refusals are structured (`kind`, `location`,
+  `values`, `suggestion`). A state that fails the static checks gets no GPU job; a state that
+  fails the battery is never timed.
+- `agc/mcp/server.py` (22 tools, including `isa` and `arch` lookups), `.mcp.json`,
+  `scripts/agc_mcp.py` (shell client), the `agc` skill, CLI `agc run`.
+- Agent sessions through MCP (Claude driving the tools), paired against amdclang -O3 at the
+  bench shapes, full battery:
+
+| Kernel | Edit | Battery | Speedup (95 % CI) | Outcome |
+|---|---|---|---|---|
+| `matvec` | dot-product loop unrolled x4: `dwordx4` vector + scalar loads, one wait | 77/77 | 2.287 (2.227 to 2.312) | win |
+| `matvec` | unrolled x8 | 77/77 | 2.536 (2.526 to 2.544) | win |
+| `matvec` | unrolled x16 (`s_load_dwordx16`) | 77/77 | 2.697 (2.690 to 2.709) | win |
+| `gemm_naive` | k loop unrolled x4: A row as `dwordx4`, 4 strided B loads per wait | 105/105 | 2.122 (2.119 to 2.129) | win |
+| `gemm_naive` | unrolled x8 | 105/105 | 2.181 (2.177 to 2.184) | win |
+| `row_sum` | bulk loop for the all-lanes-active iterations, 4 loads per wait via load offsets | 77/77 | 1.278 (1.263 to 1.290) | win |
+| `axpy` | all arguments in one `s_load_dwordx8`, one wait fewer | 49/49 | 0.9995 (0.993 to 1.004) | parity |
+| `matvec` | first x4 attempt with `v[5:8]` | not run | refused by `static_check` (assembler: tuple must start on an even register) | rejected |
+
+  Every win keeps the floating-point operations in the original order, so results are
+  bit-identical to amdclang's. Bodies and traces: `tests/mir/wins/`; a GPU test replays them.
+- What the loop showed: amdclang issues one load per loop iteration and waits for it
+  (`s_waitcnt vmcnt(0)` in every iteration), so these loops run at memory latency, not
+  bandwidth. More loads in flight per wait is the whole win; reordering or removing scalar
+  loads on straight-line code is parity. This fixes the M8 pass list (roadmap updated).
+- Verifier gap found by the second judge (`llvm-mc`): register tuples must start at an even
+  VGPR/AGPR and at a multiple of min(size, 4) for SGPRs. Now in `gfx950.yaml` and the verifier.
+- Open: `apply` has no transforms yet; sessions are per manifest and toolchain identity; the
+  MCP server holds one session at a time.
 
 ### 2026-11-19 — M4: static safety (#6)
 - `agc/mir/analysis.py`: instruction classification and def/use from the ISA table (explicit

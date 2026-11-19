@@ -233,9 +233,14 @@ class Session:
         else:
             body = "\n".join(_NUMBERED.sub("\t", l) for l in text.splitlines())
             name = self._kernel(self.module(pid)).name
-            first = next((l.strip() for l in body.splitlines() if l.strip()), "")
-            if first == f"{name}:":
-                body = body.replace(first, "", 1)
+            lines = body.splitlines()
+            for n, l in enumerate(lines):                 # the entry label may open the body (after comments)
+                code = l.split(";")[0].strip()
+                if code:
+                    if code == f"{name}:":
+                        lines[n] = ""
+                    break
+            body = "\n".join(lines)
             try:
                 blocks = asm.parse_body(body, name)
             except asm.AsmError as e:

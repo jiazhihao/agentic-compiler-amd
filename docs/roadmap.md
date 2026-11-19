@@ -94,11 +94,11 @@ with the misses listed. (A clobbered live register is a semantic change, not a s
 property: it is the battery's job and was removed from this list.)
 
 ### M5 — The agent loop on assembly (#9)
-- [ ] Content-addressed store of immutable states; trace of actions.
-- [ ] Session actions: `import`, `edit_ir`, `static_check`, `check`, `bench` (paired
+- [x] Content-addressed store of immutable states; trace of actions.
+- [x] Session actions: `import`, `edit_ir`, `static_check`, `check`, `bench` (paired
       against the amdclang build), `asm_diff`, `state`, `branch`; rejections as JSON.
-- [ ] MCP server and the `agc` skill; CLI `agc run`.
-- [ ] A GPU job is refused for a state that has not passed `static_check`.
+- [x] MCP server and the `agc` skill; CLI `agc run`.
+- [x] A GPU job is refused for a state that has not passed `static_check`.
 
 Exit: an agent session through MCP takes three corpus kernels from import to a paired
 result. The outcome (win, parity or loss, with the edit that caused it) is recorded
@@ -131,10 +131,17 @@ amdclang tiled HIP build by a CI-separated margin; time relative to hipBLASLt re
 with an analysis of the gap. Target: within 1.5× of hipBLASLt on at least one shape.
 
 ### M8 — Backend passes for imported code (#8)
-The pass list is fixed by the M5 observations; candidates:
-- [ ] Waitcnt minimization (re-derive waits; relax to the first real use).
-- [ ] Peepholes; kernarg preload.
-- [ ] Block-local scheduling (hoist loads, interleave independent chains).
+The pass list comes from the M5 sessions (see progress): amdclang waits for every load in a
+loop, so the measured wins were all "more loads in flight per wait".
+- [ ] Loop analysis: single-block counted loops, induction registers, contiguous and strided
+      load streams.
+- [ ] `unroll_loads`: unroll such a loop by N with wide (`dwordx4`) or offset loads issued
+      before one wait, the arithmetic kept in the original order (bit-identical); remainder
+      loop kept. Parameters: factor, wide loads on/off.
+- [ ] `bulk_unmasked`: for a masked per-lane loop, a prefix loop for the iterations in which
+      every lane is active.
+- [ ] Waitcnt minimization (re-derive waits; relax to the first real use); argument loads
+      merged at entry. (Measured as parity on AXPY: low priority.)
 - [ ] Default policy: import → pass pipelines → static check → battery → paired bench →
       keep the fastest verified state, else the amdclang build (reported as a fallback).
 

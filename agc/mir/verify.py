@@ -50,6 +50,11 @@ def _fit(op, spec, enc: Encoding, isa: Isa, arch: Arch, narrow_addr: bool = Fals
                 return f"register index out of range"
             if op.count != words:
                 return f"operand is {spec.size} bits ({words} register{'s' * (words > 1)}), got {op.count}"
+            if op.count > 1:
+                align = (arch.res("vgpr_tuple_align") if op.cls in ("v", "a")
+                         else min(op.count, arch.res("sgpr_tuple_align_max")))
+                if op.index % align:
+                    return f"a {op.count}-register {op.cls} tuple must start at a multiple of {align}, not {op.cls}{op.index}"
         elif spec.size >= 32 and op.width and op.width != words:
             return f"operand is {spec.size} bits, {op.cls} is {32 * op.width}"
         return None

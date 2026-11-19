@@ -22,6 +22,10 @@ resources:
   max_agprs:            {value: 256, source: isa-doc}
   vgpr_granule:         {value: 8, source: llvm}
   accum_offset_granule: {value: 4, source: isa-doc}
+  # register tuples: v[n:m] and a[n:m] start at an even register; s[n:m] at a multiple of its
+  # size, up to 4 (pairs even, x4 / x8 / x16 at a multiple of 4)
+  vgpr_tuple_align:     {value: 2, source: llvm}
+  sgpr_tuple_align_max: {value: 4, source: llvm}
   sgprs_per_simd:       {value: 800, source: llvm}
   max_sgprs:            {value: 102, source: llvm}     # addressable SGPRs per wave (excluding vcc etc.)
   sgpr_granule:         {value: 8, source: llvm}
