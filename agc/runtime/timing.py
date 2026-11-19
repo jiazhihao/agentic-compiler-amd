@@ -11,7 +11,8 @@ agc-timing-amd-1:
   - clocks cannot be locked on an SR-IOV virtual function: the clock state is recorded, and
     comparisons between two code objects are *paired*: both are loaded in one process and
     launched alternately in a balanced random order; the statistic is the median of
-    log(reference / candidate) with a bootstrap CI.
+    log(reference / candidate) with a bootstrap CI, and the outcome is `win` or `loss` only when
+    the whole CI lies beyond `noise_floor` (1 %, the band of the A/A controls).
 """
 from __future__ import annotations
 
@@ -31,6 +32,7 @@ class TimingProtocol:
     target_rel_ci: float = 0.02
     cache: str = "flush"             # "flush" | "warm"
     pairs: int = 60                  # paired comparison: launches of each code object
+    noise_floor: float = 0.01        # a paired result is a win or a loss only beyond 1 +/- this (the A/A band)
     case_distribution: str = "normal"
     case_seed: int = 0
 
@@ -86,12 +88,14 @@ def paired_orders(pairs: int, seed: int = 0) -> list[bool]:
     return [bool(x) for x in first]
 
 
-def paired_summary(ref_ms: list[float], cand_ms: list[float]) -> dict:
-    """Speedup of the candidate over the reference from interleaved samples."""
+def paired_summary(ref_ms: list[float], cand_ms: list[float], noise_floor: float = 0.0) -> dict:
+    """Speedup of the candidate over the reference from interleaved samples. `win` / `loss` need
+    the whole 95 % CI beyond the noise floor: the within-run CI does not see run-to-run effects
+    (placement, clock level), which the A/A controls put at up to about 1 %."""
     r, c = np.asarray(ref_ms, np.float64), np.asarray(cand_ms, np.float64)
     logs = np.log(r / c)
     lo, hi = bootstrap_median_ci(logs, reps=1000)
     speedup, interval = float(np.exp(np.median(logs))), [float(np.exp(lo)), float(np.exp(hi))]
-    outcome = "win" if interval[0] > 1.0 else "loss" if interval[1] < 1.0 else "parity"
+    outcome = "win" if interval[0] > 1.0 + noise_floor else "loss" if interval[1] < 1.0 / (1.0 + noise_floor) else "parity"
     return {"speedup": speedup, "speedup_ci95": interval, "outcome": outcome, "pairs": int(r.size),
             "reference": summarize(ref_ms), "candidate": summarize(cand_ms)}

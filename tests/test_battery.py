@@ -94,6 +94,11 @@ def test_timing_statistics():
     win = paired_summary(ref, ref / 1.2)
     assert win["outcome"] == "win" and abs(win["speedup"] - 1.2) < 1e-6
     assert paired_summary(ref, ref * 1.2)["outcome"] == "loss"
+    # a separated but tiny effect is parity under the noise floor
+    assert paired_summary(ref, ref / 1.005)["outcome"] == "win"
+    assert paired_summary(ref, ref / 1.005, noise_floor=0.01)["outcome"] == "parity"
+    assert paired_summary(ref, ref / 1.05, noise_floor=0.01)["outcome"] == "win"
+    assert paired_summary(ref, ref * 1.05, noise_floor=0.01)["outcome"] == "loss"
     with pytest.raises(ValueError):
         TimingProtocol.from_dict({"cache": "cold"})
     with pytest.raises(ValueError):

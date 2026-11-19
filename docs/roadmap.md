@@ -71,12 +71,12 @@ object twice) gives a ratio whose CI contains 1.0 and is within ±2 %.
 Exit: every corpus kernel passes the battery and has a baseline; `make test` covers it.
 
 ### M3 — Own the assembly: ISA table and `mir` (#5)
-- [ ] `scripts/gen_isa.py`: CDNA4 XML → `agc/isa/cdna4.json.gz`; query API.
-- [ ] `agc/mir`: IR, parser and printer for the amdclang dialect, kernel descriptor and
+- [x] `scripts/gen_isa.py`: CDNA4 XML → `agc/isa/cdna4.json.gz`; query API.
+- [x] `agc/mir`: IR, parser and printer for the amdclang dialect, kernel descriptor and
       metadata as data, emit (`.s` → `llvm-mc` → `ld.lld` → `.hsaco`).
-- [ ] Import of amdclang `-S` output; re-emit is byte-identical in `.text` for the corpus.
-- [ ] Verifier: every instruction and operand checked against the ISA table.
-- [ ] One kernel written by hand in `mir` (no amdclang) runs and passes the battery.
+- [x] Import of amdclang `-S` output; re-emit is byte-identical in `.text` for the corpus.
+- [x] Verifier: every instruction and operand checked against the ISA table.
+- [x] One kernel written by hand in `mir` (no amdclang) runs and passes the battery.
 
 Exit: the whole corpus imports, verifies, re-emits identically and passes the battery;
 the hand-written kernel passes.

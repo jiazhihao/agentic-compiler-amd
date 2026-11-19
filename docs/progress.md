@@ -8,8 +8,8 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 |---|---|---|
 | M0 Bootstrap | #2 | PR #14 open |
 | M1 Measure: runtime, battery, timing | #3 | PR #16 open |
-| M2 Corpus and amdclang baselines | #4 | PR open |
-| M3 Own the assembly: ISA table and `mir` | #5 | open |
+| M2 Corpus and amdclang baselines | #4 | PR #17 open |
+| M3 Own the assembly: ISA table and `mir` | #5 | PR open |
 | M4 Static safety | #6 | open |
 | M5 The agent loop on assembly | #9 | open |
 | M6 Tensor programs in, binaries out | #10 | open |
@@ -19,6 +19,33 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 | Stretch: machine-model calibration, attention | #7, #12 | not scheduled |
 
 ## Log
+
+### 2026-11-19 — M3: ISA table and `mir` (#5)
+- `scripts/gen_isa.py` compiles AMD's `amdgpu_isa_cdna4.xml` into `agc/isa/cdna4.json.gz`
+  (1240 instructions, 33 encodings with bit layouts, 35 operand types; 69 KB, deterministic).
+  `agc.isa`: mnemonic resolution with LLVM's `_e32/_e64/_dpp/_sdwa` forms, operand specs
+  (explicit and implicit, in/out), operand-type classes, and a decoder driven only by the table.
+- `agc/mir`: IR (registers, immediates kept as written, labels, counters, modifiers, blocks with
+  alignment), parser/printer for the amdclang dialect, kernel descriptor and metadata as data,
+  `abi.make_kernel` (descriptor, metadata and argument layout derived from code + argument
+  list), `emit.build` (`llvm-mc` + `ld.lld`), verifier against the ISA table.
+- All 12 corpus kernels import, verify with zero findings and re-emit with a byte-identical
+  `.text`, an identical kernel descriptor (except the code offset) and identical metadata.
+  Register counts and `accum_offset` recomputed from the instruction stream equal amdclang's.
+- Cross-check independent of LLVM: the emitted `.text` decoded from the specification gives
+  the module's instruction sequence for every kernel (alignment `s_nop`s allowed).
+- Verifier and `llvm-mc` agree on 38 legal and 22 illegal instructions (wrong class, wrong
+  width, literal where none is allowed, two literals, offsets out of range, bad counters).
+- A kernel written by hand in `mir` (`tests/mir/axpy_hand.s`, no HIP, no hidden arguments)
+  passes the battery 49/49 and is at parity with amdclang: 1.009x, CI [1.002, 1.013].
+- Protocol change: a paired result is `win` / `loss` only when the whole CI lies beyond a 1 %
+  noise floor. The hand-written AXPY would otherwise have been reported as a 0.9 % win, which
+  is inside the A/A band (0.992 to 1.009) measured in M1.
+- Learned: on gfx950 the bf16 MFMA sources are 4 registers (`v[0:3]`), as the XML says; with a
+  scalar base register the FLAT address operand is a 32-bit offset; amdclang pads after the
+  last kernel with `0xBF800000` and aligns loop headers with `.p2align 5, , 4`.
+- Open: MUBUF/MTBUF syntax is not modelled (rejected); modules with non-kernel functions are
+  rejected at import.
 
 ### 2026-11-19 — M2: corpus and amdclang baselines (#4)
 - 12 HIP kernels with manifests and NumPy / einsum references; every one passes the full

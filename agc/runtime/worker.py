@@ -261,7 +261,7 @@ def job_paired(job) -> dict:
         rep = _verify(m, case, bound, expected, scale)
         if not rep["ok"]:
             return {**out, "ok": False, "failed": which, "verification": rep}
-    return {**out, "ok": True, **paired_summary(samples["reference"], samples["candidate"])}
+    return {**out, "ok": True, **paired_summary(samples["reference"], samples["candidate"], proto.noise_floor)}
 
 
 JOBS = {"info": job_info, "check": job_check, "bench": job_bench, "paired": job_paired}
