@@ -52,13 +52,20 @@ def crosscheck(m: Module, hsaco: bytes) -> list[str]:
         if sum(d[3] for d in decoded) != f["size"]:
             diffs.append(f"{k.name}: undecodable word at offset {sum(d[3] for d in decoded)}")
             continue
-        names = [d[1] for d in decoded]
+        names, offsets = [d[1] for d in decoded], [d[0] for d in decoded]
         pos = 0
         for b in k.blocks:
-            if b.align:
-                while pos < len(names) and names[pos] == "s_nop" and not (b.insts and b.insts[0].mnemonic == "s_nop"
-                                                                          and names[pos + 1:pos + 2] != ["s_nop"]):
-                    pos += 1
+            if b.align and pos < len(names):
+                # padding is what the alignment directive demands at this offset, not "any s_nop here":
+                # `.p2align p[, , max]` pads to a multiple of 2^p unless that takes more than max bytes
+                parts = [x.strip() for x in b.align.split(",")]
+                size = 1 << int(parts[0], 0)
+                limit = int(parts[2], 0) if len(parts) > 2 and parts[2] else size
+                pad = (-(f["value"] + offsets[pos])) % size
+                if pad <= limit:
+                    while pad > 0 and pos < len(names) and names[pos] == "s_nop":
+                        pad -= decoded[pos][3]
+                        pos += 1
             for inst in b.insts:
                 want = isa.resolve(inst.mnemonic)
                 want = want[0].name if want else inst.mnemonic

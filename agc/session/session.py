@@ -74,7 +74,7 @@ class Session:
         except (ManifestError, OSError) as e:
             raise SessionError("parameter", f"cannot load the manifest: {e}") from None
         base = Path(root) if root else Path(os.environ.get("AGC_ROOT", ".agc"))
-        ident = hashlib.sha256(json.dumps([m.to_dict(), toolchain.identity()], sort_keys=True, default=str).encode()).hexdigest()[:10]
+        ident = cls.identity(m)
         sroot = base / "sessions" / f"{m.name}-{ident}"
         s = cls(m, Store(sroot), base, quick)
         if m.source is None:
@@ -90,6 +90,22 @@ class Session:
         s.ref_id = st.id
         s.store.tag("ref", st.id)
         return s
+
+    @staticmethod
+    def identity(m: Manifest) -> str:
+        """Everything cached results depend on: the manifest, the toolchain, the contents of the HIP
+        source and its includes (the baseline and, without a reference program, the oracle), and the
+        contents of file-backed reference and tensor programs. A change of any of them is a new session."""
+        parts: list = [m.to_dict(), toolchain.identity(), PROTOCOL_VERSION]
+        if m.source is not None:
+            parts.append(toolchain.hip_key(m.source, [*toolchain.HIP_FLAGS, *m.hip_flags], m.arch))
+        for spec in (m.reference, m.program):
+            if spec is not None and spec.file:
+                try:
+                    parts.append(hashlib.sha256((m.path.parent / spec.file).read_bytes()).hexdigest())
+                except OSError as e:
+                    raise SessionError("parameter", f"cannot read {spec.file}: {e}") from None
+        return hashlib.sha256(json.dumps(parts, sort_keys=True, default=str).encode()).hexdigest()[:10]
 
     @property
     def id(self) -> str:
@@ -301,7 +317,9 @@ class Session:
                 if (o, i) in seen:
                     raise SessionError("parameter", f"two ops change {label}[{i}]")
                 seen.add((o, i))
-        for o, i, kind, label, new in sorted(parsed, key=lambda t: (t[0], t[1], t[2] == "insert"), reverse=True):
+        # from the last address backwards; at one address the replacement or deletion of the original
+        # instruction comes first, then the insertion in front of it
+        for o, i, kind, label, new in sorted(parsed, key=lambda t: (t[0], t[1], t[2] != "insert"), reverse=True):
             insts = index[label].insts
             if kind == "insert":
                 insts[i:i] = new

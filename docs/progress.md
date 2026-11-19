@@ -6,19 +6,47 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 
 | Milestone | Issue | State |
 |---|---|---|
-| M0 Bootstrap | #2 | PR #14 open |
-| M1 Measure: runtime, battery, timing | #3 | PR #16 open |
-| M2 Corpus and amdclang baselines | #4 | PR #17 open |
-| M3 Own the assembly: ISA table and `mir` | #5 | PR #18 open |
-| M4 Static safety | #6 | PR #19 open |
+| M0 Bootstrap | #2 | merged (#14) |
+| M1 Measure: runtime, battery, timing | #3 | merged (#16) |
+| M2 Corpus and amdclang baselines | #4 | merged (#17) |
+| M3 Own the assembly: ISA table and `mir` | #5 | merged (#18) |
+| M4 Static safety | #6 | merged (#19) |
 | M5 The agent loop on assembly | #9 | PR #21 open |
 | M6 Tensor programs in, binaries out | #10 | PR #22 open |
 | M7 GEMM on MFMA | #11 | PR #24 open |
 | M8 Backend passes for imported code | #8 | PR #25 open |
-| M9 Campaigns and report | #13 | PR open |
+| M9 Campaigns and report | #13 | PR #26 open |
+| Codex review fixes | #27 | PR open |
 | Stretch: machine-model calibration, attention, LDS GEMM | #7, #12, #23 | not scheduled |
 
 ## Log
+
+### 2026-11-19 — Codex review findings (#27)
+- All 20 findings on #14 to #25 addressed (2 were already fixed by later PRs); one regression
+  test per finding in `tests/test_review_fixes.py`.
+- Timing (P1): the launch is prepared before the start event, so the timed interval holds only
+  the submission call and the kernel. Protocol is now `agc-timing-amd-2`; every record was
+  re-measured (`baseline`, `generated`, `gemm`, `policy`, `wins`, `report` scripts). Absolute
+  times of short kernels dropped (AXPY 0.183 to 0.164 ms) and ratios moved away from parity, as
+  the review predicted: policy geomean without the MFMA GEMM 1.39 to 1.42; best of policy and
+  agent 1.43 to 1.46; MFMA GEMM 2.5x to 2.7x hipBLASLt's time (was 2.8x to 3.2x). The numbers in
+  the entries below are under `agc-timing-amd-1`; `docs/report.md` has the current ones.
+- Session identity (P1): covers the contents of the HIP source and its includes, file-backed
+  reference and tensor programs, and the protocol; a change opens a new session, so no cached
+  verdict or timing survives a change of oracle or baseline.
+- HIP builds: outputs built in a private directory and published atomically; `-cuid` fixed, so
+  two builds of one source are now byte-identical (clang hashed the output path into a symbol).
+- Baselines carry toolchain and protocol per kernel.
+- Cross-check: alignment padding is computed from offsets, not guessed from `s_nop`s; an entry
+  label that differs from the kernel name is printed.
+- Waitcnt: `s_memtime` / `s_memrealtime` are pending scalar results; a DS write while a
+  direct-to-LDS load is in flight is a finding.
+- Session `edit`: at one address the replacement or deletion applies before the insertion.
+- Generators: an in-place rowwise tensor advances its address once; `cast_f32(cast_bf16(x))`
+  restores the float; a tair reference returns the manifest's output names; GEMM refuses a K
+  that depends on a dynamic symbol.
+- `unroll_loads`: elements of a loaded tuple are renamed; loops with two loads into one
+  register, or arithmetic that reads the counter or a pointer, are refused.
 
 ### 2026-11-19 — M9: campaigns and report (#13)
 - Agent session on `row_argmax` (the policy's fallback) through MCP: a bulk loop for the

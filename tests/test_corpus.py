@@ -3,6 +3,8 @@ import json
 
 import pytest
 
+from agc.runtime.timing import PROTOCOL_VERSION
+
 from agc import corpus
 from agc.runtime import harness, toolchain
 from conftest import gpu
@@ -22,7 +24,7 @@ def test_manifest_and_baseline(name):
     assert m.bench_shapes and m.dynamic
     base = json.loads(corpus.BASELINES.read_text())
     k = base["kernels"][name]
-    assert base["protocol"] == "agc-timing-amd-1" and k["symbols"] == m.timing_symbols()
+    assert k["protocol"] == PROTOCOL_VERSION and k["symbols"] == m.timing_symbols()     # provenance is per kernel
     assert k["median_ms"] > 0.1 and k["converged"]            # well above launch overhead
     assert 0.98 <= k["aa_speedup"] <= 1.02                    # the A/A control of the recording run
     assert 1 <= k["waves_per_simd"] <= 8 and k["resources"]["vgprs"] > 0
@@ -34,7 +36,7 @@ def test_battery(name, agc_root):
     r = harness.check(m, harness.reference_build(m).hsaco)
     assert r["ok"] and r["cases_run"] == r["cases_total"], r.get("failures") or r.get("error")
     base = json.loads(corpus.BASELINES.read_text())
-    if base["toolchain"] == toolchain.identity():          # same compiler: same registers as recorded
+    if base["kernels"][name]["toolchain"] == toolchain.identity():     # same compiler as this kernel's record
         assert r["resources"] == base["kernels"][name]["resources"]
 
 

@@ -277,7 +277,7 @@ S_CODE_END = 0xBF800000        # the padding word amdclang emits after the last 
 def print_kernel_body(k: Kernel) -> str:
     out = []
     for j, b in enumerate(k.blocks):
-        if j:
+        if j or b.label != k.name:                      # the first block's own label, if any, is an alias of the entry
             if b.align:
                 out.append(f"\t.p2align\t{b.align}")
             out.append(f"{b.label}:")

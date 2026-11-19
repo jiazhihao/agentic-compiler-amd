@@ -51,7 +51,7 @@ what can be imported), a drop-in `hipcc` replacement, RDNA/wave32, other CDNA ge
 | D4 | **Tensor programs enter at `tair` and are generated straight into virtual `mir`** by schedule templates (elementwise, rowwise, reduction, GEMM/MFMA, attention), then register-allocated by agc. | High-level inputs have no HIP to import. Generators produce MFMA/LDS code that the lane-level path cannot reach (e.g. a naive HIP GEMM can be replaced by an MFMA kernel because the spec, not the source, is the contract). |
 | D5 | **A machine model as data**, `agc/arch/gfx950.yaml`, every field tagged `isa-doc`, `rocminfo` or `measured`; measured fields come from on-device microbenchmarks. | Without a vendor scheduler, agc's scheduler needs latencies, issue rules and hazard windows. Python code holds no architecture constants. |
 | D6 | **Independent static checkers** (verifier, hazard checker, waitcnt checker, encode round-trip) run on every physical `mir` before any GPU job, separately from the passes that produced it. They are validated on every `amdclang` output in the corpus (zero violations) and by seeded mutations. | A missing wait or `s_nop` produces silent wrong results, not crashes. A candidate must not be able to skip the checker. |
-| D7 | **Compiler-owned verification and timing.** The candidate cannot choose its oracle, inputs, tolerance or measurement. Protocol `agc-timing-amd-1`. | Unchanged from the reference. Speedups are paired against amdclang under the same protocol. |
+| D7 | **Compiler-owned verification and timing.** The candidate cannot choose its oracle, inputs, tolerance or measurement. Protocol `agc-timing-amd-2` (versions and what changed: `agc/runtime/timing.py`). | Unchanged from the reference. Speedups are paired against amdclang under the same protocol. |
 | D8 | **One machine-wide GPU executor** (subprocess workers, a lock, interactive before batch), using the HIP module API through `libamdhip64` via ctypes. | Isolation, reproducibility and accounting; no HIP headers needed at runtime. |
 | D9 | **`kir` (lane-level IR) and the Clang-AST frontend are deferred**, not dropped. | `amdclang` + import covers HIP inputs at parity; generators cover high-level inputs. A lane-level IR returns only if a measured case needs a lane-level transformation that neither path provides. |
 | D10 | **Agent and scripted policy share one action menu.** | The default policy is the regression baseline; the agent explores. |
@@ -143,7 +143,7 @@ offending location and values, and a suggestion.
 | 1 Legality | `mir` verifier, hazard checker, waitcnt checker, encode round-trip |
 | 2 Interpreter (stretch, see roadmap) | A wave64 `mir` interpreter on reduced shapes; built only if a class of bug reaches the GPU that layers 1 and 3 miss |
 | 3 Battery | Several input distributions, hidden seeds, shape variants, output poisoning, error-model tolerances, the reference computed independently (NumPy or torch) |
-| 4 Timing (`agc-timing-amd-1`) | `hipEvent`s around repeated launches, L2 + MALL flush by a buffer larger than both, CI-converged medians, the amdclang reference timed the same way and interleaved (paired); clock state recorded (SR-IOV VFs cannot lock clocks) |
+| 4 Timing (`agc-timing-amd-2`) | `hipEvent`s around a single prepared launch, L2 + MALL flush by a buffer larger than both, CI-converged medians, the amdclang reference timed the same way and interleaved (paired); clock state recorded (SR-IOV VFs cannot lock clocks) |
 
 ## 6. Self-improvement
 

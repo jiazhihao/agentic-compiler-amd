@@ -1,5 +1,5 @@
 {
- "protocol": "agc-timing-amd-1",
+ "protocol": "agc-timing-amd-2",
  "toolchain": {
   "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
   "rocm": "7.14.60850"
@@ -17,108 +17,108 @@
       "tiles": 1,
       "unroll": 1
      },
-     "ms": 1.05418,
-     "tflops": 130.4,
-     "vs_amdclang": 113.5,
+     "ms": 1.02701,
+     "tflops": 133.8,
+     "vs_amdclang": 116.5,
      "vs_amdclang_ci95": [
-      113.0,
-      113.9
+      116.0,
+      117.0
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 9.524
+     "hipblaslt_ratio": 9.481
     },
     {
      "params": {
       "tiles": 1,
       "unroll": 2
      },
-     "ms": 0.96053,
-     "tflops": 143.1,
-     "vs_amdclang": 124.5,
+     "ms": 0.93717,
+     "tflops": 146.7,
+     "vs_amdclang": 127.7,
      "vs_amdclang_ci95": [
-      123.9,
-      124.9
+      127.5,
+      128.0
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 8.678
+     "hipblaslt_ratio": 8.652
     },
     {
      "params": {
       "tiles": 2,
       "unroll": 1
      },
-     "ms": 0.54689,
-     "tflops": 251.3,
-     "vs_amdclang": 218.9,
+     "ms": 0.52181,
+     "tflops": 263.4,
+     "vs_amdclang": 229.6,
      "vs_amdclang_ci95": [
-      218.1,
-      219.4
+      229.2,
+      230.0
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 4.941
+     "hipblaslt_ratio": 4.817
     },
     {
      "params": {
       "tiles": 2,
       "unroll": 2
      },
-     "ms": 0.53833,
-     "tflops": 255.3,
-     "vs_amdclang": 222.2,
+     "ms": 0.51757,
+     "tflops": 265.5,
+     "vs_amdclang": 231.5,
      "vs_amdclang_ci95": [
-      220.6,
-      223.5
+      230.1,
+      232.6
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 4.864
+     "hipblaslt_ratio": 4.778
     },
     {
      "params": {
       "tiles": 4,
       "unroll": 1
      },
-     "ms": 0.31032,
-     "tflops": 442.9,
-     "vs_amdclang": 385.5,
+     "ms": 0.29004,
+     "tflops": 473.9,
+     "vs_amdclang": 412.7,
      "vs_amdclang_ci95": [
-      383.9,
-      386.7
+      411.8,
+      414.2
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 2.804
+     "hipblaslt_ratio": 2.678
     },
     {
      "params": {
       "tiles": 4,
       "unroll": 2
      },
-     "ms": 0.30644,
-     "tflops": 448.5,
-     "vs_amdclang": 390.9,
+     "ms": 0.28678,
+     "tflops": 479.2,
+     "vs_amdclang": 417.8,
      "vs_amdclang_ci95": [
-      389.0,
-      391.8
+      417.1,
+      419.2
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 2.769
+     "hipblaslt_ratio": 2.648
     }
    ],
-   "hipblaslt_ms": 0.11068,
-   "amdclang_ms": 119.7205,
+   "hipblaslt_ms": 0.10832,
+   "amdclang_ms": 119.4835,
    "best": {
     "params": {
      "tiles": 4,
      "unroll": 2
     },
-    "ms": 0.30644,
-    "tflops": 448.5,
-    "vs_amdclang": 390.9,
+    "ms": 0.28678,
+    "tflops": 479.2,
+    "vs_amdclang": 417.8,
     "vs_amdclang_ci95": [
-     389.0,
-     391.8
+     417.1,
+     419.2
     ],
     "outcome": "win",
-    "hipblaslt_ratio": 2.769
+    "hipblaslt_ratio": 2.648
    }
   },
   "wide": {
@@ -131,108 +131,108 @@
       "tiles": 1,
       "unroll": 1
      },
-     "ms": 1.07848,
-     "tflops": 127.4,
-     "vs_amdclang": 111.0,
+     "ms": 1.04071,
+     "tflops": 132.1,
+     "vs_amdclang": 115.0,
      "vs_amdclang_ci95": [
-      110.6,
-      111.5
+      114.6,
+      115.3
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 9.836
+     "hipblaslt_ratio": 9.249
     },
     {
      "params": {
       "tiles": 1,
       "unroll": 2
      },
-     "ms": 0.96419,
-     "tflops": 142.5,
-     "vs_amdclang": 124.3,
+     "ms": 0.94011,
+     "tflops": 146.2,
+     "vs_amdclang": 127.3,
      "vs_amdclang_ci95": [
-      124.1,
-      124.6
+      127.1,
+      127.6
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 8.794
+     "hipblaslt_ratio": 8.355
     },
     {
      "params": {
       "tiles": 2,
       "unroll": 1
      },
-     "ms": 0.55251,
-     "tflops": 248.8,
-     "vs_amdclang": 216.9,
+     "ms": 0.53339,
+     "tflops": 257.7,
+     "vs_amdclang": 224.0,
      "vs_amdclang_ci95": [
-      215.5,
-      217.8
+      223.6,
+      224.5
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 5.039
+     "hipblaslt_ratio": 4.74
     },
     {
      "params": {
       "tiles": 2,
       "unroll": 2
      },
-     "ms": 0.54265,
-     "tflops": 253.3,
-     "vs_amdclang": 220.8,
+     "ms": 0.51703,
+     "tflops": 265.8,
+     "vs_amdclang": 231.7,
      "vs_amdclang_ci95": [
-      220.1,
-      221.3
+      231.2,
+      232.0
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 4.949
+     "hipblaslt_ratio": 4.595
     },
     {
      "params": {
       "tiles": 4,
       "unroll": 1
      },
-     "ms": 0.31525,
-     "tflops": 436.0,
-     "vs_amdclang": 379.6,
+     "ms": 0.29114,
+     "tflops": 472.1,
+     "vs_amdclang": 410.3,
      "vs_amdclang_ci95": [
-      375.7,
-      383.2
+      408.5,
+      412.2
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 2.875
+     "hipblaslt_ratio": 2.587
     },
     {
      "params": {
       "tiles": 4,
       "unroll": 2
      },
-     "ms": 0.31398,
-     "tflops": 437.7,
-     "vs_amdclang": 381.3,
+     "ms": 0.28916,
+     "tflops": 475.3,
+     "vs_amdclang": 414.1,
      "vs_amdclang_ci95": [
-      379.1,
-      385.7
+      413.1,
+      415.1
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 2.864
+     "hipblaslt_ratio": 2.57
     }
    ],
-   "hipblaslt_ms": 0.10964,
-   "amdclang_ms": 119.5828,
+   "hipblaslt_ms": 0.11252,
+   "amdclang_ms": 119.3736,
    "best": {
     "params": {
      "tiles": 4,
      "unroll": 2
     },
-    "ms": 0.31398,
-    "tflops": 437.7,
-    "vs_amdclang": 381.3,
+    "ms": 0.28916,
+    "tflops": 475.3,
+    "vs_amdclang": 414.1,
     "vs_amdclang_ci95": [
-     379.1,
-     385.7
+     413.1,
+     415.1
     ],
     "outcome": "win",
-    "hipblaslt_ratio": 2.864
+    "hipblaslt_ratio": 2.57
    }
   },
   "tall": {
@@ -245,108 +245,108 @@
       "tiles": 1,
       "unroll": 1
      },
-     "ms": 1.07934,
-     "tflops": 127.3,
-     "vs_amdclang": 110.7,
+     "ms": 1.05243,
+     "tflops": 130.6,
+     "vs_amdclang": 113.8,
      "vs_amdclang_ci95": [
-      110.6,
-      111.0
+      113.4,
+      113.9
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 10.11
+     "hipblaslt_ratio": 9.88
     },
     {
      "params": {
       "tiles": 1,
       "unroll": 2
      },
-     "ms": 0.96625,
-     "tflops": 142.2,
-     "vs_amdclang": 123.8,
+     "ms": 0.93837,
+     "tflops": 146.5,
+     "vs_amdclang": 127.5,
      "vs_amdclang_ci95": [
-      123.2,
-      124.4
+      127.3,
+      127.8
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 9.051
+     "hipblaslt_ratio": 8.809
     },
     {
      "params": {
       "tiles": 2,
       "unroll": 1
      },
-     "ms": 0.55237,
-     "tflops": 248.8,
-     "vs_amdclang": 216.6,
+     "ms": 0.52907,
+     "tflops": 259.8,
+     "vs_amdclang": 226.0,
      "vs_amdclang_ci95": [
-      215.6,
-      217.1
+      225.6,
+      226.2
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 5.174
+     "hipblaslt_ratio": 4.967
     },
     {
      "params": {
       "tiles": 2,
       "unroll": 2
      },
-     "ms": 0.54973,
-     "tflops": 250.0,
-     "vs_amdclang": 217.6,
+     "ms": 0.53819,
+     "tflops": 255.4,
+     "vs_amdclang": 221.7,
      "vs_amdclang_ci95": [
-      212.5,
-      220.4
+      219.5,
+      226.9
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 5.149
+     "hipblaslt_ratio": 5.052
     },
     {
      "params": {
       "tiles": 4,
       "unroll": 1
      },
-     "ms": 0.32384,
-     "tflops": 424.4,
-     "vs_amdclang": 369.1,
+     "ms": 0.30158,
+     "tflops": 455.7,
+     "vs_amdclang": 395.8,
      "vs_amdclang_ci95": [
-      366.6,
-      370.9
+      394.0,
+      397.3
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 3.033
+     "hipblaslt_ratio": 2.831
     },
     {
      "params": {
       "tiles": 4,
       "unroll": 2
      },
-     "ms": 0.31706,
-     "tflops": 433.5,
-     "vs_amdclang": 377.6,
+     "ms": 0.28962,
+     "tflops": 474.5,
+     "vs_amdclang": 412.4,
      "vs_amdclang_ci95": [
-      375.7,
-      380.2
+      411.1,
+      413.7
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 2.97
+     "hipblaslt_ratio": 2.719
     }
    ],
-   "hipblaslt_ms": 0.10676,
-   "amdclang_ms": 119.6501,
+   "hipblaslt_ms": 0.10652,
+   "amdclang_ms": 119.7702,
    "best": {
     "params": {
      "tiles": 4,
      "unroll": 2
     },
-    "ms": 0.31706,
-    "tflops": 433.5,
-    "vs_amdclang": 377.6,
+    "ms": 0.28962,
+    "tflops": 474.5,
+    "vs_amdclang": 412.4,
     "vs_amdclang_ci95": [
-     375.7,
-     380.2
+     411.1,
+     413.7
     ],
     "outcome": "win",
-    "hipblaslt_ratio": 2.97
+    "hipblaslt_ratio": 2.719
    }
   },
   "small": {
@@ -359,108 +359,108 @@
       "tiles": 1,
       "unroll": 1
      },
-     "ms": 0.15208,
-     "tflops": 113.0,
-     "vs_amdclang": 98.5,
+     "ms": 0.13306,
+     "tflops": 129.1,
+     "vs_amdclang": 112.3,
      "vs_amdclang_ci95": [
-      98.1,
-      98.9
+      112.1,
+      112.4
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 5.244
+     "hipblaslt_ratio": 4.544
     },
     {
      "params": {
       "tiles": 1,
       "unroll": 2
      },
-     "ms": 0.14538,
-     "tflops": 118.2,
-     "vs_amdclang": 102.9,
+     "ms": 0.12586,
+     "tflops": 136.5,
+     "vs_amdclang": 118.6,
      "vs_amdclang_ci95": [
-      102.3,
-      103.7
+      118.3,
+      118.9
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 5.013
+     "hipblaslt_ratio": 4.299
     },
     {
      "params": {
       "tiles": 2,
       "unroll": 1
      },
-     "ms": 0.0971,
-     "tflops": 176.9,
-     "vs_amdclang": 154.0,
+     "ms": 0.0788,
+     "tflops": 218.0,
+     "vs_amdclang": 189.8,
      "vs_amdclang_ci95": [
-      152.8,
-      155.3
+      189.2,
+      190.3
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 3.348
+     "hipblaslt_ratio": 2.691
     },
     {
      "params": {
       "tiles": 2,
       "unroll": 2
      },
-     "ms": 0.09284,
-     "tflops": 185.0,
-     "vs_amdclang": 161.3,
+     "ms": 0.07368,
+     "tflops": 233.2,
+     "vs_amdclang": 203.0,
      "vs_amdclang_ci95": [
-      159.7,
-      162.4
+      202.6,
+      203.4
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 3.201
+     "hipblaslt_ratio": 2.516
     },
     {
      "params": {
       "tiles": 4,
       "unroll": 1
      },
-     "ms": 0.11144,
-     "tflops": 154.2,
-     "vs_amdclang": 134.5,
+     "ms": 0.09236,
+     "tflops": 186.0,
+     "vs_amdclang": 161.9,
      "vs_amdclang_ci95": [
-      133.1,
-      135.2
+      161.4,
+      162.2
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 3.843
+     "hipblaslt_ratio": 3.154
     },
     {
      "params": {
       "tiles": 4,
       "unroll": 2
      },
-     "ms": 0.0963,
-     "tflops": 178.4,
-     "vs_amdclang": 155.6,
+     "ms": 0.07784,
+     "tflops": 220.7,
+     "vs_amdclang": 192.3,
      "vs_amdclang_ci95": [
-      154.7,
-      156.3
+      192.1,
+      193.0
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 3.321
+     "hipblaslt_ratio": 2.659
     }
    ],
-   "hipblaslt_ms": 0.029,
-   "amdclang_ms": 14.99,
+   "hipblaslt_ms": 0.02928,
+   "amdclang_ms": 14.995,
    "best": {
     "params": {
      "tiles": 2,
      "unroll": 2
     },
-    "ms": 0.09284,
-    "tflops": 185.0,
-    "vs_amdclang": 161.3,
+    "ms": 0.07368,
+    "tflops": 233.2,
+    "vs_amdclang": 203.0,
     "vs_amdclang_ci95": [
-     159.7,
-     162.4
+     202.6,
+     203.4
     ],
     "outcome": "win",
-    "hipblaslt_ratio": 3.201
+    "hipblaslt_ratio": 2.516
    }
   }
  },

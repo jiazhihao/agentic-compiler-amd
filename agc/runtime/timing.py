@@ -1,5 +1,10 @@
 """The timing protocol. The version string is stored with every measurement.
 
+agc-timing-amd-2 (the Codex review of #16): as agc-timing-amd-1, and the launch is prepared (arguments
+  packed, ctypes conversion done) before the start event, so the interval between the two events
+  holds only the submission call and the kernel. Measurements of the two versions are not comparable
+  for short kernels.
+
 agc-timing-amd-1:
   - one stream owned by the harness; `hipEvent`s around a single launch
   - before every launch: outputs re-poisoned and inout tensors restored (device-side copies),
@@ -20,7 +25,7 @@ from dataclasses import asdict, dataclass
 
 import numpy as np
 
-PROTOCOL_VERSION = "agc-timing-amd-1"
+PROTOCOL_VERSION = "agc-timing-amd-2"
 
 
 @dataclass

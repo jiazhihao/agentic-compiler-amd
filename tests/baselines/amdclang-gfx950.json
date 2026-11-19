@@ -1,21 +1,15 @@
 {
- "protocol": "agc-timing-amd-1",
- "toolchain": {
-  "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
-  "rocm": "7.14.60850"
- },
  "compiler": "amdclang -O3",
- "recorded": "2026-11-19",
  "kernels": {
   "axpy": {
    "symbols": {
     "N": 67108864
    },
    "battery_cases": 49,
-   "median_ms": 0.18274,
+   "median_ms": 0.16426,
    "ci95_median_ms": [
-    0.18208,
-    0.18398
+    0.16342,
+    0.1652
    ],
    "n": 30,
    "converged": true,
@@ -33,25 +27,31 @@
    "instructions": 22,
    "aa_speedup": 0.9988,
    "aa_ci95": [
-    0.9906,
-    1.0036
+    0.9912,
+    1.0054
    ],
-   "device": 0,
+   "device": 1,
    "clock_levels": [
     "0: 500Mhz ",
-    "1: 1846Mhz *",
+    "1: 1870Mhz *",
     "2: 2400Mhz "
-   ]
+   ],
+   "protocol": "agc-timing-amd-2",
+   "toolchain": {
+    "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
+    "rocm": "7.14.60850"
+   },
+   "recorded": "2026-11-19"
   },
   "cast_bf16": {
    "symbols": {
     "N": 67108864
    },
    "battery_cases": 49,
-   "median_ms": 0.15894,
+   "median_ms": 0.15506,
    "ci95_median_ms": [
-    0.15852,
-    0.15962
+    0.15462,
+    0.15578
    ],
    "n": 30,
    "converged": true,
@@ -67,27 +67,33 @@
    "waves_per_simd": 8,
    "occupancy_limiter": "hardware",
    "instructions": 26,
-   "aa_speedup": 1.0025,
+   "aa_speedup": 0.9996,
    "aa_ci95": [
-    0.999,
-    1.0093
+    0.9953,
+    1.0064
    ],
-   "device": 0,
+   "device": 1,
    "clock_levels": [
     "0: 500Mhz ",
-    "1: 1843Mhz *",
+    "1: 1870Mhz *",
     "2: 2400Mhz "
-   ]
+   ],
+   "protocol": "agc-timing-amd-2",
+   "toolchain": {
+    "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
+    "rocm": "7.14.60850"
+   },
+   "recorded": "2026-11-19"
   },
   "gelu": {
    "symbols": {
     "N": 67108864
    },
    "battery_cases": 49,
-   "median_ms": 0.1913,
+   "median_ms": 0.18618,
    "ci95_median_ms": [
-    0.18998,
-    0.19212
+    0.1854,
+    0.18656
    ],
    "n": 30,
    "converged": true,
@@ -103,17 +109,23 @@
    "waves_per_simd": 8,
    "occupancy_limiter": "hardware",
    "instructions": 70,
-   "aa_speedup": 0.9998,
+   "aa_speedup": 0.9988,
    "aa_ci95": [
-    0.9964,
-    1.0026
+    0.9957,
+    1.0011
    ],
-   "device": 0,
+   "device": 1,
    "clock_levels": [
     "0: 500Mhz ",
-    "1: 1836Mhz *",
+    "1: 1868Mhz *",
     "2: 2400Mhz "
-   ]
+   ],
+   "protocol": "agc-timing-amd-2",
+   "toolchain": {
+    "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
+    "rocm": "7.14.60850"
+   },
+   "recorded": "2026-11-19"
   },
   "gemm_bf16": {
    "symbols": {
@@ -122,10 +134,10 @@
     "K": 2048
    },
    "battery_cases": 77,
-   "median_ms": 14.97188,
+   "median_ms": 14.94015,
    "ci95_median_ms": [
-    14.96805,
-    14.9757
+    14.93444,
+    14.95709
    ],
    "n": 30,
    "converged": true,
@@ -141,17 +153,23 @@
    "waves_per_simd": 8,
    "occupancy_limiter": "hardware",
    "instructions": 54,
-   "aa_speedup": 1.0002,
+   "aa_speedup": 1.0,
    "aa_ci95": [
-    1.0,
-    1.0003
+    0.9995,
+    1.0004
    ],
-   "device": 3,
+   "device": 1,
    "clock_levels": [
     "0: 500Mhz ",
-    "1: 1905Mhz *",
+    "1: 1832Mhz *",
     "2: 2400Mhz "
-   ]
+   ],
+   "protocol": "agc-timing-amd-2",
+   "toolchain": {
+    "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
+    "rocm": "7.14.60850"
+   },
+   "recorded": "2026-11-19"
   },
   "gemm_naive": {
    "symbols": {
@@ -160,10 +178,10 @@
     "K": 2048
    },
    "battery_cases": 105,
-   "median_ms": 4.04616,
+   "median_ms": 4.05021,
    "ci95_median_ms": [
-    4.04546,
-    4.05067
+    4.04746,
+    4.05334
    ],
    "n": 30,
    "converged": true,
@@ -179,17 +197,23 @@
    "waves_per_simd": 8,
    "occupancy_limiter": "hardware",
    "instructions": 63,
-   "aa_speedup": 1.0001,
+   "aa_speedup": 1.0003,
    "aa_ci95": [
-    0.9997,
-    1.0005
+    0.9998,
+    1.001
    ],
-   "device": 0,
+   "device": 1,
    "clock_levels": [
     "0: 500Mhz ",
-    "1: 1784Mhz *",
+    "1: 1843Mhz *",
     "2: 2400Mhz "
-   ]
+   ],
+   "protocol": "agc-timing-amd-2",
+   "toolchain": {
+    "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
+    "rocm": "7.14.60850"
+   },
+   "recorded": "2026-11-19"
   },
   "gemm_tiled": {
    "symbols": {
@@ -198,10 +222,10 @@
     "K": 2048
    },
    "battery_cases": 105,
-   "median_ms": 0.90865,
+   "median_ms": 0.90279,
    "ci95_median_ms": [
-    0.90625,
-    0.91293
+    0.90199,
+    0.90433
    ],
    "n": 30,
    "converged": true,
@@ -217,17 +241,23 @@
    "waves_per_simd": 8,
    "occupancy_limiter": "hardware",
    "instructions": 121,
-   "aa_speedup": 0.9998,
+   "aa_speedup": 0.9999,
    "aa_ci95": [
-    0.9985,
-    1.0011
+    0.999,
+    1.0004
    ],
-   "device": 0,
+   "device": 1,
    "clock_levels": [
     "0: 500Mhz ",
-    "1: 1772Mhz *",
+    "1: 1827Mhz *",
     "2: 2400Mhz "
-   ]
+   ],
+   "protocol": "agc-timing-amd-2",
+   "toolchain": {
+    "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
+    "rocm": "7.14.60850"
+   },
+   "recorded": "2026-11-19"
   },
   "layernorm": {
    "symbols": {
@@ -235,10 +265,10 @@
     "cols": 4096
    },
    "battery_cases": 77,
-   "median_ms": 0.45216,
+   "median_ms": 0.46418,
    "ci95_median_ms": [
-    0.45138,
-    0.45564
+    0.46212,
+    0.46624
    ],
    "n": 30,
    "converged": true,
@@ -254,17 +284,23 @@
    "waves_per_simd": 8,
    "occupancy_limiter": "hardware",
    "instructions": 313,
-   "aa_speedup": 1.0004,
+   "aa_speedup": 0.9995,
    "aa_ci95": [
-    0.9988,
-    1.0028
+    0.9977,
+    1.0033
    ],
-   "device": 0,
+   "device": 1,
    "clock_levels": [
     "0: 500Mhz ",
-    "1: 1790Mhz *",
+    "1: 1864Mhz *",
     "2: 2400Mhz "
-   ]
+   ],
+   "protocol": "agc-timing-amd-2",
+   "toolchain": {
+    "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
+    "rocm": "7.14.60850"
+   },
+   "recorded": "2026-11-19"
   },
   "matvec": {
    "symbols": {
@@ -272,10 +308,10 @@
     "cols": 4096
    },
    "battery_cases": 77,
-   "median_ms": 0.55998,
+   "median_ms": 0.56113,
    "ci95_median_ms": [
-    0.55896,
-    0.56116
+    0.55945,
+    0.56163
    ],
    "n": 30,
    "converged": true,
@@ -291,17 +327,23 @@
    "waves_per_simd": 8,
    "occupancy_limiter": "hardware",
    "instructions": 39,
-   "aa_speedup": 1.0015,
+   "aa_speedup": 1.0005,
    "aa_ci95": [
-    0.9992,
-    1.0038
+    0.9989,
+    1.0028
    ],
-   "device": 0,
+   "device": 1,
    "clock_levels": [
     "0: 500Mhz ",
-    "1: 1591Mhz *",
+    "1: 1584Mhz *",
     "2: 2400Mhz "
-   ]
+   ],
+   "protocol": "agc-timing-amd-2",
+   "toolchain": {
+    "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
+    "rocm": "7.14.60850"
+   },
+   "recorded": "2026-11-19"
   },
   "rmsnorm": {
    "symbols": {
@@ -309,10 +351,10 @@
     "cols": 4096
    },
    "battery_cases": 77,
-   "median_ms": 0.36496,
+   "median_ms": 0.37482,
    "ci95_median_ms": [
-    0.36442,
-    0.36613
+    0.37392,
+    0.37594
    ],
    "n": 30,
    "converged": true,
@@ -328,17 +370,23 @@
    "waves_per_simd": 8,
    "occupancy_limiter": "hardware",
    "instructions": 196,
-   "aa_speedup": 1.0005,
+   "aa_speedup": 0.9992,
    "aa_ci95": [
-    0.999,
-    1.0029
+    0.9977,
+    1.0017
    ],
-   "device": 0,
+   "device": 1,
    "clock_levels": [
     "0: 500Mhz ",
-    "1: 1792Mhz *",
+    "1: 1880Mhz *",
     "2: 2400Mhz "
-   ]
+   ],
+   "protocol": "agc-timing-amd-2",
+   "toolchain": {
+    "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
+    "rocm": "7.14.60850"
+   },
+   "recorded": "2026-11-19"
   },
   "row_argmax": {
    "symbols": {
@@ -346,10 +394,10 @@
     "cols": 4096
    },
    "battery_cases": 77,
-   "median_ms": 0.19866,
+   "median_ms": 0.1944,
    "ci95_median_ms": [
-    0.19824,
-    0.19964
+    0.19376,
+    0.19583
    ],
    "n": 30,
    "converged": true,
@@ -365,17 +413,23 @@
    "waves_per_simd": 8,
    "occupancy_limiter": "hardware",
    "instructions": 184,
-   "aa_speedup": 1.0021,
+   "aa_speedup": 0.9985,
    "aa_ci95": [
-    0.9987,
-    1.0042
+    0.9955,
+    1.0023
    ],
-   "device": 0,
+   "device": 1,
    "clock_levels": [
     "0: 500Mhz ",
-    "1: 1656Mhz *",
+    "1: 1697Mhz *",
     "2: 2400Mhz "
-   ]
+   ],
+   "protocol": "agc-timing-amd-2",
+   "toolchain": {
+    "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
+    "rocm": "7.14.60850"
+   },
+   "recorded": "2026-11-19"
   },
   "row_sum": {
    "symbols": {
@@ -383,10 +437,10 @@
     "cols": 4096
    },
    "battery_cases": 77,
-   "median_ms": 0.18764,
+   "median_ms": 0.18072,
    "ci95_median_ms": [
-    0.18726,
-    0.18806
+    0.1804,
+    0.18182
    ],
    "n": 30,
    "converged": true,
@@ -402,17 +456,23 @@
    "waves_per_simd": 8,
    "occupancy_limiter": "hardware",
    "instructions": 129,
-   "aa_speedup": 1.0023,
+   "aa_speedup": 1.0006,
    "aa_ci95": [
-    1.0,
-    1.0051
+    0.9976,
+    1.003
    ],
-   "device": 0,
+   "device": 1,
    "clock_levels": [
     "0: 500Mhz ",
-    "1: 1604Mhz *",
+    "1: 1605Mhz *",
     "2: 2400Mhz "
-   ]
+   ],
+   "protocol": "agc-timing-amd-2",
+   "toolchain": {
+    "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
+    "rocm": "7.14.60850"
+   },
+   "recorded": "2026-11-19"
   },
   "softmax": {
    "symbols": {
@@ -420,10 +480,10 @@
     "cols": 4096
    },
    "battery_cases": 77,
-   "median_ms": 0.43325,
+   "median_ms": 0.42866,
    "ci95_median_ms": [
-    0.43163,
-    0.43445
+    0.4278,
+    0.4292
    ],
    "n": 30,
    "converged": true,
@@ -439,17 +499,23 @@
    "waves_per_simd": 8,
    "occupancy_limiter": "hardware",
    "instructions": 384,
-   "aa_speedup": 0.9991,
+   "aa_speedup": 0.9999,
    "aa_ci95": [
-    0.9972,
-    1.0005
+    0.9987,
+    1.0013
    ],
-   "device": 0,
+   "device": 1,
    "clock_levels": [
     "0: 500Mhz ",
-    "1: 1818Mhz *",
+    "1: 1898Mhz *",
     "2: 2400Mhz "
-   ]
+   ],
+   "protocol": "agc-timing-amd-2",
+   "toolchain": {
+    "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
+    "rocm": "7.14.60850"
+   },
+   "recorded": "2026-11-19"
   },
   "transpose": {
    "symbols": {
@@ -457,10 +523,10 @@
     "cols": 8192
    },
    "battery_cases": 77,
-   "median_ms": 0.12296,
+   "median_ms": 0.1152,
    "ci95_median_ms": [
-    0.12204,
-    0.12372
+    0.11458,
+    0.11624
    ],
    "n": 30,
    "converged": true,
@@ -476,17 +542,28 @@
    "waves_per_simd": 8,
    "occupancy_limiter": "hardware",
    "instructions": 35,
-   "aa_speedup": 0.9979,
+   "aa_speedup": 0.9961,
    "aa_ci95": [
-    0.9945,
-    1.0086
+    0.9932,
+    1.0038
    ],
-   "device": 0,
+   "device": 1,
    "clock_levels": [
     "0: 500Mhz ",
-    "1: 1319Mhz *",
+    "1: 1360Mhz *",
     "2: 2400Mhz "
-   ]
+   ],
+   "protocol": "agc-timing-amd-2",
+   "toolchain": {
+    "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
+    "rocm": "7.14.60850"
+   },
+   "recorded": "2026-11-19"
   }
+ },
+ "protocol": "agc-timing-amd-2",
+ "toolchain": {
+  "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
+  "rocm": "7.14.60850"
  }
 }

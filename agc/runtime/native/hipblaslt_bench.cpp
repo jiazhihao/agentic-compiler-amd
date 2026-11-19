@@ -1,5 +1,5 @@
 // Times hipBLASLt on C[M,N] = A[M,K] @ B[N,K]^T (row-major, the layout of the agc corpus kernel
-// gemm_bf16), with the sampling of agc-timing-amd-1: per sample an optional cache flush, hipEvents
+// gemm_bf16), with the sampling of the agc timing protocol: per sample an optional cache flush, hipEvents
 // around one call, medians. Prints one JSON object.
 //
 //   hipblaslt_bench M N K in_type out_type samples flush      (types: bf16 | f16 | f32)

@@ -32,4 +32,10 @@ def evaluate(m: Manifest, values: dict, resolved) -> dict:
     """The oracle: the program in float64 on the manifest's inputs and scalars."""
     prog = load_text(m, m.reference)
     args = {q.name: (values[q.name] if q.name in values else resolved.scalars[q.name]) for q in prog.params}
-    return _evaluate(prog, args, dtype=np.float64)
+    out = _evaluate(prog, args, dtype=np.float64)
+    # program outputs are matched to the manifest's outputs by position (an in-place manifest output
+    # cannot share its name with the program's input)
+    names = [p.name for p in m.outputs()]
+    if len(names) != len(prog.outputs):
+        raise ManifestError(f"the tair reference has {len(prog.outputs)} output(s), the manifest {len(names)}")
+    return {mn: out[po.name] for mn, po in zip(names, prog.outputs)}

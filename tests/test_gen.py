@@ -7,6 +7,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from agc.runtime.timing import PROTOCOL_VERSION
+
 from agc import corpus, gen, mir, tair
 from agc.gen.builder import Builder, GenError
 from agc.manifest import Manifest
@@ -189,7 +191,7 @@ def test_every_variant_is_statically_clean(name):
 def test_recorded_results():
     """`scripts/generated.py`: every variant verified on the full battery and paired with amdclang."""
     rec = json.loads((corpus.BASELINES.with_name("generated-gfx950.json")).read_text())
-    assert set(rec["kernels"]) == set(PROGRAMS) and rec["protocol"] == "agc-timing-amd-1"
+    assert set(rec["kernels"]) == set(PROGRAMS) and rec["protocol"] == PROTOCOL_VERSION
     for name, k in rec["kernels"].items():
         assert all(v["static"] and v["battery"] != "FAILED" and "/" in v["battery"] for v in k["variants"]), name
         assert k["best"]["outcome"] == "win" and k["best"]["ci95"][0] > 1.01, name

@@ -6,6 +6,8 @@ import sys
 
 import pytest
 
+from agc.runtime.timing import PROTOCOL_VERSION
+
 from agc import corpus
 from agc.store import Store, content_id
 from conftest import KERNELS, gpu, needs_toolchain
@@ -61,7 +63,7 @@ def test_open_state_and_features(session, tmp_path):
     from agc.session import Session
     info = session.info()
     assert info["manifest"] == "axpy" and info["ref"] == session.ref_id and info["tags"] == {"ref": session.ref_id}
-    assert info["tolerance"]["y"]["cond"] == 4e-7 and info["timing_protocol"] == "agc-timing-amd-1"
+    assert info["tolerance"]["y"]["cond"] == 4e-7 and info["timing_protocol"] == PROTOCOL_VERSION
     st = session.state("ref")
     assert st["action"]["name"] == "import" and "axpy:\n  [0] s_load_dword s3, s[0:1], 0x24" in st["listing"]
     assert ".Lft0:\n  [0] s_load_dwordx4" in st["listing"]
@@ -135,7 +137,7 @@ def test_loop_on_the_gpu(_, tmp_path):
     c = s.check(ok["id"])
     assert c["ok"] and c["cases_run"] == c["cases_total"] > 20
     b = s.bench(ok["id"])
-    assert b["ok"] and b["outcome"] == "parity" and b["against"] == s.ref_id and b["protocol_version"] == "agc-timing-amd-1"
+    assert b["ok"] and b["outcome"] == "parity" and b["against"] == s.ref_id and b["protocol_version"] == PROTOCOL_VERSION
     assert s.bench("ref")["outcome"] == "control"
     # statically clean but wrong: the battery refuses it and it is never timed
     wrong = s.edit("ref", [{"op": "replace", "block": ".Lft0", "index": 9, "text": "v_fmac_f32_e32 v5, s4, v5",

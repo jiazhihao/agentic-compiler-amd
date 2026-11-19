@@ -6,7 +6,7 @@ description: What has been learned about optimizing kernels for AMD MI355X (gfx9
 # Knowledge notes (from the sessions recorded in docs/progress.md)
 
 Each note says what was measured and where. Numbers are paired speedups over `amdclang -O3` under
-`agc-timing-amd-1` unless stated.
+the agc timing protocol unless stated.
 
 ## What pays
 

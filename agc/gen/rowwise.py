@@ -130,7 +130,7 @@ def generate(m: Manifest, p: Program, unroll: int = 2) -> Compiled:
         for name, he in hoisted:
             local[name] = ex.compile(he, local, memo)
         used = [t for t in tensors if t in free_vars(expr)]
-        touched = used + ([store_to] if store_to else [])
+        touched = list(dict.fromkeys(used + ([store_to] if store_to else [])))   # an in-place output is one address
         addr = {}
         for t in touched:
             r = b.v(2)

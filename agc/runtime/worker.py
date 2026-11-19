@@ -101,21 +101,28 @@ class Bound:
             if p.role != "in":
                 self.pristine[p.name] = dev.upload(host)
         self.pointers = {k: b.ptr for k, b in self.live.items()}
+        self._prepared: dict = {}
 
     def reset(self):
         for name, src in self.pristine.items():
             self.dev.copy(self.live[name], src)
 
+    def prepared(self, k: Loaded):
+        """The launch of `k` on these buffers as a ready-to-submit callable (built once per kernel)."""
+        if id(k) not in self._prepared:
+            grid, block, lds = self.resolved.grid, self.resolved.block, self.resolved.lds
+            if k.launch:
+                sym = self.resolved.symbols
+                dims = lambda v: tuple(eval_expr(e, sym) for e in v) + (1,) * (3 - len(v))
+                grid, block, lds = dims(k.launch["grid"]), dims(k.launch["block"]), eval_expr(k.launch.get("lds", 0), sym)
+                if min(grid) <= 0 or min(block) <= 0:
+                    raise JobError("launch", f"launch dims must be positive: grid={grid} block={block}")
+            self._prepared[id(k)] = k.kernel.prepare(grid, block, pack_args(k.kmeta, self.m, self.resolved, self.pointers),
+                                                     stream=self.dev.stream, lds_bytes=lds)
+        return self._prepared[id(k)]
+
     def launch(self, k: Loaded):
-        grid, block, lds = self.resolved.grid, self.resolved.block, self.resolved.lds
-        if k.launch:
-            sym = self.resolved.symbols
-            dims = lambda v: tuple(eval_expr(e, sym) for e in v) + (1,) * (3 - len(v))
-            grid, block, lds = dims(k.launch["grid"]), dims(k.launch["block"]), eval_expr(k.launch.get("lds", 0), sym)
-            if min(grid) <= 0 or min(block) <= 0:
-                raise JobError("launch", f"launch dims must be positive: grid={grid} block={block}")
-        k.kernel.launch(grid, block, pack_args(k.kmeta, self.m, self.resolved, self.pointers),
-                        stream=self.dev.stream, lds_bytes=lds)
+        self.prepared(k)()
 
     def outputs(self) -> dict[str, np.ndarray]:
         return {p.name: self.dev.download(self.live[p.name], p.dtype.storage, self.resolved.tensors[p.name])
@@ -236,6 +243,7 @@ class _Timer:
         self.wall_ms: list[float] = []      # host wall-clock around the same launch: a sanity bound on the event time
 
     def time(self, bound: Bound, k: Loaded) -> float:
+        submit = bound.prepared(k)                # arguments packed and converted before anything is timed
         bound.reset()
         if self.flush is not None:
             self._tick += 1
@@ -243,7 +251,7 @@ class _Timer:
         self.dev.synchronize()
         t0 = time.perf_counter()
         self.start.record(self.dev.stream)
-        bound.launch(k)
+        submit()
         self.stop.record(self.dev.stream)
         self.stop.synchronize()
         self.wall_ms.append((time.perf_counter() - t0) * 1e3)

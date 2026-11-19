@@ -78,7 +78,8 @@ def main() -> int:
         b = sh["best"]
         L.append(f"| {sh['M']} x {sh['N']} x {sh['K']} | {sh['amdclang_ms']:.2f} | {b['ms']:.4f} | {sh['hipblaslt_ms']:.4f} | "
                  f"{b['vs_amdclang']:.0f}x | {b['hipblaslt_ratio']:.2f} | {b['tflops']:.0f} |")
-    L += ["", "agc is 2.8x to 3.2x slower than hipBLASLt. The kernel is bound by operand-load throughput (7 to 8 TB/s in "
+    ratios = [sh["best"]["hipblaslt_ratio"] for sh in gemm["shapes"].values()]
+    L += ["", f"agc takes {min(ratios):.1f}x to {max(ratios):.1f}x hipBLASLt's time. The kernel is bound by operand-load throughput (7 to 8 TB/s in "
           "every variant); the next factor needs operands shared between waves through LDS (issue #23). The roadmap's "
           "target of 1.5x was not met.", "",
           "## Controls", "",
@@ -97,7 +98,7 @@ def main() -> int:
     L += ["| `axpy`: all arguments in one scalar load (agent edit) | parity, 0.9995 (0.993 to 1.004) |",
           "| `matvec`: first unroll attempt with `v[5:8]` (agent edit) | rejected by the static check (tuple alignment) |",
           "| `transpose`, `gemm_tiled` | no candidate: no counted load loop, no template; amdclang's build is shipped |",
-          "| MFMA GEMM within 1.5x of hipBLASLt | not reached (2.8x) |", "",
+          f"| MFMA GEMM within 1.5x of hipBLASLt | not reached ({min(ratios):.1f}x at best) |", "",
           "## Reproduce", "",
           "```", "make test                       # CPU tests, then GPU tests through the executor",
           "make baseline                   # amdclang baselines", ".venv/bin/python scripts/policy.py     # the default policy on every manifest",

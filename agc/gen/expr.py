@@ -159,7 +159,9 @@ class ExprCompiler:
             b.emit("v_add3_u32", t, self.vec(x), t, self.const_s(0x7FFF))
             b.emit("v_lshrrev_b32_e32", d, 16, t)
         elif f == "cast_f32":
-            return x
+            if not (isinstance(args[0], Call) and args[0].fn == "cast_bf16"):
+                return x                                 # already f32
+            b.emit("v_lshlrev_b32_e32", d, 16, self.vec(x))      # the bf16 encoding back in the high half
         else:
             raise GenError(f"no instruction selection for {f}")
         return d

@@ -89,7 +89,8 @@ def classify(inst: Inst, isa: Isa | None = None, arch: Arch | None = None) -> In
         info.wait_states = int(inst.operands[0].value) + 1
     is_mem = ins.group in ("VMEM", "SMEM")
     info.store = is_mem and ("store" in name or "write" in name)
-    info.load = is_mem and not info.store and ("load" in name or "read" in name or "ATOMIC" in ins.subgroups)
+    info.load = is_mem and not info.store and ("load" in name or "read" in name or "ATOMIC" in ins.subgroups
+                                               or name in ("s_memtime", "s_memrealtime"))   # asynchronous SGPR results
 
     enc, specs, why = select(inst, isa, arch)
     uses, defs, xu, xd = set(), set(), [], []
@@ -113,8 +114,8 @@ def classify(inst: Inst, isa: Isa | None = None, arch: Arch | None = None) -> In
         if info.lds_dma:
             uses.add(("m0", 0))
             defs.add(("lds", 0))
-        if info.ds and info.load:
-            uses.add(("lds", 0))
+        if info.ds and (info.load or info.store):
+            uses.add(("lds", 0))            # a DS read or write races with a direct-to-LDS load still in flight
     else:                               # not a legal instruction: every register it names is read and written
         for op in inst.operands:
             if isinstance(op, Reg):

@@ -45,16 +45,25 @@ def baseline(name: str) -> dict:
 def main(argv) -> int:
     names = argv or corpus.names()
     out = json.loads(corpus.BASELINES.read_text()) if corpus.BASELINES.exists() else {}
-    out.update({"protocol": PROTOCOL_VERSION, "toolchain": toolchain.identity(), "compiler": "amdclang -O3",
-                "recorded": time.strftime("%Y-%m-%d")})
+    # provenance is per kernel: re-recording some kernels after a toolchain or protocol change must
+    # not relabel the measurements of the others
+    out.update({"compiler": "amdclang -O3"})
     kernels = out.setdefault("kernels", {})
     for name in names:
-        kernels[name] = baseline(name)
+        kernels[name] = {**baseline(name), "protocol": PROTOCOL_VERSION, "toolchain": toolchain.identity(),
+                         "recorded": time.strftime("%Y-%m-%d")}
         k = kernels[name]
         print(f"{name:12s} {k['median_ms']:9.4f} ms  A/A {k['aa_speedup']:.4f} {k['aa_ci95']}  "
               f"v{k['resources']['vgprs']} s{k['resources']['sgprs']} lds{k['resources']['lds_bytes']} "
               f"occ {k['waves_per_simd']} insts {k['instructions']}", flush=True)
     out["kernels"] = dict(sorted(kernels.items()))
+    stamps = {json.dumps([k.get("protocol"), k.get("toolchain")], sort_keys=True) for k in kernels.values()}
+    if len(stamps) == 1:                      # one stamp for the file only when every kernel carries it
+        out["protocol"], out["toolchain"] = PROTOCOL_VERSION, toolchain.identity()
+    else:
+        out.pop("protocol", None)
+        out.pop("toolchain", None)
+        print("note: the file mixes toolchains or protocols; re-record every kernel for a uniform baseline")
     corpus.BASELINES.write_text(json.dumps(out, indent=1) + "\n")
     return 0
 

@@ -156,11 +156,16 @@ def analyze(k: Kernel, bi: int, g: Cfg) -> Loop:
                 raise NotApplicable(f"`{x}`: scalar load with a register offset")
             if info.vmem and not (isinstance(x.operands[2], Reg) and x.operands[2].cls == "off"):
                 raise NotApplicable(f"`{x}`: vector load with a scalar base")
+            if info.defs & load_dsts:                # each copy maps a register to one loaded value
+                raise NotApplicable(f"`{x}` loads into a register another load of the loop already wrote")
             loads.append((i, p, applied[id(p)] if p else 0))
             load_dsts |= info.defs
         elif info.valu and not info.mfma and not info.lds_dma:
-            if info.defs & {("scc", 0), ("exec", 0)} or info.defs & set(by_units) or info.defs & set(units(counter)):
+            control = set(by_units) | set(units(counter))
+            if info.defs & {("scc", 0), ("exec", 0)} or info.defs & control:
                 raise NotApplicable(f"`{x}` writes loop control state")
+            if info.uses & control:                  # the unrolled body advances these once, for all copies
+                raise NotApplicable(f"`{x}` reads the counter or a pointer")
             compute.append(i)
         else:
             raise NotApplicable(f"`{x}` is neither a load, a pointer update, the counter nor vector arithmetic")
@@ -198,11 +203,27 @@ def _fresh(k: Kernel, arch: Arch):
 
 
 def _rename(inst: Inst, mapping: dict) -> Inst:
-    new = inst.copy()
-    new.operands = [mapping.get(o.plain(), o) if isinstance(o, Reg) else o for o in new.operands]
-    new.operands = [Reg(m.cls, m.index, m.count, o.neg, o.abs) if isinstance(o, Reg) and isinstance(m, Reg) and (o.neg or o.abs) else m
-                    for o, m in zip(inst.operands, new.operands)]
-    return new
+    """`inst` with every operand that lies inside a loaded register replaced by the same slice of
+    this copy's register (`mapping`: original destination -> new register). A loaded tuple may be
+    consumed whole or element by element."""
+    unit_map = {}
+    for old, new in mapping.items():
+        for i in range(old.count):
+            unit_map[(old.cls, old.index + i)] = (new.cls, new.index + i)
+    new_inst = inst.copy()
+    ops = []
+    for o in inst.operands:
+        if isinstance(o, Reg) and not o.special:
+            us = [(o.cls, o.index + i) for i in range(o.count)]
+            hit = [u in unit_map for u in us]
+            if any(hit):
+                tgt = [unit_map.get(u) for u in us]
+                if not all(hit) or any(t[0] != tgt[0][0] or t[1] != tgt[0][1] + n for n, t in enumerate(tgt)):
+                    raise NotApplicable(f"`{inst}` uses {o}, which straddles a loaded register")
+                o = Reg(tgt[0][0], tgt[0][1], o.count, o.neg, o.abs)
+        ops.append(o)
+    new_inst.operands = ops
+    return new_inst
 
 
 def unroll_loads(k: Kernel, factor: int = 4, loop: str | None = None, wide: bool = True, arch: Arch | None = None) -> dict:

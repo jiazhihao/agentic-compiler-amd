@@ -41,10 +41,14 @@ def generate(m: Manifest, p: Program, tiles: int = 2, unroll: int = 1) -> Compil
     msym, ksym = p.param(an).shape
     nsym = p.param(bn).shape[0]
     kexpr = m.param(an).shape[1]
+    import ast
+    from ..manifest import eval_expr
+    names = {n.id for n in ast.walk(ast.parse(str(kexpr), mode="eval")) if isinstance(n, ast.Name)}
+    if names & set(m.dynamic):
+        raise GenError(f"K must be fixed: its expression {kexpr!r} depends on the dynamic symbol(s) {sorted(names & set(m.dynamic))}")
     for shapes in (m.shapes, m.timing_symbols()):
-        from ..manifest import eval_expr
-        if eval_expr(kexpr, shapes) % KSTEP or kexpr in m.dynamic:
-            raise GenError(f"K must be a fixed multiple of {KSTEP} (it is {kexpr} = {eval_expr(kexpr, shapes)})")
+        if eval_expr(kexpr, shapes) % KSTEP:
+            raise GenError(f"K must be a multiple of {KSTEP} (it is {kexpr} = {eval_expr(kexpr, shapes)})")
     b = Builder(m.entry)
     A = load_args(b, bd, [an, bn, cn, bd.size_param(msym), bd.size_param(nsym), bd.size_param(ksym)])
     Mr, Nr, Kr = A[bd.size_param(msym)], A[bd.size_param(nsym)], A[bd.size_param(ksym)]

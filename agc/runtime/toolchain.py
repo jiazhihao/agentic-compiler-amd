@@ -106,6 +106,15 @@ def _local_includes(path: Path, include_dirs=(), seen: dict | None = None) -> di
     return seen
 
 
+def hip_key(source: str | Path, flags: list[str] | None = None, mcpu: str = DEFAULT_MCPU, include_dirs=()) -> str:
+    """The identity of a HIP build: the source text, the contents of its quoted includes (recursively),
+    the flags, the target and the toolchain."""
+    path = Path(source)
+    flags = list(HIP_FLAGS if flags is None else flags)
+    incs = [f"-I{Path(d).resolve()}" for d in (path.resolve().parent, *include_dirs)]
+    return _key("hip", path.read_text(), flags, mcpu, incs, _local_includes(path, include_dirs))
+
+
 def hip_build(source: str | Path, flags: list[str] | None = None, mcpu: str = DEFAULT_MCPU,
               include_dirs: list[str | Path] = ()) -> HipBuild:
     """Compile a HIP translation unit for the device only (`.hsaco` and `-S` assembly)."""
@@ -113,20 +122,32 @@ def hip_build(source: str | Path, flags: list[str] | None = None, mcpu: str = DE
     text = path.read_text()
     flags = list(HIP_FLAGS if flags is None else flags)
     incs = [f"-I{Path(d).resolve()}" for d in (path.resolve().parent, *include_dirs)]
-    key = _key("hip", text, flags, mcpu, incs, _local_includes(path, include_dirs))
+    key = hip_key(path, flags, mcpu, include_dirs)
+    incs = [f"-I{Path(d).resolve()}" for d in (path.resolve().parent, *include_dirs)]
     d = cache_dir() / key
-    if (d / "out.hsaco").exists() and (d / "out.s").exists():
+    if (d / "out.s").exists() and (d / "out.hsaco").exists():
         return HipBuild((d / "out.hsaco").read_bytes(), (d / "out.s").read_text(), flags, key)
     d.mkdir(parents=True, exist_ok=True)
+    # The source is published under a stable path (amdclang derives a symbol from the path, so the
+    # path is part of what makes a build reproducible); the outputs are written in a directory of
+    # this process's own and published atomically, so concurrent builds of the same source (xdist
+    # workers, several sessions) never share a half-written file. The assembly is published last:
+    # its presence means the build is complete.
     src = d / "in.hip"
-    src.write_text(text)
-    base = [tool("clang"), "-x", "hip", f"--offload-arch={mcpu}", "--cuda-device-only",
-            "--no-gpu-bundle-output", *incs, *flags]
-    _run("amdclang (code object)", [*base, "-c", str(src), "-o", str(d / "out.tmp.hsaco")])
-    _run("amdclang (assembly)", [*base, "-S", str(src), "-o", str(d / "out.tmp.s")])
-    os.replace(d / "out.tmp.s", d / "out.s")
-    os.replace(d / "out.tmp.hsaco", d / "out.hsaco")
-    return HipBuild((d / "out.hsaco").read_bytes(), (d / "out.s").read_text(), flags, key)
+    with tempfile.TemporaryDirectory(dir=d, prefix="build-") as t:
+        if not src.exists():
+            (Path(t) / "in.hip").write_text(text)
+            os.replace(Path(t) / "in.hip", src)
+        # -cuid: clang otherwise hashes the command line (including the output path) into the
+        # compilation-unit symbol, which would make two builds of one source differ
+        base = [tool("clang"), "-x", "hip", f"--offload-arch={mcpu}", "--cuda-device-only",
+                "--no-gpu-bundle-output", f"-cuid={key[:16]}", *incs, *flags]
+        _run("amdclang (code object)", [*base, "-c", str(src), "-o", str(Path(t) / "out.hsaco")])
+        _run("amdclang (assembly)", [*base, "-S", str(src), "-o", str(Path(t) / "out.s")])
+        hsaco, asm = (Path(t) / "out.hsaco").read_bytes(), (Path(t) / "out.s").read_text()
+        os.replace(Path(t) / "out.hsaco", d / "out.hsaco")
+        os.replace(Path(t) / "out.s", d / "out.s")
+    return HipBuild(hsaco, asm, flags, key)
 
 
 def assemble(asm: str, mcpu: str = DEFAULT_MCPU) -> bytes:

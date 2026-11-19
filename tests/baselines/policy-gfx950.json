@@ -6,13 +6,13 @@
     "path": "generate",
     "how": "elementwise(elements_per_lane=4)",
     "bit_identical": false,
-    "speedup": 1.048,
+    "speedup": 1.102,
     "ci95": [
-     1.0435,
-     1.055
+     1.0952,
+     1.1093
     ],
-    "ms": 0.17204,
-    "amdclang_ms": 0.18094
+    "ms": 0.15828,
+    "amdclang_ms": 0.17478
    },
    "fallback": false,
    "candidates": [
@@ -29,14 +29,14 @@
      "how": "elementwise(elements_per_lane=1)",
      "bit_identical": false,
      "verified": true,
-     "outcome": "loss",
-     "speedup": 0.9749,
+     "outcome": "parity",
+     "speedup": 0.9951,
      "ci95": [
-      0.966,
-      0.9787
+      0.9898,
+      1.0021
      ],
-     "ms": 0.19532,
-     "amdclang_ms": 0.18978
+     "ms": 0.17814,
+     "amdclang_ms": 0.1772
     },
     {
      "path": "generate",
@@ -44,13 +44,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.0244,
+     "speedup": 1.0888,
      "ci95": [
-      1.0151,
-      1.0378
+      1.0826,
+      1.0976
      ],
-     "ms": 0.16436,
-     "amdclang_ms": 0.16934
+     "ms": 0.16304,
+     "amdclang_ms": 0.1779
     },
     {
      "path": "generate",
@@ -58,13 +58,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.048,
+     "speedup": 1.102,
      "ci95": [
-      1.0435,
-      1.055
+      1.0952,
+      1.1093
      ],
-     "ms": 0.17204,
-     "amdclang_ms": 0.18094
+     "ms": 0.15828,
+     "amdclang_ms": 0.17478
     }
    ]
   },
@@ -74,13 +74,13 @@
     "path": "generate",
     "how": "elementwise(elements_per_lane=4)",
     "bit_identical": false,
-    "speedup": 1.5078,
+    "speedup": 1.6241,
     "ci95": [
-     1.4932,
-     1.5157
+     1.6154,
+     1.6354
     ],
-    "ms": 0.10492,
-    "amdclang_ms": 0.15784
+    "ms": 0.09494,
+    "amdclang_ms": 0.15488
    },
    "fallback": false,
    "candidates": [
@@ -97,14 +97,14 @@
      "how": "elementwise(elements_per_lane=1)",
      "bit_identical": false,
      "verified": true,
-     "outcome": "loss",
-     "speedup": 0.9681,
+     "outcome": "parity",
+     "speedup": 1.001,
      "ci95": [
-      0.9641,
-      0.9719
+      0.9982,
+      1.0051
      ],
-     "ms": 0.16358,
-     "amdclang_ms": 0.15812
+     "ms": 0.15394,
+     "amdclang_ms": 0.15404
     },
     {
      "path": "generate",
@@ -112,13 +112,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.459,
+     "speedup": 1.5932,
      "ci95": [
-      1.4501,
-      1.4732
+      1.5876,
+      1.6024
      ],
-     "ms": 0.10864,
-     "amdclang_ms": 0.15874
+     "ms": 0.09708,
+     "amdclang_ms": 0.15522
     },
     {
      "path": "generate",
@@ -126,29 +126,29 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.5078,
+     "speedup": 1.6241,
      "ci95": [
-      1.4932,
-      1.5157
+      1.6154,
+      1.6354
      ],
-     "ms": 0.10492,
-     "amdclang_ms": 0.15784
+     "ms": 0.09494,
+     "amdclang_ms": 0.15488
     }
    ]
   },
   "gelu": {
    "chosen": {
-    "state": "decd45d7c223137a",
+    "state": "09cfa15ad08999fb",
     "path": "generate",
-    "how": "elementwise(elements_per_lane=2)",
+    "how": "elementwise(elements_per_lane=4)",
     "bit_identical": false,
-    "speedup": 1.5734,
+    "speedup": 1.6721,
     "ci95": [
-     1.5547,
-     1.5804
+     1.6603,
+     1.6777
     ],
-    "ms": 0.12144,
-    "amdclang_ms": 0.19028
+    "ms": 0.1115,
+    "amdclang_ms": 0.18648
    },
    "fallback": false,
    "candidates": [
@@ -166,13 +166,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.1014,
+     "speedup": 1.1455,
      "ci95": [
-      1.0923,
-      1.1068
+      1.1416,
+      1.1509
      ],
-     "ms": 0.17356,
-     "amdclang_ms": 0.1908
+     "ms": 0.16218,
+     "amdclang_ms": 0.1859
     },
     {
      "path": "generate",
@@ -180,13 +180,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.5734,
+     "speedup": 1.6667,
      "ci95": [
-      1.5547,
-      1.5804
+      1.6587,
+      1.6731
      ],
-     "ms": 0.12144,
-     "amdclang_ms": 0.19028
+     "ms": 0.11242,
+     "amdclang_ms": 0.18706
     },
     {
      "path": "generate",
@@ -194,13 +194,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.5594,
+     "speedup": 1.6721,
      "ci95": [
-      1.5498,
-      1.5681
+      1.6603,
+      1.6777
      ],
-     "ms": 0.12264,
-     "amdclang_ms": 0.19186
+     "ms": 0.1115,
+     "amdclang_ms": 0.18648
     }
    ]
   },
@@ -210,13 +210,13 @@
     "path": "generate",
     "how": "gemm_mfma(tiles=2, unroll=2)",
     "bit_identical": false,
-    "speedup": 164.0985,
+    "speedup": 201.1359,
     "ci95": [
-     161.7329,
-     165.2602
+     200.7708,
+     201.5876
     ],
-    "ms": 0.0911,
-    "amdclang_ms": 14.95089
+    "ms": 0.07454,
+    "amdclang_ms": 14.99524
    },
    "fallback": false,
    "candidates": [
@@ -226,13 +226,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "parity",
-     "speedup": 0.9901,
+     "speedup": 0.9947,
      "ci95": [
-      0.9888,
+      0.9913,
       0.9994
      ],
-     "ms": 15.12002,
-     "amdclang_ms": 14.95149
+     "ms": 15.09364,
+     "amdclang_ms": 14.99461
     },
     {
      "path": "import+pass",
@@ -240,13 +240,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "parity",
-     "speedup": 0.9985,
+     "speedup": 1.0,
      "ci95": [
-      0.998,
-      0.9991
+      0.9993,
+      1.0005
      ],
-     "ms": 14.97331,
-     "amdclang_ms": 14.95119
+     "ms": 15.01121,
+     "amdclang_ms": 15.01224
     },
     {
      "path": "import+pass",
@@ -254,13 +254,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9709,
+     "speedup": 0.9689,
      "ci95": [
-      0.9702,
-      0.9712
+      0.9683,
+      0.9698
      ],
-     "ms": 15.42082,
-     "amdclang_ms": 14.97091
+     "ms": 15.5142,
+     "amdclang_ms": 15.03208
     },
     {
      "path": "generate",
@@ -268,13 +268,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 98.0137,
+     "speedup": 112.6901,
      "ci95": [
-      97.2725,
-      98.8244
+      112.3937,
+      112.9769
      ],
-     "ms": 0.15288,
-     "amdclang_ms": 14.97223
+     "ms": 0.13324,
+     "amdclang_ms": 15.02442
     },
     {
      "path": "generate",
@@ -282,13 +282,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 104.116,
+     "speedup": 118.3455,
      "ci95": [
-      103.5902,
-      104.3238
+      118.0042,
+      118.6248
      ],
-     "ms": 0.14362,
-     "amdclang_ms": 14.95345
+     "ms": 0.12674,
+     "amdclang_ms": 14.99373
     },
     {
      "path": "generate",
@@ -296,13 +296,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 154.42,
+     "speedup": 191.2672,
      "ci95": [
-      151.2252,
-      156.1817
+      190.9058,
+      191.8814
      ],
-     "ms": 0.0969,
-     "amdclang_ms": 14.95932
+     "ms": 0.0784,
+     "amdclang_ms": 14.99732
     },
     {
      "path": "generate",
@@ -310,13 +310,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 164.0985,
+     "speedup": 201.1359,
      "ci95": [
-      161.7329,
-      165.2602
+      200.7708,
+      201.5876
      ],
-     "ms": 0.0911,
-     "amdclang_ms": 14.95089
+     "ms": 0.07454,
+     "amdclang_ms": 14.99524
     },
     {
      "path": "generate",
@@ -324,13 +324,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 136.2754,
+     "speedup": 163.4038,
      "ci95": [
-      135.2298,
-      136.8305
+      162.9275,
+      163.6246
      ],
-     "ms": 0.1097,
-     "amdclang_ms": 14.9408
+     "ms": 0.09176,
+     "amdclang_ms": 14.99649
     },
     {
      "path": "generate",
@@ -338,13 +338,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 158.7211,
+     "speedup": 194.8432,
      "ci95": [
-      157.5066,
-      159.8664
+      194.3121,
+      195.2536
      ],
-     "ms": 0.09416,
-     "amdclang_ms": 14.96136
+     "ms": 0.07692,
+     "amdclang_ms": 14.98038
     }
    ]
   },
@@ -354,13 +354,13 @@
     "path": "import+pass",
     "how": "unroll_loads(factor=16)",
     "bit_identical": true,
-    "speedup": 2.1999,
+    "speedup": 2.1655,
     "ci95": [
-     2.1977,
-     2.202
+     2.1628,
+     2.1727
     ],
-    "ms": 1.84228,
-    "amdclang_ms": 4.0495
+    "ms": 1.87208,
+    "amdclang_ms": 4.0494
    },
    "fallback": false,
    "candidates": [
@@ -370,13 +370,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 2.1268,
+     "speedup": 2.1314,
      "ci95": [
-      2.1241,
-      2.1313
+      2.127,
+      2.1347
      ],
-     "ms": 1.9015,
-     "amdclang_ms": 4.04166
+     "ms": 1.90394,
+     "amdclang_ms": 4.05408
     },
     {
      "path": "import+pass",
@@ -384,13 +384,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 2.155,
+     "speedup": 2.152,
      "ci95": [
-      2.1498,
-      2.1581
+      2.148,
+      2.1575
      ],
-     "ms": 1.87912,
-     "amdclang_ms": 4.04582
+     "ms": 1.88742,
+     "amdclang_ms": 4.05465
     },
     {
      "path": "import+pass",
@@ -398,13 +398,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 2.1999,
+     "speedup": 2.1655,
      "ci95": [
-      2.1977,
-      2.202
+      2.1628,
+      2.1727
      ],
-     "ms": 1.84228,
-     "amdclang_ms": 4.0495
+     "ms": 1.87208,
+     "amdclang_ms": 4.0494
     }
    ]
   },
@@ -435,13 +435,13 @@
     "path": "generate",
     "how": "rowwise(unroll=4)",
     "bit_identical": false,
-    "speedup": 1.4901,
+    "speedup": 1.5184,
     "ci95": [
-     1.4846,
-     1.4937
+     1.5131,
+     1.5232
     ],
-    "ms": 0.31698,
-    "amdclang_ms": 0.47276
+    "ms": 0.3079,
+    "amdclang_ms": 0.4678
    },
    "fallback": false,
    "candidates": [
@@ -459,13 +459,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.2917,
+     "speedup": 1.3286,
      "ci95": [
-      1.2875,
-      1.2974
+      1.3254,
+      1.3317
      ],
-     "ms": 0.36396,
-     "amdclang_ms": 0.47062
+     "ms": 0.35142,
+     "amdclang_ms": 0.467
     },
     {
      "path": "generate",
@@ -473,13 +473,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.4032,
+     "speedup": 1.4217,
      "ci95": [
-      1.3959,
-      1.4062
+      1.4161,
+      1.4255
      ],
-     "ms": 0.33616,
-     "amdclang_ms": 0.47252
+     "ms": 0.32694,
+     "amdclang_ms": 0.46522
     },
     {
      "path": "generate",
@@ -487,13 +487,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.4901,
+     "speedup": 1.5184,
      "ci95": [
-      1.4846,
-      1.4937
+      1.5131,
+      1.5232
      ],
-     "ms": 0.31698,
-     "amdclang_ms": 0.47276
+     "ms": 0.3079,
+     "amdclang_ms": 0.4678
     }
    ]
   },
@@ -503,13 +503,13 @@
     "path": "import+pass",
     "how": "unroll_loads(factor=16)",
     "bit_identical": true,
-    "speedup": 2.7384,
+    "speedup": 2.7873,
     "ci95": [
-     2.7305,
-     2.7501
+     2.7822,
+     2.7969
     ],
-    "ms": 0.20458,
-    "amdclang_ms": 0.56066
+    "ms": 0.2016,
+    "amdclang_ms": 0.56279
    },
    "fallback": false,
    "candidates": [
@@ -519,13 +519,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 2.3068,
+     "speedup": 2.1902,
      "ci95": [
-      2.2419,
-      2.327
+      2.1688,
+      2.2041
      ],
-     "ms": 0.24652,
-     "amdclang_ms": 0.56804
+     "ms": 0.25534,
+     "amdclang_ms": 0.55917
     },
     {
      "path": "import+pass",
@@ -533,13 +533,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 2.6131,
+     "speedup": 2.6052,
      "ci95": [
-      2.6021,
-      2.6228
+      2.5959,
+      2.614
      ],
-     "ms": 0.2159,
-     "amdclang_ms": 0.56406
+     "ms": 0.2154,
+     "amdclang_ms": 0.56143
     },
     {
      "path": "import+pass",
@@ -547,13 +547,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 2.7384,
+     "speedup": 2.7873,
      "ci95": [
-      2.7305,
-      2.7501
+      2.7822,
+      2.7969
      ],
-     "ms": 0.20458,
-     "amdclang_ms": 0.56066
+     "ms": 0.2016,
+     "amdclang_ms": 0.56279
     }
    ]
   },
@@ -563,13 +563,13 @@
     "path": "generate",
     "how": "rowwise(unroll=4)",
     "bit_identical": false,
-    "speedup": 1.4455,
+    "speedup": 1.4845,
     "ci95": [
-     1.4402,
-     1.4522
+     1.4793,
+     1.4868
     ],
-    "ms": 0.26308,
-    "amdclang_ms": 0.38106
+    "ms": 0.25254,
+    "amdclang_ms": 0.37476
    },
    "fallback": false,
    "candidates": [
@@ -587,13 +587,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.2606,
+     "speedup": 1.2808,
      "ci95": [
-      1.2572,
-      1.2628
+      1.2751,
+      1.2848
      ],
-     "ms": 0.30342,
-     "amdclang_ms": 0.38182
+     "ms": 0.29248,
+     "amdclang_ms": 0.3752
     },
     {
      "path": "generate",
@@ -601,13 +601,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.3912,
+     "speedup": 1.4401,
      "ci95": [
-      1.3832,
-      1.3976
+      1.4362,
+      1.4436
      ],
-     "ms": 0.27324,
-     "amdclang_ms": 0.37976
+     "ms": 0.26074,
+     "amdclang_ms": 0.37548
     },
     {
      "path": "generate",
@@ -615,13 +615,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.4455,
+     "speedup": 1.4845,
      "ci95": [
-      1.4402,
-      1.4522
+      1.4793,
+      1.4868
      ],
-     "ms": 0.26308,
-     "amdclang_ms": 0.38106
+     "ms": 0.25254,
+     "amdclang_ms": 0.37476
     }
    ]
   },
@@ -652,13 +652,13 @@
     "path": "generate",
     "how": "rowwise(unroll=4)",
     "bit_identical": false,
-    "speedup": 1.2216,
+    "speedup": 1.2721,
     "ci95": [
-     1.2141,
-     1.228
+     1.2588,
+     1.2843
     ],
-    "ms": 0.1525,
-    "amdclang_ms": 0.18664
+    "ms": 0.144,
+    "amdclang_ms": 0.18168
    },
    "fallback": false,
    "candidates": [
@@ -676,13 +676,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.1966,
+     "speedup": 1.2474,
      "ci95": [
-      1.1884,
-      1.2126
+      1.2315,
+      1.2529
      ],
-     "ms": 0.15516,
-     "amdclang_ms": 0.18604
+     "ms": 0.146,
+     "amdclang_ms": 0.18138
     },
     {
      "path": "generate",
@@ -690,13 +690,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.2,
+     "speedup": 1.2518,
      "ci95": [
-      1.1872,
-      1.2098
+      1.2465,
+      1.2595
      ],
-     "ms": 0.1551,
-     "amdclang_ms": 0.18534
+     "ms": 0.14514,
+     "amdclang_ms": 0.18148
     },
     {
      "path": "generate",
@@ -704,13 +704,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.2216,
+     "speedup": 1.2721,
      "ci95": [
-      1.2141,
-      1.228
+      1.2588,
+      1.2843
      ],
-     "ms": 0.1525,
-     "amdclang_ms": 0.18664
+     "ms": 0.144,
+     "amdclang_ms": 0.18168
     }
    ]
   },
@@ -720,13 +720,13 @@
     "path": "generate",
     "how": "rowwise(unroll=4)",
     "bit_identical": false,
-    "speedup": 1.3139,
+    "speedup": 1.3143,
     "ci95": [
-     1.31,
-     1.3186
+     1.3098,
+     1.3196
     ],
-    "ms": 0.32876,
-    "amdclang_ms": 0.43198
+    "ms": 0.31794,
+    "amdclang_ms": 0.41769
    },
    "fallback": false,
    "candidates": [
@@ -744,13 +744,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.218,
+     "speedup": 1.2522,
      "ci95": [
-      1.2117,
-      1.2217
+      1.248,
+      1.2543
      ],
-     "ms": 0.35608,
-     "amdclang_ms": 0.4327
+     "ms": 0.34138,
+     "amdclang_ms": 0.4269
     },
     {
      "path": "generate",
@@ -758,13 +758,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.2923,
+     "speedup": 1.2814,
      "ci95": [
-      1.2876,
-      1.2972
+      1.2767,
+      1.2887
      ],
-     "ms": 0.3357,
-     "amdclang_ms": 0.43312
+     "ms": 0.32676,
+     "amdclang_ms": 0.41922
     },
     {
      "path": "generate",
@@ -772,13 +772,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.3139,
+     "speedup": 1.3143,
      "ci95": [
-      1.31,
-      1.3186
+      1.3098,
+      1.3196
      ],
-     "ms": 0.32876,
-     "amdclang_ms": 0.43198
+     "ms": 0.31794,
+     "amdclang_ms": 0.41769
     }
    ]
   },
@@ -790,7 +790,7 @@
     "bit_identical": false,
     "speedup": null,
     "ci95": null,
-    "ms": 0.3297
+    "ms": 0.31738
    },
    "fallback": false,
    "candidates": [
@@ -802,7 +802,7 @@
      "outcome": "no_baseline",
      "speedup": null,
      "ci95": null,
-     "ms": 0.35594,
+     "ms": 0.34526,
      "amdclang_ms": null
     },
     {
@@ -813,7 +813,7 @@
      "outcome": "no_baseline",
      "speedup": null,
      "ci95": null,
-     "ms": 0.33512,
+     "ms": 0.32461,
      "amdclang_ms": null
     },
     {
@@ -824,7 +824,7 @@
      "outcome": "no_baseline",
      "speedup": null,
      "ci95": null,
-     "ms": 0.3297,
+     "ms": 0.31738,
      "amdclang_ms": null
     }
    ]
@@ -851,7 +851,7 @@
    ]
   }
  },
- "protocol": "agc-timing-amd-1",
+ "protocol": "agc-timing-amd-2",
  "toolchain": {
   "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
   "rocm": "7.14.60850"
@@ -863,7 +863,7 @@
   "with_baseline": 13,
   "wins": 10,
   "fallbacks": 3,
-  "geomean": 2.006,
-  "geomean_without_mfma_gemm": 1.389
+  "geomean": 2.081,
+  "geomean_without_mfma_gemm": 1.422
  }
 }
