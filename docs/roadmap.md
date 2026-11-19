@@ -152,9 +152,10 @@ Exit: the default policy is never slower than amdclang on the corpus (CI), and e
 win is reported with its pass.
 
 ### M9 — Campaigns and report (#13)
-- [ ] Agent sessions on the corpus and GEMM, with traces kept.
-- [ ] Knowledge notes from the sessions rendered into the `agc-notes` skill.
-- [ ] Final report: per-kernel paired speedup against amdclang and, for GEMM, hipBLASLt;
+- [x] Agent sessions on the corpus with traces kept (`tests/mir/wins/`); GEMM is covered by the
+      generator's parameter sweep.
+- [x] Knowledge notes from the sessions, as the `agc-notes` skill.
+- [x] Final report: per-kernel paired speedup against amdclang and, for GEMM, hipBLASLt;
       A/A controls; what did not work.
 
 ## Stretch (not scheduled; opened as an issue when the trigger occurs)

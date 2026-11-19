@@ -188,7 +188,8 @@ def test_mcp_server_over_stdio(tmp_path):
     assert out2[0]["states"] == 2 and not out2[2]["ok"] and out2[2]["errors"][0]["kind"] == "waitcnt"
 
 
-WINS = {"matvec": ("matvec_unroll16.s", 2.0), "gemm_naive": ("gemm_naive_unroll8.s", 1.7), "row_sum": ("row_sum_bulk4.s", 1.1)}
+WINS = {"matvec": ("matvec_unroll16.s", 2.0), "gemm_naive": ("gemm_naive_unroll8.s", 1.7), "row_sum": ("row_sum_bulk4.s", 1.1),
+        "row_argmax": ("row_argmax_bulk4.s", 1.15)}
 
 
 @pytest.mark.parametrize("name", [pytest.param(n, marks=gpu) for n in WINS])
