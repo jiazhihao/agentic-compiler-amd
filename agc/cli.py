@@ -4,6 +4,7 @@
   agc check  M.json [--hsaco F] [--quick]          battery against the reference program
   agc bench  M.json [--hsaco F] [--warm]           timing; with --hsaco, paired against amdclang
   agc static M.json [--asm F.s]                    static checks on the amdclang build's assembly (or F.s)
+  agc run    M.json [--edit BODY.s] [--quick]      session: import, optional edit, static check, battery, paired bench
   agc info                                         device and toolchain facts
 """
 from __future__ import annotations
@@ -76,6 +77,26 @@ def cmd_static(args) -> int:
     return 0 if r["ok"] else 1
 
 
+def cmd_run(args) -> int:
+    """One pass of the loop on a manifest: the amdclang import, or that with the kernel body replaced."""
+    from .session import Session, SessionError
+    try:
+        s = Session.open(args.manifest, quick=args.quick)
+        sid = s.ref_id
+        if args.edit:
+            sid = s.edit_ir("ref", Path(args.edit).read_text(), note=f"agc run --edit {args.edit}")["id"]
+        out = {"session": s.id, "state": sid, "static": s.static_check(sid)}
+        if out["static"]["ok"]:
+            out["check"] = s.check(sid)
+            if out["check"]["ok"]:
+                out["bench"] = s.bench(sid)
+        _emit(out)
+        return 0 if out.get("bench", {}).get("ok") else 1
+    except SessionError as e:
+        _emit(e.to_dict())
+        return 2
+
+
 def cmd_info(args) -> int:
     _emit({**run_job({"kind": "info"}, device=args.device), "toolchain": toolchain.identity()})
     return 0
@@ -92,6 +113,8 @@ def main(argv=None) -> int:
     p = sub.add_parser("bench"); p.add_argument("manifest"); p.add_argument("--hsaco"); p.add_argument("--warm", action="store_true")
     p.set_defaults(fn=cmd_bench)
     p = sub.add_parser("static"); p.add_argument("manifest"); p.add_argument("--asm"); p.set_defaults(fn=cmd_static)
+    p = sub.add_parser("run"); p.add_argument("manifest"); p.add_argument("--edit"); p.add_argument("--quick", action="store_true")
+    p.set_defaults(fn=cmd_run)
     p = sub.add_parser("info"); p.set_defaults(fn=cmd_info)
     args = ap.parse_args(argv)
     try:

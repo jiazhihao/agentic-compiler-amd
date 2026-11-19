@@ -108,3 +108,22 @@ def make_kernel(name: str, blocks: list[Block], args: list[Arg], *, hidden_args:
 def make_module(kernels: list[Kernel], arch: Arch | None = None) -> Module:
     arch = arch or load_arch()
     return Module(arch.target, 6, kernels, {"amdhsa.target": arch.target, "amdhsa.version": [1, 2]})
+
+
+def sync_resources(k: Kernel, arch: Arch | None = None) -> Kernel:
+    """Set the descriptor's and metadata's register fields to what the code uses now (after an
+    edit or a pass changed the registers). Registers the runtime sets at entry stay covered."""
+    arch = arch or load_arch()
+    res = resources(k, arch)
+    d = k.descriptor
+    entry_sgprs = d.get("user_sgpr_count", 0) + sum(int(bool(d.get(f"system_sgpr_workgroup_id_{x}", 0))) for x in "xyz") \
+        + int(bool(d.get("system_sgpr_workgroup_info", 0)))
+    entry_vgprs = d.get("system_vgpr_workitem_id", 0) + 1
+    sgprs = max(res["next_free_sgpr"], entry_sgprs)
+    vgprs = max(res["vgpr_count"], entry_vgprs)
+    accum = arch.accum_offset(vgprs)
+    d["next_free_vgpr"] = accum + res["agpr_count"] if res["agpr_count"] else vgprs
+    d["next_free_sgpr"], d["accum_offset"] = sgprs, accum
+    k.metadata[".vgpr_count"], k.metadata[".agpr_count"] = vgprs, res["agpr_count"]
+    k.metadata[".sgpr_count"] = sgprs + arch.res("sgpr_reserved")
+    return k
