@@ -4,22 +4,26 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 
 ## Status
 
-| Phase | Issue | State |
+| Milestone | Issue | State |
 |---|---|---|
-| P0 Bootstrap | #2 | in progress |
-| P1 Runtime and toolchain | #3 | open |
-| P2 HIP corpus and baselines | #4 | open |
-| P3 ISA table and `mir` core | #5 | open |
-| P4 Static safety | #6 | open |
-| P5 Machine model | #7 | open |
-| P6 Backend passes | #8 | open |
-| P7 Agent interface | #9 | open |
-| P8 High-level inputs and generators | #10 | open |
-| P9 GEMM on MFMA | #11 | open |
-| P10 Attention | #12 | open |
-| P11 Agent campaigns and self-improvement | #13 | open |
+| M0 Bootstrap | #2 | PR #14 open |
+| M1 Measure: runtime, battery, timing | #3 | in progress |
+| M2 Corpus and amdclang baselines | #4 | open |
+| M3 Own the assembly: ISA table and `mir` | #5 | open |
+| M4 Static safety | #6 | open |
+| M5 The agent loop on assembly | #9 | open |
+| M6 Tensor programs in, binaries out | #10 | open |
+| M7 GEMM on MFMA | #11 | open |
+| M8 Backend passes for imported code | #8 | open |
+| M9 Campaigns and report | #13 | open |
+| Stretch: machine-model calibration, attention | #7, #12 | not scheduled |
 
 ## Log
+
+### 2026-11-19 — Roadmap revision
+- Reordered into milestones M0 to M9 with measurable exits: agent loop (M5) before
+  automatic passes (M8), generators (M6, M7) before passes; interpreter, standalone
+  calibration, attention, FP8, profiler and recipe promotion moved to stretch.
 
 ### 2026-11-19 — P0 bootstrap
 - Repo skeleton, design, roadmap, workflow skill, CI. Host: 8 × MI355X VF, ROCm 7.14.
