@@ -1,0 +1,86 @@
+{
+ "name": "rmsnorm",
+ "source": "rmsnorm.hip",
+ "entry": "rmsnorm",
+ "shapes": {
+  "rows": 384,
+  "cols": 1000
+ },
+ "bench_shapes": {
+  "rows": 32768,
+  "cols": 4096
+ },
+ "dynamic": [
+  "rows",
+  "cols"
+ ],
+ "params": [
+  {
+   "name": "x",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "rows",
+    "cols"
+   ]
+  },
+  {
+   "name": "w",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "cols"
+   ]
+  },
+  {
+   "name": "y",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "rows",
+    "cols"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "eps",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 1e-05
+  },
+  {
+   "name": "rows",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "rows"
+  },
+  {
+   "name": "cols",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "cols"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "rows"
+  ],
+  "block": [
+   256
+  ]
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "rmsnorm"
+ },
+ "tolerance": {
+  "y": {
+   "rtol": 0.001,
+   "atol": 1e-05
+  }
+ },
+ "tags": [
+  "rowwise"
+ ]
+}

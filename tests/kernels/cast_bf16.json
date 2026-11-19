@@ -1,0 +1,61 @@
+{
+ "name": "cast_bf16",
+ "source": "cast_bf16.hip",
+ "entry": "cast_bf16",
+ "shapes": {
+  "N": 1048576
+ },
+ "bench_shapes": {
+  "N": 67108864
+ },
+ "dynamic": [
+  "N"
+ ],
+ "params": [
+  {
+   "name": "x",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ]
+  },
+  {
+   "name": "y",
+   "kind": "tensor",
+   "dtype": "bf16",
+   "shape": [
+    "N"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "n",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "N"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "cdiv(N, 256)"
+  ],
+  "block": [
+   256
+  ]
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "cast_bf16"
+ },
+ "tolerance": {
+  "y": {
+   "rtol": 0,
+   "atol": 0
+  }
+ },
+ "tags": [
+  "elementwise"
+ ]
+}

@@ -1,0 +1,113 @@
+# AMD Instinct MI355X (CDNA4, gfx950). Every leaf value is {value, source}; sources:
+#   isa-doc   AMD CDNA4 ISA reference / machine-readable ISA XML
+#   rocminfo  rocminfo / amd-smi on the development host (2026-11-19)
+#   llvm      the AMDGPU backend (GCNSubtarget, GCNHazardRecognizer, SISchedule for gfx950)
+#   measured  produced by agc/arch/microbench on the development host
+# Python code reads architecture facts only from this file (agc.arch.model).
+name: gfx950
+target: amdgcn-amd-amdhsa--gfx950
+resources:
+  compute_units:        {value: 256, source: rocminfo}
+  xcds:                 {value: 8, source: isa-doc}
+  simds_per_cu:         {value: 4, source: rocminfo}
+  wave_size:            {value: 64, source: rocminfo}
+  max_workgroup_size:   {value: 1024, source: rocminfo}
+  max_waves_per_cu:     {value: 32, source: rocminfo}
+  max_waves_per_simd:   {value: 8, source: llvm}
+  # unified register file: 512 32-bit registers per lane per SIMD, split between
+  # ArchVGPRs (v0..v255) and AccVGPRs (a0..a255); a wave's allocation is
+  # align(arch_vgprs, 4) + agprs, at a granule of 8, and accum_offset = align(arch_vgprs, 4)
+  vgprs_per_simd:       {value: 512, source: isa-doc}
+  max_arch_vgprs:       {value: 256, source: isa-doc}
+  max_agprs:            {value: 256, source: isa-doc}
+  vgpr_granule:         {value: 8, source: llvm}
+  accum_offset_granule: {value: 4, source: isa-doc}
+  sgprs_per_simd:       {value: 800, source: llvm}
+  max_sgprs:            {value: 102, source: llvm}     # addressable SGPRs per wave (excluding vcc etc.)
+  sgpr_granule:         {value: 8, source: llvm}
+  sgpr_reserved:        {value: 6, source: llvm}       # vcc + flat_scratch + xnack_mask counted in TotalNumSgprs
+  lds_per_workgroup:    {value: 163840, source: rocminfo}
+  lds_per_cu:           {value: 163840, source: isa-doc}
+  lds_granule:          {value: 1280, source: llvm}
+  lds_banks:            {value: 64, source: isa-doc}
+  lds_bank_width:       {value: 4, source: isa-doc}
+  cacheline:            {value: 128, source: rocminfo}
+  l1_per_cu:            {value: 32768, source: rocminfo}
+  l2_per_xcd:           {value: 4194304, source: rocminfo}
+  mall:                 {value: 268435456, source: rocminfo}   # Infinity Cache (last level)
+  hbm_bytes:            {value: 308906770432, source: rocminfo}
+  hbm_bandwidth_gbs:    {value: 8192, source: rocminfo}
+  max_clock_mhz:        {value: 2400, source: rocminfo}
+  kernarg_preload_max_sgprs: {value: 16, source: llvm}
+  max_user_sgprs:       {value: 32, source: isa-doc}
+peaks:
+  # dense, per GPU at 2400 MHz (MI355X datasheet / derived from MFMA rates)
+  bf16_tflops:          {value: 2500, source: isa-doc}
+  fp16_tflops:          {value: 2500, source: isa-doc}
+  fp8_tflops:           {value: 5000, source: isa-doc}
+  fp32_vector_tflops:   {value: 157.3, source: isa-doc}
+waitcnt:
+  # counter widths (max encodable outstanding count) for s_waitcnt on gfx9.4/9.5
+  vmcnt:   {value: 63, source: isa-doc}
+  expcnt:  {value: 7, source: isa-doc}
+  lgkmcnt: {value: 15, source: isa-doc}
+hazards:
+  # Wait states required between a producer and a consumer (an instruction is one wait state,
+  # `s_nop N` is N + 1). Source `llvm`: GCNHazardRecognizer for gfx950 (ROCm llvm-project);
+  # every rule that amdclang's corpus output exercises is validated by the mutation suite.
+  vmem_reads_sgpr_after_valu_write:   {value: 5, source: llvm}
+  valu_reads_sgpr_after_valu_write:   {value: 2, source: llvm}   # also VCC
+  valu_reads_trans_result:            {value: 1, source: llvm}
+  valu_reads_dst_sel_result:          {value: 1, source: llvm}
+  dpp_reads_vgpr_after_write:         {value: 2, source: llvm}
+  dpp_after_valu_exec_write:          {value: 5, source: llvm}
+  div_fmas_after_valu_vcc_write:      {value: 4, source: llvm}
+  rwlane_select_after_valu_write:     {value: 4, source: llvm}
+  rwlane_after_valu_exec_write:       {value: 4, source: llvm}
+  readlane_src_after_valu_write:      {value: 1, source: llvm}
+  valu_overwrites_wide_store_data:    {value: 2, source: llvm}   # FLAT store of more than 8 bytes
+  lds_dma_after_salu_m0_write:        {value: 1, source: llvm}
+  mfma_after_valu_exec_write:         {value: 4, source: llvm}
+  mfma_reads_vgpr_after_valu_write:   {value: 2, source: llvm}   # writer: VALU that is neither MFMA nor DOT
+  dot_result_read:                    {value: 3, source: llvm}
+  dot_result_overwrite:               {value: 3, source: llvm}
+  fma_f64_after_dgemm:                {value: 2, source: llvm}
+  window:                             {value: 20, source: llvm}  # no rule looks further back than this
+mfma:
+  # passes: first matching regular expression on the instruction name (LLVM's gfx950 SchedModel)
+  passes:
+    value:
+      - ['v_mfma_f64_4x4x', 4]
+      - ['v_mfma_f64_16x16x', 16]
+      - ['v_mfma_.32_4x4x', 2]
+      - ['v_mfma_(scale_)?f32_16x16x128_f8f6f4', 4]     # 8 when both sources are FP8 (cbsz, blgp <= 1): see scale_fp8_passes
+      - ['v_mfma_(scale_)?f32_32x32x64_f8f6f4', 8]
+      - ['v_mfma_.32_16x16x(8|16|32|64)_', 4]
+      - ['v_mfma_.32_16x16x[14]_', 8]
+      - ['v_mfma_.32_32x32x(4_2b_xf|8|16|32)_', 8]
+      - ['v_mfma_.32_32x32x[124]_', 16]
+      - ['v_smfmac_.32_16x16x', 4]
+      - ['v_smfmac_.32_32x32x', 8]
+    source: llvm
+  scale_fp8_passes: {value: {'16x16x128': 8, '32x32x64': 16}, source: llvm}
+  # non-XDL (SGEMM) MFMAs: the f32-input ones; DGEMM: the f64 ones; everything else is XDL
+  sgemm_pattern: {value: 'v_mfma_f32_(4x4x1_16b|16x16x1_4b|16x16x4|32x32x1_2b|32x32x2)_f32', source: llvm}
+  dgemm_pattern: {value: 'v_mfma_f64_', source: llvm}
+  # wait states as a function of the producer's passes P: [base, extra when P != 2]
+  xdl_result_read_as_ab:      {value: [3, 1], source: llvm}     # P + 3 (+1)
+  sgemm_result_read_as_ab:    {value: [2, 0], source: llvm}
+  xdl_result_read_as_c_by_xdl:   {value: [2, 0], source: llvm}  # partial overlap or a different MFMA
+  xdl_result_read_as_c_by_other: {value: [1, 1], source: llvm}
+  sgemm_result_read_as_c:     {value: [0, 0], source: llvm}     # by a non-XDL reader; an XDL reader needs none
+  same_accumulator_2pass:     {value: 2, source: llvm}          # full-register src C chain on one MFMA: 0, except 2-pass
+  xdl_result_read_by_valu_or_mem:   {value: [3, 1], source: llvm}
+  sgemm_result_read_by_valu_or_mem: {value: [2, 0], source: llvm}
+  xdl_result_overwritten:     {value: [3, 1], source: llvm}
+  sgemm_result_overwritten:   {value: [2, 0], source: llvm}
+  xdl_src_c_overwritten:      {value: {2: 1, 4: 3, 8: 7, 16: 15}, source: llvm}
+  dgemm:
+    result_read_as_ab:        {value: {4: 6, 16: 19}, source: llvm}
+    result_read_as_c:         {value: {4: 4, 16: 17}, source: llvm}
+    result_read_by_valu:      {value: {4: 6, 16: 19}, source: llvm}
+    result_read_by_mem:       {value: {4: 9, 16: 18}, source: llvm}
+    result_overwritten:       {value: {4: 6, 16: 11}, source: llvm}

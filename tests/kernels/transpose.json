@@ -1,0 +1,74 @@
+{
+ "name": "transpose",
+ "source": "transpose.hip",
+ "entry": "transpose",
+ "shapes": {
+  "rows": 384,
+  "cols": 1000
+ },
+ "bench_shapes": {
+  "rows": 4096,
+  "cols": 8192
+ },
+ "dynamic": [
+  "rows",
+  "cols"
+ ],
+ "params": [
+  {
+   "name": "x",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "rows",
+    "cols"
+   ]
+  },
+  {
+   "name": "y",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "cols",
+    "rows"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "rows",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "rows"
+  },
+  {
+   "name": "cols",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "cols"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "cdiv(cols, 16)",
+   "cdiv(rows, 16)"
+  ],
+  "block": [
+   16,
+   16
+  ]
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "transpose"
+ },
+ "tolerance": {
+  "y": {
+   "rtol": 0,
+   "atol": 0
+  }
+ },
+ "tags": [
+  "layout"
+ ]
+}
