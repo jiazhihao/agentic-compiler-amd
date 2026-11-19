@@ -134,7 +134,8 @@ def test_verifier_agrees_with_the_assembler():
 
 def test_body_and_structure_findings():
     blocks = mir.parse_body(HAND.read_text(), "axpy")
-    assert [b.label for b in blocks] == ["axpy", ".Lend"] and len(blocks[0].insts) == 17
+    # basic blocks: the fall-through of the conditional branch gets a generated label
+    assert [b.label for b in blocks] == ["axpy", ".Lft0", ".Lend"] and [len(b.insts) for b in blocks] == [8, 9, 1]
     k = abi.make_kernel("axpy", blocks, AXPY_ARGS)
     assert verify.verify_kernel(k) == []
     assert (k.descriptor["next_free_vgpr"], k.descriptor["next_free_sgpr"], k.descriptor["accum_offset"]) == (6, 10, 8)

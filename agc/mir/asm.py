@@ -110,6 +110,29 @@ def parse_inst(text: str) -> Inst:
     return inst
 
 
+_BRANCH = re.compile(r"s_c?branch")
+
+
+def split_at_branches(blocks: list[Block]) -> list[Block]:
+    """Make every block a basic block: amdclang prints no label for the fall-through of a
+    conditional branch, so a new block (with a generated label) starts after each branch that is
+    followed by more instructions. Labels emit no bytes, so the code is unchanged."""
+    taken = {b.label for b in blocks}
+    out, n = [], 0
+    for b in blocks:
+        cur = Block(b.label, [], b.align)
+        out.append(cur)
+        for i, inst in enumerate(b.insts):
+            cur.insts.append(inst)
+            if _BRANCH.match(inst.mnemonic) and i + 1 < len(b.insts):
+                while f".Lft{n}" in taken:
+                    n += 1
+                taken.add(f".Lft{n}")
+                cur = Block(f".Lft{n}")
+                out.append(cur)
+    return out
+
+
 def _strip_comment(line: str) -> str:
     out, quote = "", False
     for ch in line:
@@ -184,7 +207,7 @@ def parse(text: str) -> Module:
                         blocks[-1].insts.append(parse_inst(t))
                     except AsmError as e:
                         raise AsmError(e.message, i, t) from None
-            functions[name] = blocks
+            functions[name] = split_at_branches(blocks)
         elif s.startswith(".amdhsa_kernel "):
             name, desc = s.split()[1], {}
             while i < n:
@@ -244,7 +267,7 @@ def parse_body(text: str, entry: str = "entry") -> list[Block]:
                 blocks[-1].insts.append(parse_inst(t))
             except AsmError as e:
                 raise AsmError(e.message, no, t) from None
-    return blocks
+    return split_at_branches(blocks)
 
 
 S_CODE_END = 0xBF800000        # the padding word amdclang emits after the last kernel

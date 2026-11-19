@@ -4,7 +4,7 @@ from agc.arch.model import load
 def test_sources_tagged():
     arch = load()
     assert arch.name == "gfx950"
-    for sec in ("resources", "peaks", "waitcnt"):
+    for sec in ("resources", "peaks", "waitcnt", "hazards"):
         for key, v in arch.section(sec).items():
             assert v.source in ("isa-doc", "rocminfo", "llvm", "measured"), (sec, key)
 

@@ -3,6 +3,7 @@
   agc build  M.json [-o out.hsaco] [--asm out.s]   amdclang build of the HIP source
   agc check  M.json [--hsaco F] [--quick]          battery against the reference program
   agc bench  M.json [--hsaco F] [--warm]           timing; with --hsaco, paired against amdclang
+  agc static M.json [--asm F.s]                    static checks on the amdclang build's assembly (or F.s)
   agc info                                         device and toolchain facts
 """
 from __future__ import annotations
@@ -64,6 +65,17 @@ def cmd_bench(args) -> int:
     return 0 if r.get("ok") else 1
 
 
+def cmd_static(args) -> int:
+    from .mir import check, parse
+    m = Manifest.load(args.manifest)
+    text = Path(args.asm).read_text() if args.asm else harness.reference_build(m).asm
+    r = check.static_check(parse(text))
+    _emit({"ok": r["ok"], "findings": r["findings"],
+           "kernels": [{"name": k.name, "blocks": len(k.blocks), "instructions": sum(1 for _ in k.insts())}
+                       for k in parse(text).kernels]})
+    return 0 if r["ok"] else 1
+
+
 def cmd_info(args) -> int:
     _emit({**run_job({"kind": "info"}, device=args.device), "toolchain": toolchain.identity()})
     return 0
@@ -79,11 +91,12 @@ def main(argv=None) -> int:
     p.set_defaults(fn=cmd_check)
     p = sub.add_parser("bench"); p.add_argument("manifest"); p.add_argument("--hsaco"); p.add_argument("--warm", action="store_true")
     p.set_defaults(fn=cmd_bench)
+    p = sub.add_parser("static"); p.add_argument("manifest"); p.add_argument("--asm"); p.set_defaults(fn=cmd_static)
     p = sub.add_parser("info"); p.set_defaults(fn=cmd_info)
     args = ap.parse_args(argv)
     try:
         return args.fn(args)
-    except (ManifestError, ExecutorError, toolchain.ToolchainError) as e:
+    except (ManifestError, ExecutorError, toolchain.ToolchainError, ValueError) as e:
         _emit({"ok": False, "error": {"type": type(e).__name__, "message": str(e)}})
         return 2
     finally:

@@ -9,8 +9,8 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 | M0 Bootstrap | #2 | PR #14 open |
 | M1 Measure: runtime, battery, timing | #3 | PR #16 open |
 | M2 Corpus and amdclang baselines | #4 | PR #17 open |
-| M3 Own the assembly: ISA table and `mir` | #5 | PR open |
-| M4 Static safety | #6 | open |
+| M3 Own the assembly: ISA table and `mir` | #5 | PR #18 open |
+| M4 Static safety | #6 | PR open |
 | M5 The agent loop on assembly | #9 | open |
 | M6 Tensor programs in, binaries out | #10 | open |
 | M7 GEMM on MFMA | #11 | open |
@@ -19,6 +19,47 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 | Stretch: machine-model calibration, attention | #7, #12 | not scheduled |
 
 ## Log
+
+### 2026-11-19 — M4: static safety (#6)
+- `agc/mir/analysis.py`: instruction classification and def/use from the ISA table (explicit
+  and implicit operands, accumulating destinations, EXEC masking), CFG, liveness (masked vector
+  writes do not kill by default), reads of undefined registers.
+- `agc/mir/waitcnt.py`: forward dataflow over `vmcnt` / `lgkmcnt` / `expcnt`: in-order counters,
+  out-of-order scalar loads, stores as events, direct-to-LDS loads, barriers, joins.
+- `agc/mir/hazards.py` + `hazards` / `mfma` tables in `gfx950.yaml`: 17 wait-state rules and the
+  MFMA rules (pass counts, XDL / SGEMM / DGEMM classes, results read as A/B or C, by VALU or
+  memory, overwritten results and accumulators), from LLVM's GCNHazardRecognizer for gfx950.
+- `agc/mir/check.py`: `static_check` = verifier + contract (descriptor / metadata cover the
+  code) + undefined reads + waitcnt + hazards + encode with decode cross-check. CLI `agc static`.
+- amdclang output: zero error findings on all 12 corpus kernels.
+- Mutation suite over the corpus, 844 mutants:
+
+| Class | Caught |
+|---|---|
+| `s_waitcnt` deleted | 176 / 176 |
+| wait counter raised by one or dropped | 179 / 179 |
+| `s_nop` deleted or shortened | 29 / 29 |
+| register in the wrong file (illegal result) | 134 / 134 |
+| register widened | 178 / 178 |
+| descriptor / metadata understates registers | 48 / 48 |
+| source replaced by a register nothing writes | 56 / 56 |
+| register in the wrong file (still a legal instruction) | 4 / 44 |
+
+  Every statically decidable mutant is caught (800 / 800); overall 804 / 844 = 95.3 %. The 40
+  misses are legal instructions that compute something else, which is the battery's job.
+- MFMA rules validated on `tests/fixtures/mfma_probe.hip` (amdclang's MFMA code, 9 MFMAs): all
+  17 `s_nop` deletions / shortenings are caught, so the wait-state numbers match the compiler.
+- Bug found by the mutation suite: amdclang prints no label for the fall-through of a
+  conditional branch, so a wait required on one path looked redundant. Blocks are now split
+  at branches when parsing (labels emit no bytes; `.text` stays identical).
+- Divergence found: ROCm LLVM (amd-staging) requires wait states when two different MFMAs share
+  an accumulator (6 for a 4-pass XDL writer); the installed amdclang 23.0.0git emits none
+  (`mfma_feed` in the probe). agc keeps the stricter rule.
+- amdclang reads registers that are undefined on some path (the unused half of a 64-bit
+  operand, a loop-carried mask), so that finding is a warning; a register nothing writes is
+  an error.
+- Open: permlane, `s_setreg` / `s_getreg` and `movrel` hazards are not modelled (using them is
+  a finding); the stricter MFMA rule is not yet confirmed on hardware.
 
 ### 2026-11-19 — M3: ISA table and `mir` (#5)
 - `scripts/gen_isa.py` compiles AMD's `amdgpu_isa_cdna4.xml` into `agc/isa/cdna4.json.gz`

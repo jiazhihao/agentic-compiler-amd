@@ -82,14 +82,16 @@ Exit: the whole corpus imports, verifies, re-emits identically and passes the ba
 the hand-written kernel passes.
 
 ### M4 — Static safety (#6)
-- [ ] CFG, register def/use from the ISA table, liveness.
-- [ ] Waitcnt checker (vmcnt / lgkmcnt / expcnt counter dataflow).
-- [ ] Hazard checker; the wait-state table lives in `gfx950.yaml`.
-- [ ] Register counts and `accum_offset` recomputed and checked against the descriptor.
+- [x] CFG, register def/use from the ISA table, liveness.
+- [x] Waitcnt checker (vmcnt / lgkmcnt / expcnt counter dataflow).
+- [x] Hazard checker; the wait-state table lives in `gfx950.yaml`.
+- [x] Register counts and `accum_offset` recomputed and checked against the descriptor.
 
 Exit: zero violations on every amdclang output in the corpus; a seeded mutation suite
-(dropped or weakened waits, removed `s_nop`, wrong register class, clobbered live
-register) is caught at ≥ 95 %, with the misses listed.
+(dropped or weakened waits, removed or shortened `s_nop`, wrong register class or width,
+understated register counts, a read of a register nothing writes) is caught at ≥ 95 %,
+with the misses listed. (A clobbered live register is a semantic change, not a static
+property: it is the battery's job and was removed from this list.)
 
 ### M5 — The agent loop on assembly (#9)
 - [ ] Content-addressed store of immutable states; trace of actions.

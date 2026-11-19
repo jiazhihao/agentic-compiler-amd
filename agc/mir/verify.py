@@ -96,9 +96,21 @@ def _offset_range(name: str, value: str, enc: str, fields: dict) -> str | None:
 
 def check_inst(inst: Inst, isa: Isa, arch: Arch, labels: set[str] | None = None) -> str | None:
     """Why `inst` is not a legal CDNA4 instruction, or None."""
+    return select(inst, isa, arch, labels)[2]
+
+
+def select(inst: Inst, isa: Isa, arch: Arch, labels: set[str] | None = None):
+    """(encoding, the specification operand of each assembly operand, None) for a legal
+    instruction; (None, (), why) otherwise. For `s_waitcnt` every operand maps to the one
+    counter operand."""
+    enc, specs, why = _select(inst, isa, arch, labels)
+    return (enc, specs, None) if why is None else (None, (), why)
+
+
+def _select(inst: Inst, isa: Isa, arch: Arch, labels):
     r = isa.resolve(inst.mnemonic)
     if r is None:
-        return f"unknown instruction {inst.mnemonic!r}"
+        return None, (), f"unknown instruction {inst.mnemonic!r}"
     _, _, encodings = r
     ops = list(inst.operands)
     best = None
@@ -137,10 +149,12 @@ def check_inst(inst: Inst, isa: Isa, arch: Arch, labels: set[str] | None = None)
             if labels is not None:
                 for o in ops:
                     if isinstance(o, Label) and o.name not in labels:
-                        return f"branch to undefined label {o.name}"
-            return None
+                        return None, (), f"branch to undefined label {o.name}"
+            if any(s.type == "OPR_WAITCNT" for s in specs):
+                specs = tuple(specs[0] for _ in ops)
+            return enc, tuple(specs), None
         best = best or why
-    return best
+    return None, (), best
 
 
 def verify_kernel(k: Kernel, isa: Isa | None = None, arch: Arch | None = None) -> list[dict]:
