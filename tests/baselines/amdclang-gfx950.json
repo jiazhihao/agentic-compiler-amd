@@ -115,6 +115,44 @@
     "2: 2400Mhz "
    ]
   },
+  "gemm_bf16": {
+   "symbols": {
+    "M": 2048,
+    "N": 2048,
+    "K": 2048
+   },
+   "battery_cases": 77,
+   "median_ms": 14.97188,
+   "ci95_median_ms": [
+    14.96805,
+    14.9757
+   ],
+   "n": 30,
+   "converged": true,
+   "resources": {
+    "vgprs": 10,
+    "agprs": 0,
+    "sgprs": 18,
+    "lds_bytes": 0,
+    "scratch_bytes": 0,
+    "vgpr_spills": 0,
+    "sgpr_spills": 0
+   },
+   "waves_per_simd": 8,
+   "occupancy_limiter": "hardware",
+   "instructions": 54,
+   "aa_speedup": 1.0002,
+   "aa_ci95": [
+    1.0,
+    1.0003
+   ],
+   "device": 3,
+   "clock_levels": [
+    "0: 500Mhz ",
+    "1: 1905Mhz *",
+    "2: 2400Mhz "
+   ]
+  },
   "gemm_naive": {
    "symbols": {
     "M": 2048,

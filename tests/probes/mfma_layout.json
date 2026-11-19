@@ -1,0 +1,60 @@
+{
+ "name": "mfma_layout",
+ "entry": "mfma_layout",
+ "shapes": {},
+ "params": [
+  {
+   "name": "a",
+   "kind": "tensor",
+   "dtype": "bf16",
+   "shape": [
+    64,
+    8
+   ],
+   "init": "small_int"
+  },
+  {
+   "name": "b",
+   "kind": "tensor",
+   "dtype": "bf16",
+   "shape": [
+    64,
+    8
+   ],
+   "init": "small_int"
+  },
+  {
+   "name": "d",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    64,
+    16
+   ],
+   "role": "out"
+  }
+ ],
+ "launch": {
+  "grid": [
+   1
+  ],
+  "block": [
+   64
+  ]
+ },
+ "reference": {
+  "kind": "python",
+  "file": "layouts.py",
+  "function": "mfma_32x32x16"
+ },
+ "tolerance": {
+  "d": {
+   "rtol": 0,
+   "atol": 0
+  }
+ },
+ "tags": [
+  "probe"
+ ],
+ "source": "mfma_layout.hip"
+}

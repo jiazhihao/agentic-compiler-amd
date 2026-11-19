@@ -45,6 +45,9 @@ def evaluate(p: Program, args: dict, dtype=np.float32) -> dict[str, np.ndarray]:
         v = np.asarray(args[q.name])
         env[q.name] = v.astype(dtype) if v.dtype.kind == "f" or q.dtype.startswith(("f", "bf")) else v
     for s in p.body:
+        if s.einsum is not None:
+            env[s.name] = np.einsum(s.einsum, *[np.asarray(env[a.name]).astype(dtype) for a in s.expr], optimize=True)
+            continue
         v = np.asarray(_eval(s.expr, env, ft))
         if s.reduce:
             if v.ndim == 0:

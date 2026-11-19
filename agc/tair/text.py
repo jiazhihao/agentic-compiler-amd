@@ -97,6 +97,11 @@ def parse(text: str) -> Program:
         line = line.strip()
         if not line:
             continue
+        em = re.fullmatch(r'(\w+)\s*=\s*einsum\s+"([^"]+)"\s*\(([\w\s,]*)\)', line)
+        if em:
+            prog.body.append(Stmt(em.group(1), tuple(Var(a.strip()) for a in em.group(3).split(",") if a.strip()),
+                                  einsum=em.group(2).replace(" ", "")))
+            continue
         sm = re.fullmatch(r"(\w+)\s*=\s*(?:reduce\s+(\w+)\s*\((.*)\)|(.*))", line)
         if not sm:
             raise TairError(f"bad statement {line!r}")
@@ -127,5 +132,8 @@ def print_program(p: Program) -> str:
         return ", ".join(f"{q.name}: {q.dtype}" + (f"[{', '.join(map(str, q.shape))}]" if q.shape is not None else "") for q in ps)
     lines = [f"tair {p.name}({params(p.params)}) -> ({params(p.outputs)}) {{"]
     for s in p.body:
+        if s.einsum is not None:
+            lines.append(f'  {s.name} = einsum "{s.einsum}"({", ".join(a.name for a in s.expr)})')
+            continue
         lines.append(f"  {s.name} = " + (f"reduce {s.reduce}({print_expr(s.expr)})" if s.reduce else print_expr(s.expr)))
     return "\n".join(lines + ["}"]) + "\n"

@@ -59,7 +59,7 @@ def test_tair_interpreter_agrees_with_the_python_references():
         out = next(iter(tair.evaluate(p, args, np.float64).values()))
         assert np.allclose(out, ref(), rtol=1e-6, atol=1e-7), name
     y = tair.evaluate(tair.parse((KERNELS / "cast_bf16.tair").read_text()), dict(x=x[0]))["y"]
-    assert y.dtype.name == "bfloat16" and set(PROGRAMS) == set(cases) | {"cast_bf16"}
+    assert y.dtype.name == "bfloat16" and set(PROGRAMS) == set(cases) | {"cast_bf16", "gemm_bf16"}
 
 
 # ---- builder and passes --------------------------------------------------------------------
@@ -161,7 +161,9 @@ def test_fix_waits_and_fix_hazards_are_minimal():
 def test_every_variant_is_statically_clean(name):
     m = corpus.load(name)
     template = gen.applicable(m)[0]
-    assert template == ("rowwise" if "rowwise" in m.tags else "elementwise")
+    assert template == ("rowwise" if "rowwise" in m.tags else "gemm_mfma" if "mfma" in m.tags else "elementwise")
+    if template == "gemm_mfma":
+        return                                               # covered in test_gemm.py
     sizes = []
     for value in next(iter(gen.TEMPLATES[template]["params"].values())):
         key = next(iter(gen.TEMPLATES[template]["params"]))

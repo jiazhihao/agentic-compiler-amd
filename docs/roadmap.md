@@ -119,12 +119,14 @@ version. Expectation: about parity on memory-bound elementwise kernels, wins on 
 reductions and normalizations; the measured geomean is reported either way.
 
 ### M7 — GEMM on MFMA (#11)
-- [ ] MFMA operand and accumulator layouts in arch data; the microbenchmarks this
+- [x] MFMA operand and accumulator layouts in arch data; the microbenchmarks this
       needs (MFMA issue rate, LDS read bandwidth, global load latency), written in `mir`.
-- [ ] bf16 / f16 GEMM generator: LDS tiles, MFMA inner loop, AGPR accumulators.
-- [ ] Tuning knobs as agent actions: tile sizes, unroll, load/MFMA interleave,
+- [x] bf16 / f16 GEMM generator: LDS tiles, MFMA inner loop, AGPR accumulators.
+- [x] Tuning knobs as agent actions: tile sizes, unroll, load/MFMA interleave,
       direct-to-LDS loads, workgroup shape.
-- [ ] Baselines: amdclang naive and tiled HIP GEMM; hipBLASLt.
+- [x] Baselines: amdclang's build of the HIP bf16 GEMM; hipBLASLt.
+
+Not done here: direct-to-LDS loads and LDS-shared operands (follow-up #23); f16.
 
 Exit: verified bf16 GEMM at three shapes (square 4096, wide, tall), faster than the
 amdclang tiled HIP build by a CI-separated margin; time relative to hipBLASLt reported
@@ -160,6 +162,7 @@ win is reported with its pass.
 |---|---|
 | Machine-model calibration beyond M7's microbenchmarks (#7) | A scheduler decision needs a latency that is not measured |
 | Attention, prefill and decode (#12) | M7's exit is met |
+| GEMM with LDS-shared macro-tiles (#23) | M7 measured a 2.8x gap to hipBLASLt, bound by operand loads |
 | FP8 GEMM | M7's exit is met |
 | Re-allocation of imported code (physical → virtual → physical) | An imported kernel is measured to be occupancy-limited |
 | Wave64 `mir` interpreter | A class of bug reaches the GPU that the static checkers and the battery miss |

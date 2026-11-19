@@ -27,6 +27,8 @@ _FN = {"v_add_f32": "add", "v_max_f32": "max", "v_min_f32": "min"}
 
 
 def matches(p: Program) -> bool:
+    if any(s.einsum for s in p.body):
+        return False
     ranks = p.ranks()
     full = [q for q in p.params if q.shape is not None and len(q.shape) == 2]
     return (bool(full) and len(p.outputs) == 1 and any(s.reduce for s in p.body)

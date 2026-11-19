@@ -63,6 +63,7 @@ class Stmt:
     name: str
     expr: Expr
     reduce: str | None = None      # None: a map
+    einsum: str | None = None      # `name = einsum "mk,nk->mn"(a, b)`: expr is then a tuple of Vars
 
 
 @dataclass
@@ -82,7 +83,7 @@ class Program:
         for s in self.body:
             if s.reduce is not None and s.reduce not in REDUCTIONS:
                 raise TairError(f"unknown reduction {s.reduce!r}")
-            for v in free_vars(s.expr):
+            for v in (free_vars(s.expr) if s.einsum is None else [a.name for a in s.expr]):
                 if v not in known:
                     raise TairError(f"statement {s.name}: {v!r} is not defined")
             if s.name in known:
@@ -97,6 +98,9 @@ class Program:
         r = {p.name: ("scalar" if p.shape is None else "vec" if len(p.shape) == 1 and self._is_row_vector(p) else "full")
              for p in self.params}
         for s in self.body:
+            if s.einsum is not None:
+                r[s.name] = "full"
+                continue
             ins = {r[v] for v in free_vars(s.expr)}
             if s.reduce:
                 r[s.name] = "row"

@@ -7,6 +7,7 @@ Jobs:
   check   run a code object on battery cases and compare with the reference
   bench   time a code object under the timing protocol (and verify the timed outputs)
   paired  time two code objects alternately; speedup of `candidate` over `reference`
+  run     run one case and return the raw outputs (hardware probes)
 """
 from __future__ import annotations
 
@@ -187,6 +188,44 @@ def job_check(job) -> dict:
             "failures": [r for r in reports if not r["ok"]], "resources": cand.resources()}
 
 
+def job_run(job) -> dict:
+    """Run one case and return the raw outputs (for probes that discover what the hardware does:
+    operand layouts, instruction semantics). Outputs are limited to 4 MiB."""
+    m = _manifest(job)
+    dev = hip.Device(0)
+    k = Loaded(dev, _image(job), m.entry, job.get("launch"))
+    case = Case.from_dict(job["case"])
+    resolved = m.resolve(case.symbols)
+    inputs = generate_inputs(m, resolved, case)
+    bound = Bound(dev, m, resolved, inputs)
+    try:
+        bound.launch(k)
+        dev.synchronize()
+        outs = bound.outputs()
+    finally:
+        bound.free()
+    if sum(a.nbytes for a in outs.values()) > 4 << 20:
+        raise JobError("job", "outputs larger than 4 MiB")
+    enc = lambda a: {"dtype": a.dtype.str if a.dtype.kind != "V" else str(a.dtype), "shape": list(a.shape),
+                     "data": base64.b64encode(a.tobytes()).decode()}
+    return {"ok": True, "outputs": {n: enc(a.view(m.param(n).dtype.bits_view())) for n, a in outs.items()},
+            "inputs": {n: enc(a.view(m.param(n).dtype.bits_view())) for n, a in inputs.items()}}
+
+
+def job_external(job) -> dict:
+    """Run a baseline program (a vendor-library benchmark) on this job's device, under the same lock
+    as every other measurement. The program prints one JSON object."""
+    import subprocess
+    try:
+        p = subprocess.run([str(a) for a in job["argv"]], capture_output=True, text=True, timeout=job.get("timeout", 300))
+    except (OSError, subprocess.TimeoutExpired) as e:
+        raise JobError("external", f"cannot run {job['argv'][0]}: {e}") from None
+    line = next((l for l in reversed(p.stdout.splitlines()) if l.startswith("{")), None)
+    if line is None:
+        raise JobError("external", f"no result from {job['argv'][0]} (exit {p.returncode}): {(p.stderr or p.stdout)[-500:]}")
+    return json.loads(line)
+
+
 class _Timer:
     def __init__(self, dev: hip.Device, arch, cache: str):
         self.dev, self.cache = dev, cache
@@ -272,7 +311,7 @@ def job_paired(job) -> dict:
     return {**out, "ok": True, **paired_summary(samples["reference"], samples["candidate"], proto.noise_floor)}
 
 
-JOBS = {"info": job_info, "check": job_check, "bench": job_bench, "paired": job_paired}
+JOBS = {"info": job_info, "check": job_check, "bench": job_bench, "paired": job_paired, "run": job_run, "external": job_external}
 
 
 def main() -> int:

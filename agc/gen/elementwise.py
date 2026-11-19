@@ -19,6 +19,8 @@ _STORE = {1: "global_store_dword", 2: "global_store_dwordx2", 4: "global_store_d
 
 
 def matches(p: Program) -> bool:
+    if any(s.einsum for s in p.body):
+        return False
     ranks = p.ranks()
     return (all(s.reduce is None for s in p.body) and len(p.outputs) == 1
             and all(q.shape is None or len(q.shape) == 1 for q in p.params)

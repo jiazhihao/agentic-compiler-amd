@@ -12,13 +12,49 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 | M3 Own the assembly: ISA table and `mir` | #5 | PR #18 open |
 | M4 Static safety | #6 | PR #19 open |
 | M5 The agent loop on assembly | #9 | PR #21 open |
-| M6 Tensor programs in, binaries out | #10 | PR open |
-| M7 GEMM on MFMA | #11 | open |
+| M6 Tensor programs in, binaries out | #10 | PR #22 open |
+| M7 GEMM on MFMA | #11 | PR open |
 | M8 Backend passes for imported code | #8 | open |
 | M9 Campaigns and report | #13 | open |
-| Stretch: machine-model calibration, attention | #7, #12 | not scheduled |
+| Stretch: machine-model calibration, attention, LDS GEMM | #7, #12, #23 | not scheduled |
 
 ## Log
+
+### 2026-11-19 — M7: GEMM on MFMA (#11)
+- MFMA layouts measured on the device: a probe kernel written in  (one MFMA on operands
+  loaded lane by lane) matches the layout model on the whole battery, for
+   and . The layouts are in
+   (, source ).
+- tair ; corpus kernel : , bf16 in, f32 out (the
+  linear-layer form: both operands contiguous along K), with a HIP version for amdclang.
+-  (): each lane loads its 8 bf16 of A and of B with one 
+  load, directly in MFMA operand layout; a wave computes  output tiles of
+  32 x 32 in AccVGPRs ( +  loads feed  MFMAs);  K-steps per wait;
+  edges clamped for loads and masked for stores. No LDS, no barrier.
+-  + : hipBLASLt timed with the same
+  sampling, through the executor ( job). Worker job  returns raw outputs (probes).
+- Results ( → ); all 6 variants pass the
+  battery 77/77:
+
+| Shape | M x N x K | amdclang ms | agc ms | hipBLASLt ms | vs amdclang (95 % CI) | agc / hipBLASLt time | agc TFLOPS | Best variant |
+|---|---|---|---|---|---|---|---|---|
+| square | 4096 x 4096 x 4096 | 119.72 | 0.3064 | 0.1107 | 391x (389 to 392) | 2.77x | 448 | tiles 4, unroll 2 |
+| wide | 2048 x 8192 x 4096 | 119.58 | 0.3140 | 0.1096 | 381x (379 to 386) | 2.86x | 438 | tiles 4, unroll 2 |
+| tall | 8192 x 2048 x 4096 | 119.65 | 0.3171 | 0.1068 | 378x (376 to 380) | 2.97x | 434 | tiles 4, unroll 2 |
+| small | 2048 x 2048 x 2048 | 14.99 | 0.0928 | 0.0290 | 161x (160 to 162) | 3.20x | 185 | tiles 2, unroll 2 |
+
+- amdclang emits no MFMA for the HIP kernel, hence the two orders of magnitude. The meaningful
+  bar is hipBLASLt, and agc is 2.8x to 3.2x behind it.
+- Gap analysis (square shape, by variant: tiles 1 unroll 1: 1.054 ms; tiles 1 unroll 2: 0.961 ms; tiles 2 unroll 1: 0.547 ms; tiles 2 unroll 2: 0.538 ms; tiles 4 unroll 1: 0.310 ms; tiles 4 unroll 2: 0.306 ms): the kernel is bound by operand-load throughput.
+  The load traffic is 7 to 8 TB/s whatever the variant; halving the bytes loaded per output
+  (64x64 → 128x128 outputs per wave) gives 1.7x; twice as many loads per wait gives nothing.
+  128x128 per wave is the limit of the 256 AccVGPRs, at 1 wave per SIMD. The next factor of two
+  needs operands shared between the waves of a workgroup through LDS (follow-up #23).
+- The M7 target (within 1.5x of hipBLASLt on one shape) is not met; the exit criterion
+  (verified at three shapes, CI-separated win over amdclang, gap reported and analysed) is.
+- Found on the way: my hipBLASLt harness passed the operands in the wrong order, which only
+  failed (illegal address) for non-square shapes; fixed before recording.
+- Open: only the  form with K a multiple of 16; no f16 / FP8; no LDS.
 
 ### 2026-11-19 — M6: tensor programs in, binaries out (#10)
 - `agc/tair`: tensor programs (elementwise maps and reductions over the last axis), text form,

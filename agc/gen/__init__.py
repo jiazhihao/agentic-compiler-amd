@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from ..manifest import Manifest, ManifestError
 from ..tair.reference import load_text
-from . import elementwise, rowwise
+from . import elementwise, gemm, rowwise
 from .binding import Compiled
 from .builder import GenError
 
@@ -15,6 +15,8 @@ TEMPLATES = {
                     "params": {"elements_per_lane": [1, 2, 4]}, "default": {"elements_per_lane": 4}},
     "rowwise": {"module": rowwise, "doc": "reductions over the last axis and a per-row map; one wave per row, DPP reductions",
                 "params": {"unroll": [1, 2, 4]}, "default": {"unroll": 4}},
+    "gemm_mfma": {"module": gemm, "doc": "C = A @ B^T on MFMA (bf16 in, f32 out); tiles x tiles 32x32 output tiles per wave",
+                  "params": {"tiles": [1, 2, 4], "unroll": [1, 2]}, "default": {"tiles": 4, "unroll": 1}},
 }
 
 
