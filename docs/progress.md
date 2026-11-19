@@ -7,7 +7,7 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 | Milestone | Issue | State |
 |---|---|---|
 | M0 Bootstrap | #2 | PR #14 open |
-| M1 Measure: runtime, battery, timing | #3 | in progress |
+| M1 Measure: runtime, battery, timing | #3 | PR open |
 | M2 Corpus and amdclang baselines | #4 | open |
 | M3 Own the assembly: ISA table and `mir` | #5 | open |
 | M4 Static safety | #6 | open |
@@ -19,6 +19,25 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 | Stretch: machine-model calibration, attention | #7, #12 | not scheduled |
 
 ## Log
+
+### 2026-11-19 — M1: runtime, battery, timing (#3)
+- Built: `gfx950.yaml` + occupancy; HIP module API through ctypes; amdclang / assemble / link /
+  inspect wrappers with toolchain identity in cache keys; manifest; per-device executor
+  (8 locks, `auto` device choice, interactive before batch) with one worker process per job;
+  battery (6 distributions, hidden seeds, shape variants, poisoning, rtol/atol/cond);
+  timing `agc-timing-amd-1` and paired interleaved comparison; CLI `agc build|check|bench|info`.
+- AXPY (amdclang, 6 VGPRs): battery 49/49 cases; 0.17 ms at N = 2^26 (about 4.7 TB/s),
+  event time within 10 us of host wall-clock, linear in N from 2^22 to 2^28.
+- A/A control (same code object twice, 60 pairs) on six devices: speedup 0.992 to 1.009,
+  every 95 % CI contains 1.0 and lies within ±2 %. A deliberately slower kernel is reported
+  as `loss`, the reverse as `win`; a wrong candidate is refused before timing.
+- Found on the way: amdclang contracts `a*x+y` to `v_fmac_f32`, so AXPY needs the `cond`
+  allowance under cancellation (rtol alone fails the `large_exponent` distribution).
+- `amdclang`'s own `-S` output re-assembled through `llvm-mc` + `ld.lld` gives a
+  byte-identical `.text` and identical metadata (the basis of M3's round-trip).
+- Open: kernels under about 50 us are dominated by launch overhead (18 to 28 us at N = 2^22),
+  so manifests carry `bench_shapes`; clocks float between 500 / 1012 / 2400 MHz levels on the
+  VFs and are only recorded; GPU tests still run serially.
 
 ### 2026-11-19 — Roadmap revision
 - Reordered into milestones M0 to M9 with measurable exits: agent loop (M5) before

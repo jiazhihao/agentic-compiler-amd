@@ -47,16 +47,16 @@ one below is unmerged).
 - [x] Repo skeleton, design, roadmap, workflow skill, CI (CPU tests), Python env.
 
 ### M1 — Measure: runtime, battery, timing (#3)
-- [ ] `agc/arch/gfx950.yaml` (resources with source tags), loader, occupancy calculator.
-- [ ] `agc/runtime/hip.py` (HIP module API through ctypes), `toolchain.py` (amdclang
+- [x] `agc/arch/gfx950.yaml` (resources with source tags), loader, occupancy calculator.
+- [x] `agc/runtime/hip.py` (HIP module API through ctypes), `toolchain.py` (amdclang
       `.hsaco` and `-S`, assemble, link, inspect; toolchain identity in cache keys).
-- [ ] `agc/manifest.py`, `agc/dtypes.py`.
-- [ ] Executor: per-device lock, subprocess workers, accounting.
-- [ ] Battery: seeded input distributions, hidden seeds, shape variants, NumPy
+- [x] `agc/manifest.py`, `agc/dtypes.py`.
+- [x] Executor: per-device lock, subprocess workers, accounting.
+- [x] Battery: seeded input distributions, hidden seeds, shape variants, NumPy
       reference, output poisoning, rtol/atol/cond tolerances.
-- [ ] Timing `agc-timing-amd-1`: `hipEvent`s, cache flush, CI-converged medians; paired
+- [x] Timing `agc-timing-amd-1`: `hipEvent`s, cache flush, CI-converged medians; paired
       interleaved comparison of two code objects in one process.
-- [ ] CLI `agc build | check | bench`.
+- [x] CLI `agc build | check | bench`.
 
 Exit: AXPY builds, passes the battery and is timed; an A/A paired run (the same code
 object twice) gives a ratio whose CI contains 1.0 and is within ±2 %.

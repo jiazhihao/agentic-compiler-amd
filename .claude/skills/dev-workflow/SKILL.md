@@ -13,9 +13,9 @@ description: >-
    the issue so another agent or developer can continue without the chat.
 2. **No direct commits to `main`** (the initial bootstrap commit of the empty repo
    excepted). Every change goes on a branch `issue-N-<slug>` and reaches `main` through
-   a PR that a human reviews and merges. Agents never merge, approve their own PR,
+   a PR that is reviewed (by Codex and a human) and merged by a human. Agents never merge, approve their own PR,
    enable auto-merge or force-push.
-3. **Stacking.** When a phase depends on a phase whose PR is not merged yet, branch
+3. **Stacking.** Every PR is stackable. When a phase depends on a phase whose PR is not merged yet, branch
    from that PR's branch and open the new PR against it (`--base issue-M-<slug>`), so
    GitHub shows the stack. State the merge order in the PR body. When a PR below merges,
    merge `origin/main` into the branches above it.

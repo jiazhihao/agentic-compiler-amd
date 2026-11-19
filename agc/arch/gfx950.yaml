@@ -1,0 +1,53 @@
+# AMD Instinct MI355X (CDNA4, gfx950). Every leaf value is {value, source}; sources:
+#   isa-doc   AMD CDNA4 ISA reference / machine-readable ISA XML
+#   rocminfo  rocminfo / amd-smi on the development host (2026-11-19)
+#   llvm      the AMDGPU backend's subtarget data (GCNSubtarget for gfx950)
+#   measured  produced by agc/arch/microbench on the development host
+# Python code reads architecture facts only from this file (agc.arch.model).
+name: gfx950
+target: amdgcn-amd-amdhsa--gfx950
+resources:
+  compute_units:        {value: 256, source: rocminfo}
+  xcds:                 {value: 8, source: isa-doc}
+  simds_per_cu:         {value: 4, source: rocminfo}
+  wave_size:            {value: 64, source: rocminfo}
+  max_workgroup_size:   {value: 1024, source: rocminfo}
+  max_waves_per_cu:     {value: 32, source: rocminfo}
+  max_waves_per_simd:   {value: 8, source: llvm}
+  # unified register file: 512 32-bit registers per lane per SIMD, split between
+  # ArchVGPRs (v0..v255) and AccVGPRs (a0..a255); a wave's allocation is
+  # align(arch_vgprs, 4) + agprs, at a granule of 8, and accum_offset = align(arch_vgprs, 4)
+  vgprs_per_simd:       {value: 512, source: isa-doc}
+  max_arch_vgprs:       {value: 256, source: isa-doc}
+  max_agprs:            {value: 256, source: isa-doc}
+  vgpr_granule:         {value: 8, source: llvm}
+  accum_offset_granule: {value: 4, source: isa-doc}
+  sgprs_per_simd:       {value: 800, source: llvm}
+  max_sgprs:            {value: 102, source: llvm}     # addressable SGPRs per wave (excluding vcc etc.)
+  sgpr_granule:         {value: 8, source: llvm}
+  sgpr_reserved:        {value: 6, source: llvm}       # vcc + flat_scratch + xnack_mask counted in TotalNumSgprs
+  lds_per_workgroup:    {value: 163840, source: rocminfo}
+  lds_per_cu:           {value: 163840, source: isa-doc}
+  lds_granule:          {value: 1280, source: llvm}
+  lds_banks:            {value: 64, source: isa-doc}
+  lds_bank_width:       {value: 4, source: isa-doc}
+  cacheline:            {value: 128, source: rocminfo}
+  l1_per_cu:            {value: 32768, source: rocminfo}
+  l2_per_xcd:           {value: 4194304, source: rocminfo}
+  mall:                 {value: 268435456, source: rocminfo}   # Infinity Cache (last level)
+  hbm_bytes:            {value: 308906770432, source: rocminfo}
+  hbm_bandwidth_gbs:    {value: 8192, source: rocminfo}
+  max_clock_mhz:        {value: 2400, source: rocminfo}
+  kernarg_preload_max_sgprs: {value: 16, source: llvm}
+  max_user_sgprs:       {value: 32, source: isa-doc}
+peaks:
+  # dense, per GPU at 2400 MHz (MI355X datasheet / derived from MFMA rates)
+  bf16_tflops:          {value: 2500, source: isa-doc}
+  fp16_tflops:          {value: 2500, source: isa-doc}
+  fp8_tflops:           {value: 5000, source: isa-doc}
+  fp32_vector_tflops:   {value: 157.3, source: isa-doc}
+waitcnt:
+  # counter widths (max encodable outstanding count) for s_waitcnt on gfx9.4/9.5
+  vmcnt:   {value: 63, source: isa-doc}
+  expcnt:  {value: 7, source: isa-doc}
+  lgkmcnt: {value: 15, source: isa-doc}
