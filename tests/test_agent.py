@@ -96,3 +96,43 @@ def test_source_sweeps_reuse_the_text_and_defines_reach_the_launch(tmp_path):
         s.source(text, defines={"NB": 4})
     with pytest.raises(SessionError, match="does not come from"):
         s.source(like="ref", defines={"BLK": 64})
+
+
+def _with_baseline(tmp_path, baseline):
+    d = json.loads((KERNELS / "axpy.json").read_text())
+    d["source"] = str(KERNELS / "axpy.hip")
+    for key in ("reference", "program"):
+        if isinstance(d.get(key), dict) and d[key].get("file"):
+            d[key]["file"] = str(KERNELS / d[key]["file"])
+    d["baseline"] = baseline
+    p = tmp_path / "axpy.json"
+    p.write_text(json.dumps(d))
+    return p
+
+
+@needs_toolchain
+def test_a_manifest_baseline_is_its_own_state_and_what_candidates_are_measured_against(tmp_path):
+    (tmp_path / "strong.hip").write_text((KERNELS / "axpy.hip").read_text() + "\n// restructured\n")
+    p = _with_baseline(tmp_path, {"source": "strong.hip", "flags": ["-ffast-math"], "launch": {"block": [128], "grid": ["cdiv(N, 128)"]}})
+    s = Session.open(p, tmp_path / "root", quick=True)
+    plain = Session.open(KERNELS / "axpy.json", tmp_path / "root", quick=True)
+    assert s.base_id != s.ref_id and s.id != plain.id and plain.base_id == plain.ref_id
+    assert s.store.tags()["baseline"] == s.base_id and s.resolve("baseline") == s.base_id
+    assert s.launch_of(s.base_id)["block"] == [128] and s.launch_of(s.ref_id) is None
+    assert s.info()["baseline"]["id"] == s.base_id
+    with pytest.raises(SessionError):
+        s.tag("ref", "baseline")
+    from agc.session.policy import candidates
+    st = next(c for c in candidates(s) if c["how"].startswith("coarsen"))["make"]()
+    assert st["parent"] == s.base_id                                  # the policy works on the baseline, not on `ref`
+    assert agent.runner.own_source(s, st["id"]) is None               # the baseline is not the session's own source
+    own = s.source((KERNELS / "axpy.hip").read_text() + "\n// mine\n", defines={"EPT": 2}, flags=["-ffast-math"])
+    c = agent.runner.own_source(s, own["id"])
+    assert c["state"] == own["id"] and c["flags"] == ["-ffast-math"] and c["defines"] == {"EPT": "2"}
+
+
+def test_a_manifest_baseline_is_validated(tmp_path):
+    from agc.manifest import Manifest, ManifestError
+    for bad in ({"threads": 4}, {"source": "missing.hip"}, "fast"):
+        with pytest.raises(ManifestError, match="baseline"):
+            Manifest.load(_with_baseline(tmp_path, bad))

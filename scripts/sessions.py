@@ -2,7 +2,7 @@
 """Per-kernel agent sessions on the LLM benchmark (`agc.agent`).
 
     .venv/bin/python scripts/sessions.py run KERNEL [...] [--minutes N] [--model M]   sessions, one kernel after another
-    .venv/bin/python scripts/sessions.py table                                        Markdown: default policy and session result per kernel
+    .venv/bin/python scripts/sessions.py table                                        Markdown: baseline, default policy and session result per kernel
     .venv/bin/python scripts/sessions.py comment KERNEL                               Markdown of the last session (for the kernel's issue)
 """
 from __future__ import annotations
@@ -18,41 +18,56 @@ from agc.session import Session
 
 BENCH = Path(__file__).resolve().parent.parent / "bench" / "llm"
 POLICY = corpus.BASELINES.with_name("llm-gfx950.json")
-FLAGS = corpus.BASELINES.with_name("llm-flags-gfx950.json")
+STRONG = corpus.BASELINES.with_name("llm-strong-gfx950.json")
 
 
 def recipes() -> dict:
     return {d.name: json.loads((d / "recipe.json").read_text()) for d in sorted(agent.RECIPES.glob("*")) if (d / "recipe.json").exists()}
 
 
+def how_baseline(b: dict | None) -> str:
+    if not b:
+        return "-O3, source as shipped"
+    return " + ".join(x for x in ("restructured source" if b.get("source") else "", " ".join(b.get("flags", [])),
+                                  "own launch" if b.get("launch") else "") if x)
+
+
 def table() -> str:
     pol, rec = json.loads(POLICY.read_text())["kernels"], recipes()
-    flags = json.loads(FLAGS.read_text())["kernels"] if FLAGS.exists() else {}
-    rows = ["| kernel | library | amdclang -O3 ms | amdclang -O3 -ffast-math | default policy | agent session (95% CI) | amdclang on the rewritten source | machine-level gain | how |",
-            "|---|---|---|---|---|---|---|---|---|"]
-    best = []
+    strong = json.loads(STRONG.read_text())["kernels"] if STRONG.exists() else {}
+    rows = ["| kernel | library | amdclang -O3, shipped source (ms) | strongest amdclang build | its speedup over -O3 shipped | baseline ms "
+            "| default policy over the baseline | agent session over the baseline (95% CI) | how | total over -O3 shipped |",
+            "|---|---|---|---|---|---|---|---|---|---|"]
+    gain, total = [], []
     for n, k in pol.items():
-        p = "fallback" if k["fallback"] else f"{k['chosen']['speedup']:.3f}"
-        fm = flags.get(n, {}).get("-ffast-math")
-        fm = "same code" if fm == "identical code" else f"{fm[1]:.3f}" if isinstance(fm, list) else "fails" if fm else ""
+        st = strong.get(n, {})
+        base = st.get("over_shipped_O3", 1.0)
+        p = 1.0 if k["fallback"] else k["chosen"]["speedup"]
         r = rec.get(n)
-        sp = max(1.0 if k["fallback"] else k["chosen"]["speedup"], r["verified"]["speedup"] if r else 1.0)
-        best.append(sp)
+        g = max(p, r["verified"]["speedup"] if r else 1.0)
+        gain.append(g)
+        tot = r.get("attribution", {}).get("over_shipped_O3") if r and r["verified"]["speedup"] >= p else None
+        total.append(tot or base * g)
+        cells = [f"`{n}`", k["library"], f"{st.get('amdclang_O3_ms', k['amdclang_ms']):.4f}", how_baseline(st.get("baseline")),
+                 f"{base:.2f}" if st.get("baseline") else "", f"{k['amdclang_ms']:.4f}",
+                 "fallback" if k["fallback"] else f"{p:.3f} `{k['chosen']['how']}`"]
         if r:
             v = r["verified"]
-            how = " + ".join(r["path"]) + ("" if r["launch"] is None else ", own launch")
-            a = r.get("attribution", {})
-            src = a.get("amdclang_on_rewritten_source")
-            rows.append(f"| `{n}` | {k['library']} | {k['amdclang_ms']:.4f} | {fm} | {p} | **{v['speedup']:.3f}** ({v['speedup_ci95'][0]:.3f} to {v['speedup_ci95'][1]:.3f}) "
-                        f"| {'' if src is None else f'{src:.3f}'} | {'' if a.get('machine_level_gain') is None else f'{a['machine_level_gain']:.2f}'} | {how} |")
+            cells += [f"**{v['speedup']:.3f}** ({v['speedup_ci95'][0]:.3f} to {v['speedup_ci95'][1]:.3f})",
+                      " + ".join(x for x in r["path"] if x not in ("adopt",)) or "recorded recipe"]
         else:
-            rows.append(f"| `{n}` | {k['library']} | {k['amdclang_ms']:.4f} | {fm} | {p} | | | | |")
-    wins = sum(s > 1 for s in best)
-    rows += ["", "All speedups are over amdclang -O3 on the benchmark source as shipped. \"amdclang on the rewritten source\" is the part of a "
-                 "session's speedup that amdclang itself delivers once the source is restructured; \"machine-level gain\" is what agc's own "
-                 "level adds on top (1.00: none). The -ffast-math column is the unmodified source with that flag.",
-             "", f"{wins} of {len(best)} kernels faster than amdclang (policy or session); {len(best) - wins} fallbacks; "
-                 f"geomean of the best verified result {math.exp(sum(map(math.log, best)) / len(best)):.3f} with fallbacks at 1.0."]
+            cells += ["", ""]
+        cells.append(f"{total[-1]:.2f}")
+        rows.append("| " + " | ".join(cells) + " |")
+    gm = lambda xs: math.exp(sum(map(math.log, xs)) / len(xs))
+    wins = sum(g > 1 for g in gain)
+    rows += ["", "The baseline is the strongest amdclang build found per kernel (`scripts/strong_baseline.py`): the source as shipped or "
+                 "a restructured source, with or without `-ffast-math`, with its own launch where that is faster; all of it is amdclang's "
+                 "code. The policy and session columns are what agc adds on top of that build (machine IR passes and edits), verified by "
+                 "the full battery and paired timings. The last column is for orientation: the best verified agc state, or else the "
+                 "baseline, over amdclang -O3 on the source as shipped.",
+             "", f"{wins} of {len(gain)} kernels have a verified agc gain over the strongest amdclang build; {len(gain) - wins} fallbacks; "
+                 f"geomean of the agc gain {gm(gain):.3f} with fallbacks at 1.0; geomean over -O3 on the shipped source {gm(total):.3f}."]
     return "\n".join(rows)
 
 

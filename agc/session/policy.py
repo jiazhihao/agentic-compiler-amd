@@ -1,6 +1,6 @@
 """The default policy: what agc does with a manifest when nobody steers it.
 
-Candidates: the amdclang import with `unroll_loads` at each factor (when a loop qualifies) and with
+Candidates: the baseline (the strongest amdclang build, see the manifest's `baseline`) with `unroll_loads` at each factor (when a loop qualifies) and with
 `coarsen` at each factor (several workgroups of the original per launched workgroup), and the
 manifest's tensor program compiled with every parameter of the matching template. Each candidate
 goes through the static checks, the full battery and a paired timing against amdclang. The result
@@ -22,10 +22,10 @@ def candidates(s: Session) -> list[dict]:
     if s.ref_id is not None:
         for f in UNROLL_FACTORS:
             out.append({"path": "import+pass", "how": f"unroll_loads(factor={f})", "bit_identical": True,
-                        "make": lambda f=f: s.apply("ref", "unroll_loads", {"factor": f})})
+                        "make": lambda f=f: s.apply("baseline", "unroll_loads", {"factor": f})})
         for f in COARSEN_FACTORS:
             out.append({"path": "import+pass", "how": f"coarsen(factor={f})", "bit_identical": True,
-                        "make": lambda f=f: s.apply("ref", "coarsen", {"factor": f})})
+                        "make": lambda f=f: s.apply("baseline", "coarsen", {"factor": f})})
     if s.manifest.program is not None:
         from .. import gen
         try:
@@ -69,8 +69,8 @@ def optimize(s: Session, log=None) -> dict:
         s.store.tag("best", best["state"])
         report.update(fallback=False, chosen={k: best[k] for k in ("state", "path", "how", "bit_identical", "speedup", "ci95", "ms", "amdclang_ms")})
     elif s.ref_id is not None:
-        s.store.tag("best", s.ref_id)
-        report.update(fallback=True, chosen={"state": s.ref_id, "path": "amdclang", "how": "the amdclang build (no verified win)",
+        s.store.tag("best", s.base_id)
+        report.update(fallback=True, chosen={"state": s.base_id, "path": "amdclang", "how": "the amdclang build (no verified win)",
                                               "bit_identical": True, "speedup": 1.0, "ci95": None})
     else:
         timed = [r for r in rows if r.get("outcome") == "no_baseline"]

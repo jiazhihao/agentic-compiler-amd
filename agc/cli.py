@@ -132,7 +132,7 @@ def cmd_agent(args) -> int:
 
 def cmd_replay(args) -> int:
     from . import agent
-    r = agent.replay(args.kernels or None, log=lambda t: print(t, file=sys.stderr))
+    r = agent.replay(args.kernels or None, log=lambda t: print(t, file=sys.stderr), update=args.update)
     _emit(r)
     return 0 if all(v.get("outcome") == "win" for v in r.values()) else 1
 
@@ -163,7 +163,9 @@ def main(argv=None) -> int:
     p.add_argument("--benches", type=int, default=30); p.add_argument("--model"); p.add_argument("--no-policy", action="store_true")
     p.add_argument("--verify-only", action="store_true", help="no new session: verify and record the last session's report")
     p.add_argument("--extra", help="text appended to the session prompt"); p.set_defaults(fn=cmd_agent)
-    p = sub.add_parser("replay"); p.add_argument("kernels", nargs="*"); p.set_defaults(fn=cmd_replay)
+    p = sub.add_parser("replay"); p.add_argument("kernels", nargs="*")
+    p.add_argument("--update", action="store_true", help="write the new verdicts into the recipes; drop recipes that are no longer wins")
+    p.set_defaults(fn=cmd_replay)
     p = sub.add_parser("info"); p.set_defaults(fn=cmd_info)
     args = ap.parse_args(argv)
     try:

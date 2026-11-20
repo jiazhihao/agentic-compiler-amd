@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-"""The LLM-kernel benchmark (`bench/llm`): the default policy against amdclang on every kernel.
+"""The LLM-kernel benchmark (`bench/llm`): the default policy on every kernel, against the kernel's baseline
+(the strongest amdclang build, `scripts/strong_baseline.py`; amdclang -O3 on the source as shipped where there is none).
 
     .venv/bin/python scripts/llmbench.py [kernel ...]   -> tests/baselines/llm-gfx950.json
     .venv/bin/python scripts/llmbench.py --table        -> the Markdown table of the recorded results
@@ -41,7 +42,7 @@ def summarize(kernels: dict) -> dict:
 
 
 def table(out: dict) -> str:
-    rows = ["| kernel | library | amdclang ms | agc ms | speedup (95% CI) | how | bit-identical |", "|---|---|---|---|---|---|---|"]
+    rows = ["| kernel | library | baseline ms | agc ms | speedup (95% CI) | how | bit-identical |", "|---|---|---|---|---|---|---|"]
     for n, k in out["kernels"].items():
         c = k["chosen"]
         if k["fallback"]:
@@ -61,7 +62,7 @@ def main(argv) -> int:
         print(table(json.loads(OUT.read_text())))
         return 0
     out = json.loads(OUT.read_text()) if OUT.exists() and argv else {"kernels": {}}
-    out.update(protocol=PROTOCOL_VERSION, toolchain=toolchain.identity(), baseline="amdclang -O3", recorded=time.strftime("%Y-%m-%d"))
+    out.update(protocol=PROTOCOL_VERSION, toolchain=toolchain.identity(), baseline="the strongest amdclang build per kernel (tests/baselines/llm-strong-gfx950.json)", recorded=time.strftime("%Y-%m-%d"))
     root = tempfile.mkdtemp(prefix="agc-llm-")
     for n in argv or names():
         s = Session.open(BENCH / f"{n}.json", root)
@@ -69,7 +70,7 @@ def main(argv) -> int:
         c = r["chosen"]
         ref_ms = c.get("amdclang_ms") or next((row["amdclang_ms"] for row in r["candidates"] if row.get("amdclang_ms")), None)
         if ref_ms is None:
-            ref_ms = s.bench("ref")["candidate_ms"]            # no candidate was timed: time amdclang's build itself
+            ref_ms = s.bench("baseline")["candidate_ms"]       # no candidate was timed: time the baseline itself
         out["kernels"][n] = {"library": library(s.manifest), "amdclang_ms": ref_ms, "fallback": r["fallback"],
                              "chosen": {k: v for k, v in c.items() if k != "state"},
                              "candidates": [{k: v for k, v in row.items() if k != "state"} for row in r["candidates"]]}

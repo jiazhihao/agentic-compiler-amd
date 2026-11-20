@@ -18,9 +18,14 @@ TOOLS = ["mcp__agc", "Read", "Grep", "Glob"]
 
 
 def _prompt(s: Session, manifest: Path, minutes: int, benches: int, extra: str) -> str:
-    ref = s.store.get_result(s.ref_id, "bench") if s.ref_id else None
+    ref = s.store.get_result(s.base_id, "bench") if s.base_id else None
     ms = f"{ref['candidate_ms']:.4f} ms" if ref and ref.get("candidate_ms") else "not timed yet"
-    return PROMPT.read_text().format(name=s.manifest.name, manifest=manifest, ref_ms=ms,
+    bl = s.manifest.baseline
+    what = "amdclang -O3 on the source as shipped (state `ref`)" if not bl else (
+        "amdclang on " + ("a restructured source" if bl.get("source") else "the shipped source")
+        + (f" with {' '.join(bl['flags'])}" if bl.get("flags") else "") + (" and its own launch" if bl.get("launch") else "")
+        + " (state `baseline`; `hip_source()` shows it; `ref` is -O3 on the source as shipped)")
+    return PROMPT.read_text().format(name=s.manifest.name, manifest=manifest, ref_ms=ms, baseline=what,
                                      bench_shapes=json.dumps(s.manifest.timing_symbols()), minutes=minutes,
                                      benches=benches, extra=extra)
 
@@ -63,18 +68,26 @@ ATTEMPTS = 5
 PAIRS = 240               # launches per code object in the harness's timings (the session default is 60)
 
 
-def verify(s: Session, ref: str) -> dict:
+def verify(s: Session, ref: str, against: str | None = None) -> dict:
     """The harness's own verdict on a state: static check and battery rerun, then paired timings until two
     are valid. A timing is valid when its CI is narrower than MAX_CI_WIDTH, whatever its direction. The
-    state is a win when both valid timings are wins; the one with the lower bound is reported."""
+    state is a win when both valid timings are wins; the one with the lower bound is reported. Timings
+    are against the session's baseline, or against the verified state `against`."""
     v = s.verify(ref, PAIRS)
     if not v.get("ok"):
         return v
+
+    def timing() -> dict:
+        if against is None:
+            return s.bench(ref, PAIRS)
+        c = s.compare(against, ref, PAIRS)
+        return c if not c.get("ok") else {"ok": True, "outcome": c["outcome_b_vs_a"], "speedup": c["speedup_b_over_a"],
+                                          "speedup_ci95": c["ci95"], "reference_ms": c["a_ms"], "candidate_ms": c["b_ms"]}
     valid, runs = [], []
     b = v
     for n in range(ATTEMPTS):
-        if n:
-            b = s.bench(ref, PAIRS)
+        if n or against is not None:
+            b = timing()
             if not b.get("ok"):
                 return {**v, "ok": False, "stage": "bench", "error": b.get("error")}
         lo, hi = b["speedup_ci95"]
@@ -84,7 +97,7 @@ def verify(s: Session, ref: str) -> dict:
             valid.append(b)
         if len(valid) == 2:
             break
-    out = {**v, "runs": runs}
+    out = {**v, "runs": runs, "against": against or s.base_id}
     if len(valid) < 2:
         return {**out, "outcome": "disturbed"}
     worst = min(valid, key=lambda x: x["speedup_ci95"][0])
@@ -93,30 +106,39 @@ def verify(s: Session, ref: str) -> dict:
     return out
 
 
-def record(s: Session, sid: str, verdict: dict, report: dict, meta: dict) -> Path:
-    """Write the recipe of a verified win."""
+def own_source(s: Session, sid: str) -> dict | None:
+    """When a state descends from the session's own `source` state (not the baseline): that amdclang build,
+    as a baseline candidate ({"state", "file", "launch", "flags", "defines"})."""
+    root = s.store.ancestry(sid)[0]
+    if root.action.get("name") != "source" or root.id == s.base_id:
+        return None
+    a = root.action
+    return {"state": root.id, "file": a["file"], "launch": a.get("launch_given"),
+            "flags": [f for f in a.get("flags", []) if not f.startswith("-D")],
+            "defines": dict(f[2:].split("=", 1) for f in a.get("flags", []) if f.startswith("-D"))}
+
+
+def record(s: Session, sid: str, verdict: dict, report: dict, meta: dict, stronger: dict | None = None) -> Path:
+    """Write the recipe of a verified win: the module text and launch, the gain over the strongest amdclang
+    build (the verdict), and for orientation the total over amdclang -O3 on the source as shipped."""
     d = RECIPES / s.manifest.name
     d.mkdir(parents=True, exist_ok=True)
     ex = s.export(sid)
     (d / "best.s").write_text(ex["asm"])
-    src = next((st["action"].get("file") for st in ex["trace"] if st["action"].get("name") == "source"), None)
-    if src and Path(src).exists():
-        shutil.copy(src, d / "source.hip")
-    # Attribution: how much of the speedup amdclang itself delivers on the rewritten source, and how much
-    # the machine-level work after it adds. A recipe that is only a `source` state is amdclang's own code.
     anc = s.store.ancestry(sid)
     attribution = {"levels": sorted({"source" if a.action.get("name") == "source" else "program" if a.action.get("name") == "generate"
-                                     else "import" if a.action.get("name") == "import" else "mir" for a in anc})}
-    if anc[0].action.get("name") == "source":
-        if len(anc) == 1:
-            attribution.update(amdclang_on_rewritten_source=verdict.get("speedup"), machine_level_gain=1.0)
-        else:
-            try:
-                b = s.bench(anc[0].id, PAIRS)
-                attribution.update(amdclang_on_rewritten_source=b["speedup"],
-                                   machine_level_gain=round(verdict["speedup"] / b["speedup"], 3))
-            except SessionError as e:                         # the source state alone does not verify
-                attribution.update(amdclang_on_rewritten_source=None, note=f"{e.kind}: {e.message}"[:200])
+                                     else "import" if a.action.get("name") == "import" else "mir" for a in anc}),
+                   "baseline": s.manifest.baseline or "amdclang -O3 on the source as shipped",
+                   "over_strongest_amdclang": verdict.get("speedup")}
+    if stronger:
+        attribution["own_source_over_baseline"] = stronger.get("speedup")
+    if sid != s.ref_id and s.ref_id is not None:
+        try:
+            c = s.compare(s.ref_id, sid, PAIRS)
+            if c.get("ok"):
+                attribution["over_shipped_O3"] = c["speedup_b_over_a"]
+        except SessionError as e:
+            attribution["note"] = f"{e.kind}: {e.message}"[:200]
     recipe = {"kernel": s.manifest.name, "launch": ex["launch"], "strict": ex["strict"], "attribution": attribution,
               "path": [st["action"].get("name") for st in ex["trace"]],
               "verified": {**{k: verdict.get(k) for k in ("outcome", "speedup", "speedup_ci95", "reference_ms", "candidate_ms",
@@ -129,13 +151,18 @@ def record(s: Session, sid: str, verdict: dict, report: dict, meta: dict) -> Pat
 
 def run(manifest: str | Path, root: str | Path = ".agc", minutes: int = 45, benches: int = 30, model: str | None = None,
         policy: bool = True, extra: str = "", log=print, session: bool = True) -> dict:
-    """One session on one kernel. Returns the harness's result (also written under the session's store)."""
+    """One session on one kernel. Returns the harness's result (also written under the session's store).
+
+    Outcomes: `win` (a verified state faster than the strongest amdclang build: the manifest's baseline and
+    the session's own rewritten source, whichever is faster), `baseline` (the session's rewritten source is
+    a faster amdclang build than the baseline, with no machine-level gain on top: a baseline candidate, not
+    a win), `fallback`."""
     manifest, root = Path(manifest), Path(root)
     s = Session.open(manifest, root)
     name = s.manifest.name
-    if s.ref_id and s.store.get_result(s.ref_id, "bench") is None:
-        s.bench("ref")                                       # the A/A control; also the baseline time for the prompt
-    if policy and len(s.store.all_states()) <= 1:
+    if s.base_id and s.store.get_result(s.base_id, "bench") is None:
+        s.bench("baseline")                                  # the A/A control; also the baseline time for the prompt
+    if policy and not any(st.action.get("name") == "apply" for st in s.store.all_states()):
         r = optimize(s)
         log(f"{name}: default policy: {'fallback' if r['fallback'] else r['chosen']['how'] + ' %.3fx' % r['chosen']['speedup']}")
     rep_path = s.store.root / "report.json"
@@ -158,35 +185,53 @@ def run(manifest: str | Path, root: str | Path = ".agc", minutes: int = 45, benc
     if best is None:                                          # no report: take the store's best measured win, if any
         b = s.best()
         best = b["id"] if b else None
-    if best is None or best == s.ref_id:
-        result.update(outcome="fallback", why="the session named no state faster than amdclang")
+    try:
+        best = s.resolve(best) if best else None
+    except SessionError:
+        best = None
+    old = RECIPES / name / "recipe.json"
+    if best is None or best in (s.ref_id, s.base_id):
+        result.update(outcome="fallback", why="the session named no state faster than the baseline")
     else:
+        stronger = None
         try:
-            v = verify(s, best)
+            own = own_source(s, best)
+            if own:                                           # amdclang's part: the session's own source against the baseline
+                rv = verify(s, own["state"])
+                if rv.get("ok") and rv.get("outcome") == "win":
+                    stronger = {**own, "speedup": rv["speedup"], "ci95": rv["speedup_ci95"]}
+                    result["baseline_candidate"] = stronger
+            if stronger and best == stronger["state"]:
+                v = {"ok": True, "outcome": "baseline"}
+            else:
+                v = verify(s, best, against=stronger["state"] if stronger else None)
         except SessionError as e:
             v = {"ok": False, "stage": "error", "error": f"{e.kind}: {e.message}"}
         result["verified"] = v
-        old = RECIPES / name / "recipe.json"
         kept = json.loads(old.read_text())["verified"] if old.exists() else None
         if v.get("ok") and v.get("outcome") == "win":
             result.update(outcome="win", state=best, speedup=v["speedup"], ci95=v["speedup_ci95"])
-            if kept and kept["speedup_ci95"][0] >= v["speedup_ci95"][0]:
+            if kept and not stronger and kept["speedup_ci95"][0] >= v["speedup_ci95"][0]:
                 result["recipe_kept"] = f"the recorded recipe ({kept['speedup']}x, {kept['speedup_ci95']}) is not beaten"
             else:
-                result["recipe"] = str(record(s, best, v, report, meta))
+                result["recipe"] = str(record(s, best, v, report, meta, stronger))
+        elif v.get("outcome") == "baseline":
+            result.update(outcome="baseline", why=f"the session's source is a stronger amdclang build ({stronger['speedup']:.3f}x over the "
+                                                  "baseline) with no machine-level gain on it: a baseline candidate, not a win")
         else:
             result.update(outcome="fallback", why=f"the named state {best} did not verify as a win: "
                                                     f"{v.get('outcome') or v.get('stage')}")
-    old = RECIPES / name / "recipe.json"
-    if result["outcome"] == "fallback" and old.exists():
+    if result["outcome"] != "win" and old.exists():
         result["recipe_kept"] = "an earlier session's verified recipe stays recorded"
     (s.store.root / "harness-result.json").write_text(json.dumps(result, indent=1, default=str) + "\n")
     log(f"{name}: {result['outcome']}" + (f" {result['speedup']:.3f}x {result['ci95']}" if result["outcome"] == "win" else f" ({result['why']})"))
     return result
 
 
-def replay(names: list[str] | None = None, root: str | Path | None = None, log=print) -> dict:
-    """Rebuild every recorded recipe from its module text and launch, and verify it again."""
+def replay(names: list[str] | None = None, root: str | Path | None = None, log=print, update: bool = False) -> dict:
+    """Rebuild every recorded recipe from its module text and launch, and verify it again against the
+    manifest's baseline. `update`: write the new verdict into the recipe, and drop a recipe that is no
+    longer a win (after the baseline became stronger, a recipe that was amdclang's own code is parity)."""
     import tempfile
     root = Path(root or tempfile.mkdtemp(prefix="agc-replay-"))
     out = {}
@@ -196,7 +241,25 @@ def replay(names: list[str] | None = None, root: str | Path | None = None, log=p
         recipe = json.loads((d / "recipe.json").read_text())
         s = Session.open(RECIPES.parent / f"{d.name}.json", root)
         st = s.adopt((d / "best.s").read_text(), recipe["launch"], recipe["strict"], note="recorded recipe")
-        v = verify(s, st["id"])
+        try:
+            v = verify(s, st["id"]) if st["id"] != s.base_id and s.store.get(st["id"]).ir != s.store.get(s.base_id).ir else \
+                {"ok": True, "outcome": "identical to the baseline"}
+        except SessionError as e:
+            v = {"ok": False, "stage": "error", "error": f"{e.kind}: {e.message}"}
         out[d.name] = v
         log(f"{d.name:24s} {v.get('outcome') or v.get('stage')} {v.get('speedup')} {v.get('speedup_ci95')}")
+        if not update:
+            continue
+        if v.get("ok") and v.get("outcome") == "win":
+            att = {"levels": recipe.get("attribution", {}).get("levels"), "baseline": s.manifest.baseline or "amdclang -O3 on the source as shipped",
+                   "over_strongest_amdclang": v["speedup"]}
+            c = s.compare(s.ref_id, st["id"], PAIRS)
+            if c.get("ok"):
+                att["over_shipped_O3"] = c["speedup_b_over_a"]
+            recipe.update(attribution=att, recorded=time.strftime("%Y-%m-%d"),
+                          verified={**{k: v.get(k) for k in ("outcome", "speedup", "speedup_ci95", "reference_ms", "candidate_ms", "cases",
+                                                             "protocol_version")}, "pairs": PAIRS, "runs": v.get("runs")})
+            (d / "recipe.json").write_text(json.dumps(recipe, indent=1) + "\n")
+        else:
+            shutil.rmtree(d)
     return out

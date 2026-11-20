@@ -180,8 +180,12 @@ win is reported with its pass.
 - [x] The default policy on every kernel (the floor): 10 wins, 26 fallbacks.
 - [x] The harness (`agc.agent`, #34): headless agent session per kernel, independent
       verification, recipes, replay; source level, launch changes, traffic and headroom.
-- [ ] An agent session per fallback kernel (#35 to #60) until it is 1.5x faster than amdclang
-      or at its memory floor.
+- [x] An agent session per fallback kernel (#35 to #60), first round: against `-O3` on the
+      shipped source. The audit showed these wins to be amdclang's own on a rewritten source.
+- [x] Stronger baseline (#62): the strongest amdclang build per kernel (restructured source,
+      `-ffast-math`, own launch); sessions, policy and report measure against it.
+- [ ] Second round of sessions against the stronger baseline: machine-level gain, until 1.5x
+      or the memory floor.
 - [x] First customization promoted to a pass: `coarsen` (#30). Further ones as sessions find them.
 - **Exit:** per-kernel table (policy and session results against amdclang, fallbacks
   reported as fallbacks) in the report and on #29.

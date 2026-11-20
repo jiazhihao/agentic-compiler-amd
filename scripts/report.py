@@ -108,20 +108,22 @@ def main() -> int:
         spec.loader.exec_module(mod)
         L += ["## LLM-kernel benchmark (default policy)", "",
               "Kernels from FlashInfer, vLLM, rocBLAS and MIOpen, and ports of attention, MLA, KDA and MoE kernels "
-              "(`bench/llm/README.md`). This is the default policy only, the floor: no per-kernel agent session has run yet.", "",
+              "(`bench/llm/README.md`). This is the default policy only, measured against each kernel's baseline: the "
+              "strongest amdclang build found for it (next section), not merely -O3 on the source as shipped.", "",
               mod.table(json.loads(llm.read_text())), ""]
         spec = importlib.util.spec_from_file_location("sessions", Path(__file__).with_name("sessions.py"))
         ses = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(ses)
-        if ses.recipes():
+        if ses.STRONG.exists():
             L += ["## LLM-kernel benchmark (agent sessions)", "",
                   "One agent session per kernel through the harness (`agc agent`); each number is the harness's own "
-                  "verification of the recorded recipe (static check, full battery, the lower of two 240-pair timings). "
-                  "Kernels without a session result are still open.", "", ses.table(), ""]
+                  "verification of the recorded recipe (static check, full battery, the lower of two 240-pair timings) "
+                  "against the strongest amdclang build.", "", ses.table(), ""]
     L += ["## Reproduce", "",
           "```", "make test                       # CPU tests, then GPU tests through the executor",
           "make baseline                   # amdclang baselines", ".venv/bin/python scripts/policy.py     # the default policy on every manifest",
           ".venv/bin/python scripts/generated.py  # every generated variant", ".venv/bin/python scripts/gemm.py       # GEMM against amdclang and hipBLASLt",
+          ".venv/bin/python scripts/strong_baseline.py run  # the strongest amdclang build per LLM kernel (the baseline)",
           ".venv/bin/python scripts/llmbench.py   # the LLM-kernel benchmark",
           ".venv/bin/python scripts/report.py     # this file", "```", ""]
     (ROOT / "docs" / "report.md").write_text("\n".join(L))

@@ -22,13 +22,13 @@ from ..session import Session, SessionError
 ROOT = Path(os.environ.get("AGC_ROOT", ".agc"))
 server = MCPServer("agc", instructions=(
     "agc: an agentic compiler session for AMD MI355X (gfx950). Call open(manifest_path) first. States are immutable "
-    "and addressed by id, tag or branch; `ref` is amdclang's build imported into machine IR (CDNA4 assembly). "
+    "and addressed by id, tag or branch; `ref` is amdclang's -O3 build of the source as shipped, imported into machine IR (CDNA4 assembly); `baseline` is the strongest amdclang build known for the kernel (another source, flags or launch when the manifest names one, else `ref`). "
     "A manifest may also carry a tensor program: program() shows it and generate(template, params) compiles it "
     "straight into machine IR (no HIP involved). "
     "Three levels: source(text, launch) compiles a rewritten HIP source into a new state (restructure the kernel, change "
     "the launch); generate compiles a tensor program; edit / edit_ir / apply work on machine IR. "
     "Loop: state(ref) to read the numbered listing -> edit / edit_ir / apply to make a new state -> static_check "
-    "(ISA legality, s_waitcnt, hazards, contract) -> check (battery on the GPU) -> bench (paired against ref; "
+    "(ISA legality, s_waitcnt, hazards, contract) -> check (battery on the GPU) -> bench (paired against baseline; "
     "`win` only if the whole 95% CI is beyond the 1% noise floor). isa(mnemonic) and arch(section) answer questions "
     "about instructions and the machine. A refusal is a JSON object with `error`, `kind` (parse, parameter, unknown, "
     "static, unverified, verification, toolchain, gpu, internal) and usually `location`, `values`, `suggestion`."))
@@ -169,11 +169,19 @@ def source(text: str = "", launch: dict | None = None, note: str = "", defines: 
 
 @tool
 def hip_source() -> dict:
-    """The manifest's HIP source text (the baseline) and its path."""
-    m = _s().manifest
+    """The manifest's HIP source text and its path; when the baseline is another amdclang build (a rewritten
+    source, flags, launch), that source and how it is built and launched as well."""
+    s = _s()
+    m = s.manifest
     if m.source is None:
         return {"error": "the manifest has no HIP source", "kind": "unknown"}
-    return {"path": str(m.source), "text": Path(m.source).read_text()}
+    out = {"path": str(m.source), "text": Path(m.source).read_text()}
+    if m.baseline:
+        b = dict(m.baseline)
+        if b.get("source"):
+            b["text"] = (m.path.parent / b["source"]).read_text()
+        out["baseline"] = {**b, "state": s.base_id, "launch_resolved": s.launch_of(s.base_id)}
+    return out
 
 
 @tool
@@ -184,7 +192,7 @@ def relaunch(ref: str, launch: dict, note: str = "") -> dict:
 
 @tool
 def report(best: str, summary: str, tried: list | None = None, friction: list | None = None, lessons: list | None = None) -> dict:
-    """End of a session: name the state to ship (`ref` if nothing beat amdclang), summarize what was done, list what
+    """End of a session: name the state to ship (`baseline` if nothing beat it), summarize what was done, list what
     was tried with its measured outcome, and list friction: what was missing or awkward in the tools, transforms or
     IR, and what would have let you go further. `lessons`: measured facts about the machine or about what pays
     that would help a session on another kernel (with the numbers). The harness re-verifies the named state itself."""
@@ -232,9 +240,9 @@ def check(ref: str) -> dict:
 
 @tool
 def bench(ref: str, pairs: int | None = None) -> dict:
-    """Paired timing against `ref` (amdclang) at the bench shapes: both code objects alternate in one process;
+    """Paired timing against `baseline` (the strongest amdclang build) at the bench shapes: both code objects alternate in one process;
     speedup with a 95% CI; outcome win / parity / loss (beyond the 1% noise floor). Needs a passing battery;
-    for `ref` itself it is the A/A control. `pairs` (60 to 1000, default 60): more launches narrow the CI; use 240
+    for the baseline itself it is the A/A control. `pairs` (60 to 1000, default 60): more launches narrow the CI; use 240
     when the effect is a few percent. `traffic` in the result: bytes moved and TB/s against rates measured here."""
     return _s().bench(ref, pairs)
 
