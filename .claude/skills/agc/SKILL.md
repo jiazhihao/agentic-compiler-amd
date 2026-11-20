@@ -17,6 +17,11 @@ The session is reached through the `agc` MCP server (`.mcp.json`), or from a she
    - `edit(parent, ops)`: `{"op": "replace"|"insert"|"delete", "block", "index", "text", "expect"}`.
      Always pass `expect` (the instruction now at that address). Addresses refer to the parent.
    - `edit_ir(parent, ir)`: the whole body (a numbered listing is accepted).
+   - Unrolled code is written once: `%rep i 16` ... `%end` in edit text repeats its lines with
+     `{20 + 4*i}` evaluated per copy (`%rep i 4 12`: 4..11; a third number is the step; blocks nest).
+     A whole block is `{"op": "replace", "block": L, "index": 0, "count": "end", "text": ...}`.
+   - `liveness(id, block)` lists the registers that are dead across a block (temporaries for an
+     edit inside it) under the classical rule; read its condition for vector registers.
    - `apply(ref, transform, params)`: a named pass from `actions(ref)`.
 4. `static_check(id)`: must pass before any GPU job. Findings say what is needed, for example
    "needs `s_waitcnt vmcnt(1)` first" or "insert `s_nop 0`".
