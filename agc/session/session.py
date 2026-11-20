@@ -239,11 +239,17 @@ class Session:
                 n *= eval_expr(d, sym)
             rd += n * (p.role in ("in", "inout"))
             wr += n * (p.role in ("out", "inout"))
-        mem = {k: v for k, v in self.arch.section("memory").items()} if "memory" in self.arch.data else {}
-        return {"read_mb": round(rd / 1e6, 1), "written_mb": round(wr / 1e6, 1),
-                "tb_per_s": round((rd + wr) / 1e12 / (ms * 1e-3), 2) if ms else None,
-                "measured_ceilings_tb_per_s": {k: getattr(v, "value", v) for k, v in mem.items()},
-                "note": "upper bound: assumes every tensor element is read or written once"}
+        mem = {k: v.value for k, v in self.arch.section("memory").items()}
+        out = {"read_mb": round(rd / 1e6, 1), "written_mb": round(wr / 1e6, 1),
+               "tb_per_s": round((rd + wr) / 1e12 / (ms * 1e-3), 2) if ms else None, "measured_on_this_device": mem,
+               "note": "assumes every tensor element is read or written once (an overestimate for kernels that touch part of a tensor)"}
+        if ms and "copy_tb_per_s" in mem:
+            # what a plain copy of the same bytes takes here: the practical floor of a memory-bound kernel
+            floor = mem["launch_fixed_us"] / 1e3 + (rd + wr) / 1e12 / mem["copy_tb_per_s"] * 1e3
+            out.update(memory_floor_ms=round(floor, 4), headroom=round(ms / floor, 2),
+                       headroom_note="time / memory_floor: about 1.0 means the kernel moves bytes as fast as a copy does here and "
+                                     "only moving fewer bytes can help; well above 1 means it is not bound by memory")
+        return out
 
     def compare(self, a: str, b: str, pairs: int | None = None) -> dict:
         """Paired timing of state `b` against state `a` (both must have passed the battery): which of two
@@ -623,7 +629,8 @@ class Session:
                     "reference_ms": round(r["reference"]["median_ms"], 5), "candidate_ms": round(r["candidate"]["median_ms"], 5),
                     "pairs": r["pairs"], "case": r["case"], "protocol_version": r["protocol"]["version"],
                     "noise_floor": r["protocol"]["noise_floor"], "device": r["gpu"]["device"], "clocks": r["clocks"]["levels"],
-                    "traffic": self.traffic(r["candidate"]["median_ms"])}
+                    "traffic": self.traffic(r["candidate"]["median_ms"]),
+                    "reference_headroom": self.traffic(r["reference"]["median_ms"]).get("headroom")}
         self.store.put_result(sid, "bench", data)
         return {"id": sid, **data}
 

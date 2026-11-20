@@ -62,8 +62,13 @@ the agc timing protocol unless stated.
   (`bench(id, pairs=240)`), and two runs of the same state can differ by 1 % to 2 % because the
   clock level differs between runs. Rank close candidates with `compare(a, b, pairs=240)`. The
   harness accepts a win only when two 240-pair timings are both wins.
-- Memory rates reached here: 7.5 TB/s read-only (GEMM operand loads), 4.7 TB/s for two streams
-  read and one written (`axpy`). `bench` reports a kernel's rate next to these.
+- Memory: amdclang's copy kernel takes 20 us + bytes / 5.95 TB/s (2^24 to 2^28 floats). No
+  restructuring beat it: 16 bytes per lane 1.01 (parity), 32 bytes per lane 0.94, 64 bytes per
+  lane 0.79, 256 bytes per lane 0.75, and several lane-contiguous chunks per wave with all loads
+  before the stores 0.97 (2 chunks) down to 0.83 (16 chunks). Many short waves that each touch a
+  contiguous 0.5 to 1 KB are what the memory system likes. `bench` reports `headroom`: a
+  kernel's time over this copy model. Kernels at headroom 1.0 to 1.2 gained 1.03x to 1.10x at
+  best (loop-free threads, `coarsen`); 1.5x needs headroom, or fewer bytes.
 - Clocks float between 500 / 1012 / 2400 MHz levels on the SR-IOV VFs and cannot be locked.
 - MFMA layouts (`arch("mfma")`, `layouts`): for 32x32x16 bf16, lane l element e of A is
   `A[l % 32][8 (l // 32) + e]`, of B is `B[8 (l // 32) + e][l % 32]`; result register r is

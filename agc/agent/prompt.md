@@ -4,11 +4,16 @@ Kernel: `{name}`. Manifest: `{manifest}`. Baseline: amdclang -O3, {ref_ms} at th
 
 ## Goal
 
-A state that is verified (static check, full battery) and measurably faster than amdclang's
-build: `bench` says `win` (the whole 95 % CI above 1.01). Then keep going while there is something
-that plausibly pays: the target is the fastest verified state you can reach in the budget, not the
-first win. A harness re-verifies the state you name, with fresh timings; a marginal win may not
-survive that, so prefer wins with margin.
+A state that is verified (static check, full battery) and at least **1.5x** faster than amdclang's
+build, or, when that is out of reach, the fastest verified state you can get in the budget. A first
+`win` (the whole 95 % CI above 1.01) is the start, not the end. A harness re-verifies the state you
+name with fresh 240-pair timings and takes the lower of two.
+
+`bench` reports `traffic` for the timed state and `reference_headroom` for amdclang's build:
+the time divided by what a plain copy of the same bytes takes on this device. A reference headroom
+of 1.5 or more means 1.5x is possible in principle; near 1.0 the kernel already moves bytes as fast
+as the memory system does, and only touching fewer bytes, or fewer times, can help (check whether
+it really reads and writes everything the model assumes). Say in the report which case this is.
 
 ## What you have
 
@@ -33,10 +38,7 @@ Three levels, to be combined:
    This is the place for what amdclang does not do: loads in flight across iterations, later and
    weaker waits, wide loads, fused instructions, DPP reductions, MFMA.
 
-`check` then `bench` every candidate; a state that fails the battery has no speed. `bench` also
-reports `traffic`: the bytes the kernel moves and the TB/s that implies, next to the rates
-measured on this device. A kernel far below those rates is not memory-bound, whatever else it
-is. `compare(a, b)` times two verified states against each other when they are too close to rank
+`check` then `bench` every candidate; a state that fails the battery has no speed. `compare(a, b)` times two verified states against each other when they are too close to rank
 through `ref`. For effects of a few percent pass `pairs=240` to `bench` and `compare`: the harness
 verifies with two 240-pair timings and takes the lower one, so a 60-pair win at 1.02 is not safe.
 

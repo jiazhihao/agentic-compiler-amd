@@ -54,6 +54,10 @@ memory:
   # TB/s reached by kernels on this device (measured here; not a datasheet limit)
   read_only_tb_per_s:   {value: 7.5, source: measured}   # operand loads of the MFMA GEMM
   read_write_tb_per_s:  {value: 4.7, source: measured}   # axpy: two streams read, one written
+  # amdclang's copy kernel (rb_copy, 8 bytes per lane) from 2^24 to 2^28 floats: time = fixed + bytes / rate.
+  # No restructuring of the copy (wider per-lane accesses, several chunks per wave, other blocks) beat it.
+  copy_tb_per_s:        {value: 5.95, source: measured}
+  launch_fixed_us:      {value: 20, source: measured}
 waitcnt:
   # counter widths (max encodable outstanding count) for s_waitcnt on gfx9.4/9.5
   vmcnt:   {value: 63, source: isa-doc}
