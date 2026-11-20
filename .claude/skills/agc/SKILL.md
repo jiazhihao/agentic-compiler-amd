@@ -38,6 +38,19 @@ parameters are appended and supplied by `launch["args"]` (`{"dtype": "u32", "val
 friends lower to the single instructions (`v_rcp_f32`, `v_exp_f32` plus range handling) when the
 tolerance allows replacing a libm call or a division.
 
+Wave reduction without LDS (one wave per row; `agc/gen/rowwise.py` `wave_reduce` is the reference):
+four DPP steps fold the 16 lanes of each row, then the four row results are read with
+`v_readlane_b32` at lanes 0, 16, 32, 48 and combined:
+
+```
+v_add_f32_dpp v1, v0, v0 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+v_add_f32_dpp v2, v1, v1 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+v_add_f32_dpp v3, v2, v2 row_half_mirror row_mask:0xf bank_mask:0xf
+v_add_f32_dpp v4, v3, v3 row_mirror row_mask:0xf bank_mask:0xf
+```
+
+A 64-bit unsigned scalar compare is `s_sub_u32` / `s_subb_u32` and a branch on the borrow in SCC.
+
 ## Tensor programs
 
 When the manifest has a `program` (tair), `program()` shows it with the templates that can

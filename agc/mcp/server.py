@@ -151,7 +151,8 @@ def edit_ir(parent: str, ir: str, note: str = "", launch: dict | None = None) ->
 
 
 @tool
-def source(text: str, launch: dict | None = None, note: str = "", defines: dict | None = None, flags: list | None = None) -> dict:
+def source(text: str = "", launch: dict | None = None, note: str = "", defines: dict | None = None, flags: list | None = None,
+           like: str | None = None) -> dict:
     """The source level: compile a rewritten HIP source with amdclang (the baseline's flags) and import it as a new
     root state. Keep the entry name and the manifest's parameters in order; further parameters must be appended and
     supplied through launch["args"]. `launch` may change grid and block (expressions over the shape symbols, e.g.
@@ -159,8 +160,11 @@ def source(text: str, launch: dict | None = None, note: str = "", defines: dict 
     Use this to restructure a kernel (several elements per thread, another work split, another block size), then
     refine the result at the machine level with edit / apply. `defines` ({"UNR": 8}) become -D macros, so a sweep
     resends only the numbers when the text is unchanged; `flags` takes -f... / -m... compiler flags (for example
-    "-fno-slp-vectorize", "-fno-vectorize"). `features(id)` warns when amdclang spilled registers to scratch."""
-    return _s().source(text, launch, note, defines, flags)
+    "-fno-slp-vectorize", "-fno-vectorize"). `features(id)` warns when amdclang spilled registers to scratch.
+    Sweeps: `like=<state made by source>` reuses that state's text (and its launch unless one is given), so only
+    `defines` change; launch expressions may use the defines' names ("cdiv(N, EPT * 256)"). Define names need three
+    or more characters. A workgroup has at most 1024 threads."""
+    return _s().source(text, launch, note, defines, flags, like)
 
 
 @tool

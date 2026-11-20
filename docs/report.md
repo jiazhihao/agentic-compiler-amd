@@ -162,7 +162,7 @@ One agent session per kernel through the harness (`agc agent`); each number is t
 | `fi_rmsnorm` | flashinfer | 0.1273 | 1.019 | | |
 | `fi_rope` | flashinfer | 0.1069 | fallback | **2.115** (2.103 to 2.126) | source + edit, own launch |
 | `fi_silu_and_mul` | flashinfer | 0.0988 | fallback | **1.043** (1.036 to 1.050) | source, own launch |
-| `kda_step` | port | 0.1998 | fallback | | |
+| `kda_step` | port | 0.1998 | fallback | **1.697** (1.694 to 1.703) | source, own launch |
 | `mla_decode` | port | 0.4568 | fallback | **2.541** (2.539 to 2.543) | source + edit + edit, own launch |
 | `mo_active_fwd` | miopen | 0.1094 | fallback | | |
 | `mo_adam` | miopen | 0.3764 | fallback | | |
@@ -171,13 +171,13 @@ One agent session per kernel through the harness (`agc agent`); each number is t
 | `mo_prelu_bwd` | miopen | 0.2189 | fallback | | |
 | `mo_reduce_sum` | miopen | 0.1566 | fallback | **1.861** (1.853 to 1.866) | source, own launch |
 | `mo_rope_fwd` | miopen | 0.1873 | 1.066 | | |
-| `mo_t5_layernorm` | miopen | 0.1133 | fallback | | |
+| `mo_t5_layernorm` | miopen | 0.1133 | fallback | **1.740** (1.735 to 1.744) | source, own launch |
 | `moe_gate_topk` | port | 0.6575 | fallback | **17.971** (17.915 to 18.024) | source |
 | `rb_axpy` | rocblas | 0.1642 | 1.039 | | |
 | `rb_copy` | rocblas | 0.1097 | 1.029 | | |
 | `rb_dot` | rocblas | 0.1398 | fallback | | |
 | `rb_gemvn` | rocblas | 0.2208 | fallback | **2.187** (2.177 to 2.195) | source, own launch |
-| `rb_gemvt` | rocblas | 0.1076 | fallback | | |
+| `rb_gemvt` | rocblas | 0.1076 | fallback | **1.234** (1.231 to 1.236) | source, own launch |
 | `rb_ger` | rocblas | 0.1041 | fallback | | |
 | `rb_nrm2` | rocblas | 0.1233 | fallback | **1.404** (1.398 to 1.408) | source, own launch |
 | `rb_rot` | rocblas | 0.2022 | 1.077 | | |
@@ -188,7 +188,7 @@ One agent session per kernel through the harness (`agc agent`); each number is t
 | `vl_rms_norm` | vllm | 0.1320 | fallback | | |
 | `vl_rotary_embedding` | vllm | 0.1242 | fallback | | |
 
-21 of 36 kernels faster than amdclang (policy or session); 15 fallbacks; geomean of the best verified result 1.427 with fallbacks at 1.0.
+24 of 36 kernels faster than amdclang (policy or session); 12 fallbacks; geomean of the best verified result 1.479 with fallbacks at 1.0.
 
 ## Reproduce
 

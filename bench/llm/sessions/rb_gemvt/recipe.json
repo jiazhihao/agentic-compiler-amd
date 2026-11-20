@@ -1,0 +1,134 @@
+{
+ "kernel": "rb_gemvt",
+ "launch": {
+  "grid": [
+   "cdiv(N, 4)",
+   1,
+   1
+  ],
+  "block": [
+   1024,
+   1,
+   1
+  ],
+  "lds": 0
+ },
+ "strict": false,
+ "path": [
+  "source"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 1.2336,
+  "speedup_ci95": [
+   1.231,
+   1.2365
+  ],
+  "reference_ms": 0.11028,
+  "candidate_ms": 0.08948,
+  "cases": 77,
+  "protocol_version": "agc-timing-amd-2",
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 1.2336,
+    "ci95": [
+     1.231,
+     1.2365
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 1.2367,
+    "ci95": [
+     1.2331,
+     1.2413
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "State a1402b6d61e02217 (source level) is 1.23x faster than amdclang's build (240 pairs, CI 1.226 to 1.233; 0.0897 ms vs 0.1101 ms); static check and 77/77 battery cases pass. It launches cdiv(N,4) workgroups of 1024 threads, 4 columns per workgroup: each thread reads 16-byte chunks (global_load_dwordx4) of x and of the 4 columns at stride 4096 floats, two strides (2 x loads + 8 A loads) in flight, the x loads shared by the 4 columns, and a two-level LDS reduction with 2 barriers replaces the 9-barrier tree. Summation order differs from the baseline (within the manifest tolerance, not bit-identical). The 1.5x target was not reached. Case: the reference headroom of 1.69 is misleading; A is read exactly once (x is re-read per column but is 32 KB and cached), and a probe that makes every workgroup read the same cached column runs in 22.6 us, so 67 of the 89 us are DRAM reads of A at about 4 TB/s. Five different geometries land within 88 to 93 us, the same read plateau the rb_gemvn and mo_reduce_sum sessions hit (about 3 TB/s including launch).",
+ "tried": [
+  {
+   "what": "Source: block 256, 1 column per workgroup, float4 per thread at stride 1024 floats, 8 load pairs in flight, 2-level LDS reduction (2 barriers)",
+   "state": "ad74ee2dc2f93a13",
+   "outcome": "win (60 pairs, 0.0906 ms)",
+   "speedup": 1.19
+  },
+  {
+   "what": "Source: block 64, one wave per column, 16 load pairs in flight",
+   "state": "1bf8cc686daf4339",
+   "outcome": "win, below the block 256 variant (0.0984 ms)",
+   "speedup": 1.121
+  },
+  {
+   "what": "Source: block 256, 2 columns per workgroup sharing the x loads, 8 strides in flight",
+   "state": "55f5b5b6b08dbcf0",
+   "outcome": "win (60 pairs, 0.0888 ms); parity with the shipped state in a 240-pair compare (shipped/this = 1.0036, CI 1.0007 to 1.0098)",
+   "speedup": 1.198
+  },
+  {
+   "what": "Source: block 1024, 1 column per workgroup, 2 strides in flight (single loop iteration at M=8192)",
+   "state": "d68528740c2d84fb",
+   "outcome": "win (60 pairs, 0.0926 ms)",
+   "speedup": 1.199
+  },
+  {
+   "what": "Source: block 1024, 4 columns per workgroup (2048 WG x 16 waves), 2 strides x 4 columns in flight; shipped",
+   "state": "a1402b6d61e02217",
+   "outcome": "win (240 pairs, CI 1.226 to 1.233; 60-pair run 1.239)",
+   "speedup": 1.23
+  },
+  {
+   "what": "Source: block 1024, 8 columns per workgroup (1024 WG x 16 waves, 33 KB LDS), 2 strides x 8 columns in flight",
+   "state": "9fd9a56980fc23d9",
+   "outcome": "verified; loss against the shipped state in compare (0.865x of it, 0.1037 ms); not benched against ref",
+   "speedup": null
+  },
+  {
+   "what": "PROBE (diagnostic, not a result): both barriers removed from ad74",
+   "state": "41dd2c4d1d171e84",
+   "outcome": "0.0946 ms unpaired median, no faster than its parent: barriers are not the bound",
+   "speedup": null
+  },
+  {
+   "what": "PROBE (diagnostic, not a result): every workgroup of ad74 reads column 0 (A cached)",
+   "state": "0298130f26b9e3fe",
+   "outcome": "0.0226 ms unpaired median: launch + arithmetic + reduction + x reads are about 22 us, the rest (about 67 us) is reading A from memory",
+   "speedup": null
+  },
+  {
+   "what": "Machine IR (unroll_loads, coarsen, later waits, hand edits)",
+   "state": null,
+   "outcome": "not attempted: the block 1024 variant runs a single loop iteration with all loads issued before the first wait and takes the same time as the looping variants, and the cached-column probe shows only about 22 us outside memory reads",
+   "speedup": null
+  }
+ ],
+ "friction": [
+  "reference_headroom (1.69) and memory_floor_ms (0.0651) promised 1.5x, but the floor is built from the copy rate (5.95 TB/s counting read + written bytes) and read_only_tb_per_s 7.5 comes from the MFMA GEMM operand loads (agc/arch/gfx950.yaml:55), which re-read cached operands. For a kernel that only reads 268 MB from DRAM, three sessions (rb_gemvn 100 us, mo_reduce_sum 84 us, this one 89 us) plateau near 3 TB/s including launch. A measured read-only streaming rate (a reduce over 2^26 floats) in the arch file would give an honest floor for read-only kernels.",
+  "source(): the `defines` sweep still needs the whole text resent for each point, because the launch grid depends on the define (cdiv(N, NC)). I resent the same 110-line source five times. A source(sha, defines, launch) form, or launch expressions that can reference the defines, would make the sweep one-liners.",
+  "Defining NB through `defines` broke the build: bench/llm/rocblas_common.h uses NB as a template parameter name (lines 43, 96, 113). The error was clear, but a note on reserved names in that header would save a round trip.",
+  "No diagnostic separates DRAM read rate from wave dispatch other than hand-editing the address computation for a probe (0298130f26b9e3fe: s_mul of col * lda replaced by 0). A built-in 'same code, all workgroups on workgroup 0's data' probe would give the non-memory time in one call.",
+  "9fd9a56980fc23d9 (33 KB LDS per 1024-thread workgroup) was 14 % slower than the 16 KB variant; I did not call features on it, so whether LDS limited its occupancy is a guess. check() could return the occupancy limiter alongside lds_bytes.",
+  "No page-size or TLB information for the buffers, and no count of concurrently running waves: I could not tell whether the 4 TB/s read plateau is bandwidth, TLB misses (268 MB, columns 32 KB apart) or the SR-IOV VF."
+ ],
+ "lessons": [
+  "rb_gemvt (column-major A^T x, 8192x8192, 268 MB read once): the rocBLAS source reads one float per thread per wait (32 iterations) and reduces with a 9-barrier LDS tree, at 0.110 ms. Rewriting to float4 per thread with all loads in flight and a 2-level LDS reduction gave only 1.19x to 1.23x, because the kernel then sits on the DRAM read plateau.",
+  "Cached-column probe: making every workgroup read column 0 dropped the kernel from 0.0906 ms to 0.0226 ms (unpaired). So launch of 8192 workgroups x 4 waves, the arithmetic, the LDS reduction and the x reads together cost about 22 us, and reading 268 MB of A costs about 67 us (about 4 TB/s). This edit (replace the col * lda multiply by 0) is a cheap way to split memory time from everything else.",
+  "Geometry did not matter at the plateau: 8192 WG x 4 waves 90.6 us, 4096 WG x 4 waves with 2 columns sharing x loads 88.8 us, 8192 WG x 16 waves 92.6 us, 2048 WG x 16 waves with 4 columns 89.0 us (candidate times from separate 60-pair runs; the 2-column and 4-column variants are parity in a 240-pair compare, 1.0036). One wave per column (block 64, 16 load pairs in flight) was slower at 98.4 us.",
+  "Removing both barriers of the 2-level reduction changed nothing (0.0946 ms unpaired against 0.0906 ms paired for the parent): once the tree is two levels, barriers are not on the critical path.",
+  "Sharing the x loads between 2 or 4 columns of a workgroup (halving or quartering the cached x reads) gained nothing measurable: cached re-reads of a 32 KB vector are free next to the DRAM stream.",
+  "8 columns per 1024-thread workgroup with per-column LDS arrays (33 KB LDS) was 14 % slower than 4 columns (16 KB LDS): 0.1037 ms against 0.0890 ms in a direct compare. The cause was not checked (LDS occupancy is my guess).",
+  "The bench headroom figure overstates what a read-only kernel can gain: reference headroom 1.69 here, yet the best state stays at headroom 1.38, matching rb_gemvn (1.54) and mo_reduce_sum (1.30). Treat about 85 to 90 us for 268 MB read once as the practical floor on this device until a read-only rate is measured."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 2.3153221999999998,
+  "turns": 40,
+  "final": "`rb_gemvt` reached **1.23x** over amdclang's build, not the 1.5x target (0.0897 ms against 0.1101 ms; 240 pairs, CI 1.226\u20131.233). The state to ship is `a1402b6d61e02217`; it passes the static check and all 77 battery cases, and the report is filed.\n\n**What changed (source level only):**\n- Each thread reads 16-byte chunks with wide loads instead of one float per wait.\n- A workgroup of 1024 threads handles 4 columns, sharing the `x` loads between them, with all loads issued before the first wait.\n- A two-level LDS reduction with 2 barriers replaces the 9-barrier tree.\n- The summation order differs from the baseline, so results match within the manifest tolerance, not bit for bit.\n\n**Which case this is:** the kernel is bound by reading `A` from memory, and the reference headroom of 1.69 overstates what is available. `A` is read exactly once; `x` is re-read per column but is 32 KB and cached. A probe that made every workgroup read the same cached column ran in 22.6 \u00b5s, so about 67 of the 89 \u00b5s are reads of `A` at roughly 4 TB/s. The `rb_gemvn` and `mo_reduce_sum` sessions stopped at a similar level (100 \u00b5s and 84 \u00b5s).\n\n| Variant | State | Result |\n|---|---|---|\n| Block 1024, 4 columns per workgroup (shipped) | `a1402b6d61e02217` | 1.23x |\n| Block 256, 2 columns per workgroup | `55f5b5b6b08dbcf0` | 1.20x; parity with shipped in a direct compare |\n| Block 1024, 1 column per workgroup | `d68528740c2d84fb` | 1.20x |\n| Block 256, 1 column per workgroup | `ad74ee2dc2f93a13` | 1.19x |\n| Block 64, one wave per column | `1bf8cc686daf4339` | 1.12x |\n| Block 1024, 8 columns per workgroup | `9fd9a56980fc23d9` | 14 % slower than shipped |\n\nRemoving both barriers in a probe changed nothing, so the reduction is not on the critical path.\n\nI stopped after six timed candidates and two probes, well short of the budget, because block size, columns per workgroup and barrier removal each brought under 1 %. No machine-IR edits were attempted: the block-1024 variant already runs a single loop ",
+  "seconds": 280,
+  "log": ".agc/sessions/rb_gemvt-aa581c77f5/agent/20261120-184424.jsonl"
+ },
+ "recorded": "2026-11-20"
+}

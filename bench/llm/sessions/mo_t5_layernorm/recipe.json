@@ -1,0 +1,111 @@
+{
+ "kernel": "mo_t5_layernorm",
+ "launch": {
+  "grid": [
+   "R",
+   1,
+   1
+  ],
+  "block": [
+   256,
+   1,
+   1
+  ],
+  "lds": 0
+ },
+ "strict": false,
+ "path": [
+  "source"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 1.7396,
+  "speedup_ci95": [
+   1.735,
+   1.7435
+  ],
+  "reference_ms": 0.11338,
+  "candidate_ms": 0.065,
+  "cases": 77,
+  "protocol_version": "agc-timing-amd-2",
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 1.7424,
+    "ci95": [
+     1.7373,
+     1.7465
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 1.7396,
+    "ci95": [
+     1.735,
+     1.7435
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "Source-level restructure: still one 256-thread workgroup per row, but each thread loads one contiguous 16-byte vector of x (global_load_dwordx4) instead of one float per loop iteration, keeps it in registers across the LDS reduction, and writes y from the registers, so x is read once instead of twice (a loop handles D > 1024, a scalar tail handles D % 4). 1.777x over amdclang at 240 pairs (CI 1.771 to 1.782), 65.2 us against a memory floor of 65.1 us: headroom 1.00. Case: the reference had headroom 1.8 because it re-read x and moved 4 bytes per lane per wait; the winner is now at the copy rate, so only fewer bytes could help further. Results meet the tolerance, not bit-identity (sum of squares is in another order).",
+ "tried": [
+  {
+   "what": "block 256, one x4 chunk per thread held in registers across the reduction (x read once), baseline LDS tree with 9 barriers",
+   "state": "ea52679a9f99e567",
+   "outcome": "win",
+   "speedup": 1.777
+  },
+  {
+   "what": "same, but per-wave barrier-free LDS tree + one barrier + sum of 4 wave partials (9 barriers -> 1)",
+   "state": "34f0ace93da02efd",
+   "outcome": "win vs ref (1.774 at 240 pairs); parity vs ea52 (compare 0.992, CI 0.987-0.995)",
+   "speedup": 1.774
+  },
+  {
+   "what": "block 64, one wave per row, 4 x4 chunks per lane in registers, barrier-free LDS tree",
+   "state": "ecfe5f1caf42d3e8",
+   "outcome": "win, but slower than block 256",
+   "speedup": 1.571
+  },
+  {
+   "what": "block 128, 2 x4 chunks per thread, per-wave tree + one barrier",
+   "state": "d09cb4b4095efd8f",
+   "outcome": "win, 3% slower than block 256",
+   "speedup": 1.725
+  },
+  {
+   "what": "coarsen factor 2 on 34f0ace93da02efd",
+   "state": "b636a82599eab92c",
+   "outcome": "win vs ref, 6% loss vs its parent",
+   "speedup": 1.658
+  },
+  {
+   "what": "coarsen on ref (earlier session states)",
+   "state": "58457b89739e7ebe, 8c73ac4ca9d2e511, d465c0f21256581f",
+   "outcome": "loss / parity",
+   "speedup": 0.997
+  }
+ ],
+ "friction": [
+  "source() needs the full text resent for each define sweep even when only `defines` and `launch` change; a `source_like(state, defines, launch)` that reuses the stored text would make sweeps cheap.",
+  "Block size is in two places (the -D macro and launch.block) with nothing tying them: a mismatch would be silently wrong for the LDS array size. Letting launch expressions reference defines (or the reverse) would remove the trap.",
+  "No machine-level work was attempted after reaching headroom 1.00 (DPP reduction instead of the LDS tree, weight load issued before the barrier): no tool tells how much of the 65 us is the reduction; a probe with the reduction removed would have needed a hand-edited source."
+ ],
+ "lessons": [
+  "Row-norm kernels from MIOpen (one workgroup per row, each thread looping over the row one float at a time, two passes over x): one 16-byte vector per thread held in registers across the reduction, so that x is read once, gave 1.78x and lands exactly on the copy floor (headroom 1.81 -> 1.00) at R=32768, D=1024. Use ext_vector_type(4) with aligned(4) to get global_load_dwordx4 / store_dwordx4 from amdclang.",
+  "Geometry at D=1024 (256 16-byte chunks per row): block 256 x 1 chunk per thread 1.777x; block 128 x 2 chunks 1.725x; block 64 x 4 chunks (one wave, no barriers at all) 1.571x. Spreading a row over 4 waves with 16 bytes per lane beats one wave with 64 bytes per lane even though it costs barriers, consistent with the copy-kernel finding that 64 bytes per lane is 0.79.",
+  "Barriers are not the cost once the kernel is memory-bound: 9 barriers -> 1 (per-wave barrier-free LDS tree, then one barrier and a sum of 4 partials) measured parity (0.992, CI 0.987-0.995 by compare at 240 pairs).",
+  "coarsen factor 2 on the restructured LDS/barrier row kernel: 6% loss (1.774 -> 1.658), same direction as on the reference (0.97 to 1.00).",
+  "A barrier-free LDS tree inside one wave (lid & 63 indexing, threads 64w..64w+63 in lockstep) compiled by amdclang from plain __shared__ code passes the full battery, including at block 256 with one barrier before the cross-wave read."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 1.1615293999999998,
+  "turns": 27,
+  "final": "`mo_t5_layernorm` is now **1.78x** faster than amdclang's build (state `ea52679a9f99e567`, 240 pairs, CI 1.771\u20131.782), verified by static check and the full 77-case battery. The report is recorded.\n\n- **What changed:** still one 256-thread workgroup per row, but each thread loads one contiguous 16-byte vector of `x`, keeps it in registers across the reduction, and writes `y` from those registers. `x` is read once instead of twice. A loop covers `D > 1024` and a scalar tail covers `D % 4`.\n- **Which case this is:** the reference had headroom 1.8 because it re-read `x` and moved 4 bytes per lane per wait. The winner runs at 65.2 us against a memory floor of 65.1 us (headroom 1.00), so only moving fewer bytes could help further.\n- **Accuracy:** results meet the manifest tolerance but are not bit-identical, because the sum of squares is accumulated in a different order.\n\n| Variant | State | Speedup vs amdclang |\n|---|---|---|\n| Block 256, one chunk per thread, original 9-barrier tree (shipped) | `ea52679a9f99e567` | 1.777 |\n| Same, with one barrier instead of nine | `34f0ace93da02efd` | 1.774 (parity with shipped) |\n| Block 128, two chunks per thread | `d09cb4b4095efd8f` | 1.725 |\n| `coarsen` factor 2 on the one-barrier variant | `b636a82599eab92c` | 1.658 |\n| Block 64, one wave per row, no barriers | `ecfe5f1caf42d3e8` | 1.571 |\n\nI stopped after seven timings because the last three ideas of different kinds (flatter reduction, another block size, `coarsen`) each brought nothing over the best state. No machine-IR edits were tried beyond `coarsen`; a DPP reduction or an earlier weight load remain untested.",
+  "seconds": 155,
+  "log": ".agc/sessions/mo_t5_layernorm-897f366ecf/agent/20261120-184142.jsonl"
+ },
+ "recorded": "2026-11-20"
+}

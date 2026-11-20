@@ -82,3 +82,17 @@ def test_edit_inserts_at_the_end_of_a_block_and_deletes_a_run(tmp_path):
     assert len(s._kernel(s.module(st2["id"])).blocks[0].insts) == len(k.blocks[0].insts) + 1
     with pytest.raises(SessionError, match="runs past"):
         s.edit("ref", [{"op": "delete", "block": last.label, "index": 0, "count": len(last.insts) + 1}])
+
+
+@needs_toolchain
+def test_source_sweeps_reuse_the_text_and_defines_reach_the_launch(tmp_path):
+    s = Session.open(KERNELS / "axpy.json", tmp_path, quick=True)
+    text = "#ifndef BLK\n#define BLK 256\n#endif\n" + (KERNELS / "axpy.hip").read_text()
+    a = s.source(text, {"block": ["BLK"], "grid": ["cdiv(N, BLK)"]}, defines={"BLK": 128})
+    assert s.launch_of(a["id"])["block"] == ["(128)"]
+    b = s.source(like=a["id"], defines={"BLK": 64})
+    assert s.launch_of(b["id"])["grid"] == ["cdiv(N, (64))"] and b["action"]["sha"] == a["action"]["sha"]
+    with pytest.raises(SessionError, match="three or more"):
+        s.source(text, defines={"NB": 4})
+    with pytest.raises(SessionError, match="does not come from"):
+        s.source(like="ref", defines={"BLK": 64})

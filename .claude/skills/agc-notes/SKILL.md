@@ -96,7 +96,19 @@ Measured on the LLM benchmark; recipes in `bench/llm/sessions/`.
   (`bench(id, pairs=240)`), and two runs of the same state can differ by 1 % to 2 % because the
   clock level differs between runs. Rank close candidates with `compare(a, b, pairs=240)`. The
   harness accepts a win only when two 240-pair timings are both wins.
-- Memory: amdclang's copy kernel takes 20 us + bytes / 5.95 TB/s (2^24 to 2^28 floats). No
+- Memory floor: one cold pass streams at about 4.5 TB/s read and 10.7 TB/s written, after 20 us
+  of launch: `time = 20 us + read / 4.5 + written / 10.7` fits dot, nrm2, reduce_sum, copy, scal,
+  rot, axpy and layernorm within about 10 %. The 7.5 TB/s of the MFMA GEMM is for operands
+  that are re-read from cache. `bench` reports `headroom` against this floor; sessions that
+  reached headroom 1.0 to 1.1 found nothing more (`mo_t5_layernorm`, `kda_step`, `rb_nrm2`).
+- Reading less is the lever at the floor: kernels that read an input twice (a reduction pass,
+  then an update pass) keep it in registers or LDS across the reduction instead
+  (`mo_t5_layernorm` 1.74x, `kda_step` 1.70x); values shared between outputs are computed once
+  (`fi_rope`: sin/cos once per position for 4 heads, 2.1x).
+- A wave should read about 1 KB contiguous: 2 KB or 8 KB per wave read slower (93 to 98 us
+  against 86 us, `rb_nrm2`). An LDS allocation above 80 KB per workgroup halves the workgroups
+  per CU (`kda_step`: 1.21x against 1.60x).
+- Copy study: amdclang's copy kernel is 20 us + bytes / 5.95 TB/s (2^24 to 2^28 floats). No
   restructuring beat it: 16 bytes per lane 1.01 (parity), 32 bytes per lane 0.94, 64 bytes per
   lane 0.79, 256 bytes per lane 0.75, and several lane-contiguous chunks per wave with all loads
   before the stores 0.97 (2 chunks) down to 0.83 (16 chunks). Many short waves that each touch a

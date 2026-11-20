@@ -90,10 +90,15 @@ def step(state: State, info: Info, limits: dict, report=None) -> None:
                 state.ooo[c] = False
         return
     touched = info.uses | info.defs
+    ev0 = event(info)
     for c in COUNTERS:
         hit = [u for u in state.pending[c] if u in touched]
         for u in sorted(hit):
             n = state.pending[c].pop(u)
+            # a vector load into a register an earlier vector load still writes is fine: results arrive in
+            # order, the later one lands last (amdclang does this when the first value is dead on this path)
+            if c == "vmcnt" and ev0 and ev0[0] == "vmcnt" and u in info.defs and u not in info.uses:
+                continue
             if report:
                 verb = "reads" if u in info.uses else "overwrites"
                 report(c, u, n, f"{verb} {_fmt(u)} before the memory operation that writes it has completed: "

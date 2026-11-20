@@ -290,3 +290,21 @@ def test_scratch_accesses_without_a_base_are_legal():
     for text in ("scratch_store_dword off, v0, off", "scratch_load_dwordx2 v[2:3], off, off offset:16"):
         assert check_inst(parse_inst(text), table(), load_arch()) is None, text
     assert check_inst(parse_inst("global_load_dword v1, off, off"), table(), load_arch())
+
+
+def test_a_vector_load_may_overwrite_a_register_an_earlier_load_still_writes():
+    from agc import mir
+    from agc.mir import abi, waitcnt
+    body = """
+    global_load_dword v4, v[2:3], off
+    global_load_dword v4, v[0:1], off
+    s_waitcnt vmcnt(0)
+    v_mov_b32_e32 v5, v4
+    s_endpgm
+    """
+    k = abi.make_kernel("k", mir.parse_body(body, "k"), [abi.Arg("global_buffer")])
+    assert waitcnt.check(k) == []
+    k = abi.make_kernel("k", mir.parse_body(body.replace("    s_waitcnt vmcnt(0)\n", ""), "k"), [abi.Arg("global_buffer")])
+    assert [f["counter"] for f in waitcnt.check(k)] == ["vmcnt"]            # the read still needs the wait
+    k = abi.make_kernel("k", mir.parse_body(body.replace("global_load_dword v4, v[0:1], off", "v_mov_b32_e32 v4, 0"), "k"), [abi.Arg("global_buffer")])
+    assert waitcnt.check(k)                                                  # an ALU write would be overwritten by the load

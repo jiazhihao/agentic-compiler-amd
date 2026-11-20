@@ -183,8 +183,8 @@ class Session:
 
     SOURCE_FLAGS = re.compile(r"^-(f[\w=-]+|m[\w=-]+|O[0-3s])$")
 
-    def source(self, text: str, launch: dict | None = None, note: str = "", defines: dict | None = None,
-               flags: list | None = None) -> dict:
+    def source(self, text: str = "", launch: dict | None = None, note: str = "", defines: dict | None = None,
+               flags: list | None = None, like: str | None = None) -> dict:
         """A new root state from a rewritten HIP source: compiled with amdclang (same flags as the
         baseline), imported into machine IR. The kernel must keep the manifest's entry name and
         parameters; `launch` may change the grid and block and append arguments. The state starts
@@ -192,8 +192,34 @@ class Session:
         m = self.manifest
         d = self.store.root / "src"
         d.mkdir(parents=True, exist_ok=True)
+        if like:                                             # the text (and, unless given, the launch) of an earlier source state
+            src = next((st for st in self.store.ancestry(self.resolve(like)) if st.action.get("name") == "source"), None)
+            if src is None:
+                raise SessionError("parameter", f"state {like} does not come from `source`")
+            if not text:
+                text = Path(src.action["file"]).read_text()
+            if launch is None:
+                launch = src.action.get("launch_given")
+        if not text.strip():
+            raise SessionError("parameter", "source needs `text`, or `like` naming a state made by source")
+        given = copy.deepcopy(launch)
+        if launch is not None and defines:                   # launch expressions may use the defines' names
+            def subst(x):
+                if isinstance(x, str):
+                    for key, val in defines.items():
+                        x = re.sub(rf"\b{re.escape(str(key))}\b", f"({val})", x)
+                    return x
+                if isinstance(x, list):
+                    return [subst(y) for y in x]
+                if isinstance(x, dict):
+                    return {k: subst(v) for k, v in x.items()}
+                return x
+            launch = subst(launch)
         extra = []
         for key, val in (defines or {}).items():
+            if len(str(key)) < 3:
+                raise SessionError("parameter", f"define {key!r}: use names of three or more characters "
+                                                "(short names collide with template parameters in the HIP headers)")
             if not re.fullmatch(r"[A-Za-z_]\w*", str(key)) or not re.fullmatch(r"[\w.+-]*", str(val)):
                 raise SessionError("parameter", f"define {key}={val}: a name and a plain number or identifier")
             extra.append(f"-D{key}={val}")
@@ -212,7 +238,8 @@ class Session:
         except asm.AsmError as e:
             raise SessionError("toolchain", f"cannot import amdclang's assembly: {e.message}", location={"line": e.line, "text": e.text}) from None
         self._kernel(module)
-        action = {"name": "source", "note": note, "file": str(path), "sha": path.stem, **({"flags": extra} if extra else {})}
+        action = {"name": "source", "note": note, "file": str(path), "sha": path.stem, **({"flags": extra} if extra else {}),
+                  **({"launch_given": given} if given is not None else {})}
         if launch is not None:
             action["launch"] = self._launch(None, launch)
         return self._put(None, module, action)
@@ -255,11 +282,11 @@ class Session:
         out = {"read_mb": round(rd / 1e6, 1), "written_mb": round(wr / 1e6, 1),
                "tb_per_s": round((rd + wr) / 1e12 / (ms * 1e-3), 2) if ms else None, "measured_on_this_device": mem,
                "note": "assumes every tensor element is read or written once (an overestimate for kernels that touch part of a tensor)"}
-        if ms and "copy_tb_per_s" in mem:
-            # what a plain copy of the same bytes takes here: the practical floor of a memory-bound kernel
-            floor = mem["launch_fixed_us"] / 1e3 + (rd + wr) / 1e12 / mem["copy_tb_per_s"] * 1e3
+        if ms and "cold_read_tb_per_s" in mem:
+            # what streaming the same bytes once takes here: the practical floor of a memory-bound kernel
+            floor = mem["launch_fixed_us"] / 1e3 + (rd / mem["cold_read_tb_per_s"] + wr / mem["write_tb_per_s"]) / 1e12 * 1e3
             out.update(memory_floor_ms=round(floor, 4), headroom=round(ms / floor, 2),
-                       headroom_note="time / memory_floor: about 1.0 means the kernel moves bytes as fast as a copy does here and "
+                       headroom_note="time / memory_floor: about 1.0 means the kernel streams its bytes as fast as any kernel measured here and "
                                      "only moving fewer bytes can help; well above 1 means it is not bound by memory")
         return out
 

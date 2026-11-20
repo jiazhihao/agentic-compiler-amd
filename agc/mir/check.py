@@ -10,7 +10,7 @@ from ..isa import table
 from . import abi, hazards, waitcnt
 from .analysis import cfg, entry_defined, undefined_reads
 from .emit import EmitError, build
-from .ir import Kernel, Module
+from .ir import Kernel, Module, Reg
 from .verify import verify_kernel
 
 
@@ -68,6 +68,15 @@ def check_kernel(k: Kernel, arch: Arch | None = None, strict: bool = False) -> l
     for b, i, u in undefined_reads(g):
         name = "m0" if u[0] == "m0" else f"{u[0]}{u[1]}"
         never = u not in written
+        # the other half of a register pair that is written: the unused half of a 64-bit operand
+        # (amdclang's v_mad_u64_u32 addends, widened indices)
+        inst = g.infos[b][i].inst
+        half = any(isinstance(op, Reg) and op.count > 1 and not op.special and op.cls == u[0]
+                   and op.index <= u[1] < op.index + op.count
+                   and any((op.cls, j) in written for j in range(op.index, op.index + op.count) if j != u[1])
+                   for op in inst.operands)
+        if half and not strict:
+            never = False
         # compilers legitimately read registers that are undefined on some path (the unused half of
         # a 64-bit operand, a loop-carried mask before the first iteration): that is a warning.
         # A register nothing ever writes is an error.
