@@ -16,6 +16,11 @@ the agc timing protocol unless stated.
   N = 16), 2.2x (`gemm_naive`), 1.3x (`row_sum`, `row_argmax`). `apply(id, "unroll_loads")` does
   it for counted loops; masked loops need a hand-written bulk prefix loop
   (`tests/mir/wins/row_sum_bulk4.s`).
+- **Coarsening** (`apply(id, "coarsen", {"factor": 2 | 4 | 8})`): one launched workgroup runs
+  several consecutive workgroups of the original, bit-identical, no knowledge of the kernel
+  needed. It pays for short one-element-per-thread kernels launched on a large grid: 1.10x
+  `axpy`, 1.25x `cast_bf16`, 1.3x `gelu`. It loses where a wave already runs long or the grid is
+  small (`matvec` at 64 workgroups: 0.5x at factor 2), and for LDS/barrier row kernels (0.9x).
 - **Wide loads for contiguous streams** (`global_load_dwordx4`, `s_load_dwordxN`); for strided
   streams the load's 13-bit offset (-4096..4095) reaches the next 3 elements of a 1024-byte stride.
 - **Several elements per lane** for elementwise work: 1.5x to 1.6x on `gelu` and `cast_bf16`;

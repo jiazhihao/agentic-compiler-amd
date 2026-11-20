@@ -95,3 +95,16 @@ def register_transforms() -> None:
     def _fix_hazards(m: Module, kernel: str) -> Module:
         fix_hazards(m.kernel(kernel))
         return m
+
+    @transform("coarsen", "one launched workgroup runs `factor` consecutive workgroups of the original (the kernel body in a "
+               "loop over virtual workgroup ids; bit-identical); the launch shrinks to ceil(grid_x / factor) and one "
+               "argument carrying the original grid_x is appended", {"factor": [2, 4, 8, 16]}, launch=True)
+    def _coarsen(m: Module, kernel: str, launch: dict, factor: int = 4):
+        from . import coarsen
+        k = m.kernel(kernel)
+        coarsen.coarsen(k, factor)
+        fix_waits(k)
+        gx = launch["grid"][0]
+        launch["grid"] = [f"cdiv({gx}, {factor})"] + list(launch["grid"][1:])
+        launch["args"] = list(launch.get("args", [])) + [{"dtype": "u32", "value": str(gx)}]
+        return m, launch

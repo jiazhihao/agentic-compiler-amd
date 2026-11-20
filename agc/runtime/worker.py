@@ -23,6 +23,7 @@ from pathlib import Path
 import numpy as np
 
 from ..arch.model import load as load_arch
+from ..dtypes import dtype
 from ..manifest import Manifest, eval_expr
 from . import hip, reference, toolchain
 from .compare import compare_outputs
@@ -50,12 +51,21 @@ def find_kernel(meta: dict, entry: str) -> dict:
                    f"(kernels: {[k['.name'] for k in kernels]})")
 
 
-def pack_args(kmeta: dict, m: Manifest, resolved, pointers: dict[str, int]) -> bytes:
-    """The explicit kernel arguments at the offsets the code object's metadata declares."""
+def pack_args(kmeta: dict, m: Manifest, resolved, pointers: dict[str, int], extra: list | None = None) -> bytes:
+    """The explicit kernel arguments at the offsets the code object's metadata declares. `extra`:
+    the arguments a launch-changing transformation appended after the manifest's
+    (`[{"dtype", "value": expression over the shape symbols}]`)."""
+    extra = extra or []
     explicit = [a for a in kmeta.get(".args", []) if not a[".value_kind"].startswith("hidden_")]
-    if len(explicit) != len(m.params):
-        raise JobError("abi", f"the kernel takes {len(explicit)} arguments, the manifest declares {len(m.params)}")
+    if len(explicit) != len(m.params) + len(extra):
+        raise JobError("abi", f"the kernel takes {len(explicit)} arguments, the manifest declares {len(m.params)}"
+                       + (f" and the launch adds {len(extra)}" if extra else ""))
     buf = bytearray(max((a[".offset"] + a[".size"] for a in explicit), default=0))
+    for a, e in zip(explicit[len(m.params):], extra):
+        dt = dtype(e["dtype"])
+        if a[".value_kind"] != "by_value" or a[".size"] != dt.itemsize:
+            raise JobError("abi", f"launch argument {e}: the kernel takes {a['.size']} bytes by {a['.value_kind']}")
+        buf[a[".offset"]:a[".offset"] + a[".size"]] = np.asarray(eval_expr(e["value"], resolved.symbols)).astype(dt.storage).tobytes()
     for a, p in zip(explicit, m.params):
         if p.kind == "tensor":
             if a[".value_kind"] != "global_buffer" or a[".size"] != 8:
@@ -117,7 +127,8 @@ class Bound:
                 grid, block, lds = dims(k.launch["grid"]), dims(k.launch["block"]), eval_expr(k.launch.get("lds", 0), sym)
                 if min(grid) <= 0 or min(block) <= 0:
                     raise JobError("launch", f"launch dims must be positive: grid={grid} block={block}")
-            self._prepared[id(k)] = k.kernel.prepare(grid, block, pack_args(k.kmeta, self.m, self.resolved, self.pointers),
+            extra = k.launch.get("args") if k.launch else None
+            self._prepared[id(k)] = k.kernel.prepare(grid, block, pack_args(k.kmeta, self.m, self.resolved, self.pointers, extra),
                                                      stream=self.dev.stream, lds_bytes=lds)
         return self._prepared[id(k)]
 

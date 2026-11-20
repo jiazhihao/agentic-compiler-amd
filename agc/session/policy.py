@@ -1,6 +1,7 @@
 """The default policy: what agc does with a manifest when nobody steers it.
 
-Candidates: the amdclang import with `unroll_loads` at each factor (when a loop qualifies), and the
+Candidates: the amdclang import with `unroll_loads` at each factor (when a loop qualifies) and with
+`coarsen` at each factor (several workgroups of the original per launched workgroup), and the
 manifest's tensor program compiled with every parameter of the matching template. Each candidate
 goes through the static checks, the full battery and a paired timing against amdclang. The result
 is the verified state with the best lower confidence bound among the wins; with no win it is the
@@ -13,6 +14,7 @@ import itertools
 from .session import Session, SessionError
 
 UNROLL_FACTORS = (4, 8, 16)
+COARSEN_FACTORS = (2, 4, 8)
 
 
 def candidates(s: Session) -> list[dict]:
@@ -21,6 +23,9 @@ def candidates(s: Session) -> list[dict]:
         for f in UNROLL_FACTORS:
             out.append({"path": "import+pass", "how": f"unroll_loads(factor={f})", "bit_identical": True,
                         "make": lambda f=f: s.apply("ref", "unroll_loads", {"factor": f})})
+        for f in COARSEN_FACTORS:
+            out.append({"path": "import+pass", "how": f"coarsen(factor={f})", "bit_identical": True,
+                        "make": lambda f=f: s.apply("ref", "coarsen", {"factor": f})})
     if s.manifest.program is not None:
         from .. import gen
         try:

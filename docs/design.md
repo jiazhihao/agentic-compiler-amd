@@ -106,6 +106,14 @@ recomputes register counts and `accum_offset` from the instruction stream.
 | `peephole` | Fusions (`v_lshl_add`, `v_fmac`, `v_pk_*`), scalarization, dead code | rule selection |
 | `descriptor` | Kernel descriptor, metadata, kernarg preload, LDS size | preload count |
 
+**Transformations of an imported kernel** (`apply`), bit-identical by construction:
+`unroll_loads` (several iterations' loads in flight per wait in a counted loop) and `coarsen`
+(one launched workgroup runs `factor` consecutive workgroups of the original: the kernel body
+becomes a loop over virtual workgroup ids that starts every iteration from the entry state, the
+launch shrinks to `ceil(grid_x / factor)`, and one appended argument carries the original
+`grid_x`). A transformation that changes the launch records the new launch (grid, block,
+appended arguments) with the state; the runtime launches the state that way.
+
 **Checks** before any GPU job: verifier, hazard checker, waitcnt checker, and
 `llvm-mc` encode plus `llvm-objdump` round-trip to the same instruction stream.
 

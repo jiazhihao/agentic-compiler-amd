@@ -51,10 +51,12 @@ class SessionError(Exception):
 TRANSFORMS: dict[str, dict] = {}       # name -> {"fn": fn(module, kernel_name, **params) -> Module, "doc", "params"}
 
 
-def transform(name: str, doc: str, params: dict | None = None):
-    """Register a named transformation of a physical module (the passes of `agc.mir.passes`)."""
+def transform(name: str, doc: str, params: dict | None = None, launch: bool = False):
+    """Register a named transformation of a physical module (the passes of `agc.mir.passes`).
+    With `launch`, the function also receives the state's launch (`launch=`) and returns
+    `(module, new launch)`: a transformation that changes how the kernel is launched."""
     def deco(fn):
-        TRANSFORMS[name] = {"fn": fn, "doc": doc, "params": params or {}}
+        TRANSFORMS[name] = {"fn": fn, "doc": doc, "params": params or {}, "launch": launch}
         return fn
     return deco
 
@@ -142,6 +144,10 @@ class Session:
             if k.name == entry or re.match(rf"_Z\w*?{len(entry)}{re.escape(entry)}", k.name):
                 return k
         raise SessionError("parameter", f"kernel {entry!r} is not in the module (kernels: {[k.name for k in module.kernels]})")
+
+    def generated(self, sid: str) -> bool:
+        """The state descends from a generator's output (not from amdclang's import)."""
+        return any(st.action.get("name") == "generate" for st in self.store.ancestry(sid))
 
     def launch_of(self, sid: str) -> dict | None:
         """The launch geometry a generated kernel (or a state derived from one) carries; None: the manifest's."""
@@ -364,14 +370,20 @@ class Session:
         if unknown:
             raise SessionError("parameter", f"{name}: unknown parameter(s) {sorted(unknown)}", values=TRANSFORMS[name]["params"])
         module = copy.deepcopy(self.module(pid))
+        action = {"name": name, "params": params}
         try:
-            out = TRANSFORMS[name]["fn"](module, self._kernel(module).name, **params)
+            if TRANSFORMS[name].get("launch"):
+                m = self.manifest
+                current = self.launch_of(pid) or {"grid": list(m.grid), "block": list(m.block), "lds": m.lds}
+                out, action["launch"] = TRANSFORMS[name]["fn"](module, self._kernel(module).name, launch=copy.deepcopy(current), **params)
+            else:
+                out = TRANSFORMS[name]["fn"](module, self._kernel(module).name, **params)
         except SessionError:
             raise
         except ValueError as e:
             raise SessionError("parameter", f"{name}: {e}") from None
         abi.sync_resources(self._kernel(out), self.arch)
-        return self._put(pid, out, {"name": name, "params": params})
+        return self._put(pid, out, action)
 
     # ---- validate and measure --------------------------------------------------
     def static_check(self, ref: str) -> dict:
@@ -379,7 +391,7 @@ class Session:
         cached = self.store.get_result(sid, "static")
         if cached is None:
             # code agc generated (and anything derived from it) must not read undefined registers
-            r = mircheck.static_check(self.module(sid), strict=self.launch_of(sid) is not None)
+            r = mircheck.static_check(self.module(sid), strict=self.generated(sid))
             cached = {"ok": r["ok"], "findings": r["findings"]}
             self.store.put_result(sid, "static", cached)
         errors = [f for f in cached["findings"] if f.get("severity") != "warning"]
