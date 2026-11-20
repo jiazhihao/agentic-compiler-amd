@@ -177,9 +177,11 @@ win is reported with its pass.
 ### M10 — Per-kernel agent sessions on the LLM-kernel benchmark (#29)
 - [x] Benchmark of LLM kernels (FlashInfer, vLLM, attention, MLA, KDA, MoE, rocBLAS, MIOpen)
       with amdclang baselines: `bench/llm`, 36 kernels.
-- [ ] The default policy on every kernel (the floor), then an agent session per kernel that
-      is not yet a win: specialization to the kernel's shapes and launch, custom `mir` edits,
-      traces kept.
+- [x] The default policy on every kernel (the floor): 10 wins, 26 fallbacks.
+- [x] The harness (`agc.agent`, #34): headless agent session per kernel, independent
+      verification, recipes, replay; source level, launch changes, traffic and headroom.
+- [ ] An agent session per fallback kernel (#35 to #60) until it is 1.5x faster than amdclang
+      or at its memory floor.
 - [x] First customization promoted to a pass: `coarsen` (#30). Further ones as sessions find them.
 - **Exit:** per-kernel table (policy and session results against amdclang, fallbacks
   reported as fallbacks) in the report and on #29.
