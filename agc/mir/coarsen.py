@@ -12,7 +12,9 @@ work: the one-element-per-thread kernels of the BLAS and DNN libraries.
 
 Legality:
  - barriers: every path to the end of the program must pass every `s_barrier`, so that all waves
-   of a workgroup stay in the same virtual workgroup between barriers;
+   of a workgroup stay in the same virtual workgroup between barriers; a kernel that uses LDS or
+   barriers gets one more barrier at the end of each virtual workgroup, so that no wave starts
+   the next one (and overwrites LDS) while another still reads;
  - the kernel has no private segment (stack) and no preloaded arguments;
  - a read of the hidden `block_count_x` must be an `s_load_dword` from the kernarg pointer.
 """
@@ -161,7 +163,10 @@ def coarsen(k: Kernel, factor: int, arch: Arch | None = None) -> dict:
                 b.insts[i] = I(f"s_branch {LATCH}")
         if bi == len(body) - 1 and b.insts and str(b.insts[-1]) == f"s_branch {LATCH}":
             b.insts.pop()                                     # the last block falls through into the latch
-    latch = [I(f"s_add_u32 s{s_cnt}, s{s_cnt}, 1"), I(f"s_cmp_lt_u32 s{s_cnt}, {factor}"), I(f"s_cbranch_scc1 {HEAD}")]
+    # Waves of one workgroup that share LDS must finish a virtual workgroup together: without this a wave
+    # that is ahead overwrites LDS the others still read.
+    shares = any(i.ds or i.lds_dma or i.name == "s_barrier" for infos in g.infos for i in infos)
+    latch = ([I("s_barrier")] if shares else []) + [I(f"s_add_u32 s{s_cnt}, s{s_cnt}, 1"), I(f"s_cmp_lt_u32 s{s_cnt}, {factor}"), I(f"s_cbranch_scc1 {HEAD}")]
     k.blocks = split_at_branches([Block(first.label, pre), Block(HEAD, head)] + body + [Block(LATCH, latch), Block(EXIT, [I("s_endpgm")])])
     # ---- the new argument -----------------------------------------------------------------------------
     k.metadata.setdefault(".args", []).append({".offset": off, ".size": 4, ".value_kind": "by_value"})
