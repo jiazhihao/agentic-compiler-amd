@@ -33,7 +33,11 @@ Three levels, to be combined:
    This is the place for what amdclang does not do: loads in flight across iterations, later and
    weaker waits, wide loads, fused instructions, DPP reductions, MFMA.
 
-`check` then `bench` every candidate; a state that fails the battery has no speed.
+`check` then `bench` every candidate; a state that fails the battery has no speed. `bench` also
+reports `traffic`: the bytes the kernel moves and the TB/s that implies, next to the rates
+measured on this device. A kernel far below those rates is not memory-bound, whatever else it
+is. `compare(a, b)` times two verified states against each other when they are too close to rank
+through `ref`.
 
 ## How to work
 
@@ -51,8 +55,10 @@ Three levels, to be combined:
 
 ## Budget and end
 
-About {minutes} minutes or {benches} timed candidates, whichever comes first. Stop earlier when
-three consecutive distinct ideas bring less than 1 % each.
+About {minutes} minutes or {benches} timed candidates, whichever comes first. A first win is the
+start: then try the other levers on top of it (another level, another structure, the passes on the
+new state). Stop earlier only when three consecutive ideas of different kinds bring less than
+1 % each over your best state.
 
 End by calling `report(best, summary, tried, friction)` exactly once:
 - `best`: the id of the state to ship; `ref` if nothing was a win. Never name an unverified state.

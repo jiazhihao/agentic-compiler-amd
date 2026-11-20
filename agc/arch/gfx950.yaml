@@ -50,6 +50,10 @@ peaks:
   fp16_tflops:          {value: 2500, source: isa-doc}
   fp8_tflops:           {value: 5000, source: isa-doc}
   fp32_vector_tflops:   {value: 157.3, source: isa-doc}
+memory:
+  # TB/s reached by kernels on this device (measured here; not a datasheet limit)
+  read_only_tb_per_s:   {value: 7.5, source: measured}   # operand loads of the MFMA GEMM
+  read_write_tb_per_s:  {value: 4.7, source: measured}   # axpy: two streams read, one written
 waitcnt:
   # counter widths (max encodable outstanding count) for s_waitcnt on gfx9.4/9.5
   vmcnt:   {value: 63, source: isa-doc}

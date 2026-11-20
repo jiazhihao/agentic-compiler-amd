@@ -124,7 +124,7 @@ def cmd_optimize(args) -> int:
 
 def cmd_agent(args) -> int:
     from . import agent
-    r = agent.run(args.manifest, minutes=args.minutes, benches=args.benches, model=args.model, policy=not args.no_policy,
+    r = agent.run(args.manifest, minutes=args.minutes, benches=args.benches, model=args.model, policy=not args.no_policy, session=not args.verify_only,
                   extra=args.extra or "", log=lambda t: print(t, file=sys.stderr))
     _emit({k: r.get(k) for k in ("kernel", "outcome", "speedup", "ci95", "why", "summary", "friction", "recipe", "agent")})
     return 0
@@ -161,6 +161,7 @@ def main(argv=None) -> int:
     p.set_defaults(fn=cmd_optimize)
     p = sub.add_parser("agent"); p.add_argument("manifest"); p.add_argument("--minutes", type=int, default=45)
     p.add_argument("--benches", type=int, default=30); p.add_argument("--model"); p.add_argument("--no-policy", action="store_true")
+    p.add_argument("--verify-only", action="store_true", help="no new session: verify and record the last session's report")
     p.add_argument("--extra", help="text appended to the session prompt"); p.set_defaults(fn=cmd_agent)
     p = sub.add_parser("replay"); p.add_argument("kernels", nargs="*"); p.set_defaults(fn=cmd_replay)
     p = sub.add_parser("info"); p.set_defaults(fn=cmd_info)

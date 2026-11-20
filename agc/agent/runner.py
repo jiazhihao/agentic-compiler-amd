@@ -58,16 +58,37 @@ def agent(prompt: str, root: Path, log: Path, minutes: int, model: str | None = 
     return out
 
 
+MAX_CI_WIDTH = 0.04      # a paired timing whose 95 % CI is wider than this was disturbed (shared device): not a measurement
+ATTEMPTS = 5
+
+
 def verify(s: Session, ref: str) -> dict:
-    """The harness's own verdict on a state: everything rerun, and a win must be a win twice."""
+    """The harness's own verdict on a state: static check and battery rerun, then paired timings until two
+    are valid. A timing is valid when its CI is narrower than MAX_CI_WIDTH, whatever its direction. The
+    state is a win when both valid timings are wins; the one with the lower bound is reported."""
     v = s.verify(ref)
-    if v.get("ok") and v.get("outcome") == "win":
-        again = s.verify(ref)
-        if not (again.get("ok") and again.get("outcome") == "win"):
-            return {**again, "outcome": "unstable", "first": {k: v.get(k) for k in ("speedup", "speedup_ci95")}}
-        if again["speedup_ci95"][0] < v["speedup_ci95"][0]:
-            v = again                                        # report the more conservative of the two
-    return v
+    if not v.get("ok"):
+        return v
+    valid, runs = [], []
+    b = v
+    for n in range(ATTEMPTS):
+        if n:
+            b = s.bench(ref)
+            if not b.get("ok"):
+                return {**v, "ok": False, "stage": "bench", "error": b.get("error")}
+        lo, hi = b["speedup_ci95"]
+        runs.append({"speedup": b["speedup"], "ci95": [lo, hi], "valid": hi - lo <= MAX_CI_WIDTH})
+        if hi - lo <= MAX_CI_WIDTH:
+            valid.append(b)
+        if len(valid) == 2:
+            break
+    out = {**v, "runs": runs}
+    if len(valid) < 2:
+        return {**out, "outcome": "disturbed"}
+    worst = min(valid, key=lambda x: x["speedup_ci95"][0])
+    out.update({k: worst.get(k) for k in ("speedup", "speedup_ci95", "reference_ms", "candidate_ms")})
+    out["outcome"] = "win" if all(x["outcome"] == "win" for x in valid) else worst["outcome"] if worst["outcome"] != "win" else "unstable"
+    return out
 
 
 def record(s: Session, sid: str, verdict: dict, report: dict, meta: dict) -> Path:
@@ -90,7 +111,7 @@ def record(s: Session, sid: str, verdict: dict, report: dict, meta: dict) -> Pat
 
 
 def run(manifest: str | Path, root: str | Path = ".agc", minutes: int = 45, benches: int = 30, model: str | None = None,
-        policy: bool = True, extra: str = "", log=print) -> dict:
+        policy: bool = True, extra: str = "", log=print, session: bool = True) -> dict:
     """One session on one kernel. Returns the harness's result (also written under the session's store)."""
     manifest, root = Path(manifest), Path(root)
     s = Session.open(manifest, root)
@@ -101,15 +122,18 @@ def run(manifest: str | Path, root: str | Path = ".agc", minutes: int = 45, benc
         r = optimize(s)
         log(f"{name}: default policy: {'fallback' if r['fallback'] else r['chosen']['how'] + ' %.3fx' % r['chosen']['speedup']}")
     rep_path = s.store.root / "report.json"
-    if rep_path.exists():
-        rep_path.rename(rep_path.with_name(f"report-{int(rep_path.stat().st_mtime)}.json"))
-    logs = s.store.root / "agent"
-    logs.mkdir(exist_ok=True)
-    logf = logs / f"{time.strftime('%Y%m%d-%H%M%S')}.jsonl"
-    meta = agent(_prompt(s, manifest, minutes, benches, extra), root, logf, minutes, model)
-    meta["log"] = str(logf)
-    log(f"{name}: agent finished in {meta['seconds']} s, {meta.get('turns')} turns, ${meta.get('cost_usd')}")
-    s = Session.open(manifest, root)                          # the store as the agent left it
+    if session:
+        if rep_path.exists():
+            rep_path.rename(rep_path.with_name(f"report-{int(rep_path.stat().st_mtime)}.json"))
+        logs = s.store.root / "agent"
+        logs.mkdir(exist_ok=True)
+        logf = logs / f"{time.strftime('%Y%m%d-%H%M%S')}.jsonl"
+        meta = agent(_prompt(s, manifest, minutes, benches, extra), root, logf, minutes, model)
+        meta["log"] = str(logf)
+        log(f"{name}: agent finished in {meta['seconds']} s, {meta.get('turns')} turns, ${meta.get('cost_usd')}")
+        s = Session.open(manifest, root)                      # the store as the agent left it
+    else:                                                     # verify and record what the last session reported
+        meta = {"resumed": True}
     report = json.loads(rep_path.read_text()) if rep_path.exists() else {}
     result = {"kernel": name, "agent": meta, "reported": bool(report), "friction": report.get("friction", []),
               "summary": report.get("summary", ""), "tried": report.get("tried", [])}
@@ -147,7 +171,7 @@ def replay(names: list[str] | None = None, root: str | Path | None = None, log=p
         recipe = json.loads((d / "recipe.json").read_text())
         s = Session.open(RECIPES.parent / f"{d.name}.json", root)
         st = s.adopt((d / "best.s").read_text(), recipe["launch"], recipe["strict"], note="recorded recipe")
-        v = s.verify(st["id"])
+        v = verify(s, st["id"])
         out[d.name] = v
         log(f"{d.name:24s} {v.get('outcome') or v.get('stage')} {v.get('speedup')} {v.get('speedup_ci95')}")
     return out

@@ -21,9 +21,22 @@ The session is reached through the `agc` MCP server (`.mcp.json`), or from a she
 4. `static_check(id)`: must pass before any GPU job. Findings say what is needed, for example
    "needs `s_waitcnt vmcnt(1)` first" or "insert `s_nop 0`".
 5. `check(id)`: the battery (hidden seeds, shape variants). A state that fails is never timed.
-6. `bench(id)`: paired against `ref`. `win` needs the whole 95 % CI above 1.01; anything inside
+6. `bench(id)`: paired against `ref` (`compare(a, b)` ranks two candidates directly; `traffic` in
+   the result says how close the kernel is to the memory rates measured on this device). `win` needs the whole 95 % CI above 1.01; anything inside
    ±1 % is `parity`. Report `parity` and `loss` as such; never report a fallback as a win.
 7. `note(id, text)` what was tried and what happened; `tag` / `fork` / `checkpoint` to organize.
+
+## The source level
+
+`source(text, launch)` compiles a rewritten HIP source with amdclang and imports it as a new root
+state; `hip_source()` gives the baseline's text. Use it to restructure (elements per thread, the
+split over threads and workgroups, block size, a loop-free body), then work on the result at the
+machine level. Rules: the entry name and the manifest's parameters stay, in order; extra
+parameters are appended and supplied by `launch["args"]` (`{"dtype": "u32", "value": "cdiv(N, 4)"}`);
+`grid` and `block` may have up to three dimensions and are expressions over the shape symbols.
+`relaunch(ref, launch)` changes only the launch. `__builtin_amdgcn_rcpf`, `__builtin_exp2f` and
+friends lower to the single instructions (`v_rcp_f32`, `v_exp_f32` plus range handling) when the
+tolerance allows replacing a libm call or a division.
 
 ## Tensor programs
 

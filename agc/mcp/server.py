@@ -107,7 +107,8 @@ def actions(ref: str = "ref") -> dict:
 def edit(parent: str, ops: list, note: str = "") -> dict:
     """Structured edits → a new state. ops: [{"op": "replace"|"insert"|"delete", "block": label, "index": i,
     "text": "one instruction per line", "expect": "the instruction now at block[index]" (optional, checked)}].
-    `insert` places text before index (index == block length appends). Addresses refer to the parent's listing."""
+    `insert` places text before index (index == block length appends). `delete` takes "count" for a run of
+    instructions. Addresses refer to the parent's listing."""
     return _s().edit(parent, ops, note)
 
 
@@ -200,6 +201,13 @@ def bench(ref: str) -> dict:
     speedup with a 95% CI; outcome win / parity / loss (beyond the 1% noise floor). Needs a passing battery;
     for `ref` itself it is the A/A control."""
     return _s().bench(ref)
+
+
+@tool
+def compare(a: str, b: str) -> dict:
+    """Paired timing of state b against state a (both verified): ranks two candidates that are too close to tell
+    apart through their separate timings against ref."""
+    return _s().compare(a, b)
 
 
 @tool

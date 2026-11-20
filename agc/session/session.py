@@ -208,7 +208,11 @@ class Session:
     def relaunch(self, parent: str, launch: dict, note: str = "") -> dict:
         """The same code with another launch (grid, block, LDS size, appended arguments)."""
         pid = self.resolve(parent)
-        return self._put(pid, copy.deepcopy(self.module(pid)), {"name": "relaunch", "note": note, "launch": self._launch(pid, launch)})
+        m = self.manifest
+        new = self._launch(pid, launch)
+        if new == (self.launch_of(pid) or {"grid": list(m.grid), "block": list(m.block), "lds": m.lds}):
+            raise SessionError("parameter", "the launch is identical to the parent's", suggestion="nothing to do")
+        return self._put(pid, copy.deepcopy(self.module(pid)), {"name": "relaunch", "note": note, "launch": new})
 
     def adopt(self, text: str, launch: dict | None = None, strict: bool = False, note: str = "") -> dict:
         """A root state from a whole module's text (what `export` gives): a recorded result rebuilt here."""
@@ -221,6 +225,44 @@ class Session:
         if launch is not None:
             action["launch"] = self._launch(None, launch)
         return self._put(None, module, action)
+
+    def traffic(self, ms: float) -> dict:
+        """Memory traffic at the bench shapes if every tensor element is touched once (an upper bound for
+        kernels that read only part of a tensor), and the rate that implies for a run of `ms`."""
+        from ..dtypes import dtype
+        from ..manifest import eval_expr
+        m, sym = self.manifest, self.manifest.timing_symbols()
+        rd = wr = 0
+        for p in m.tensors():
+            n = dtype(p.dtype).itemsize
+            for d in p.shape:
+                n *= eval_expr(d, sym)
+            rd += n * (p.role in ("in", "inout"))
+            wr += n * (p.role in ("out", "inout"))
+        mem = {k: v for k, v in self.arch.section("memory").items()} if "memory" in self.arch.data else {}
+        return {"read_mb": round(rd / 1e6, 1), "written_mb": round(wr / 1e6, 1),
+                "tb_per_s": round((rd + wr) / 1e12 / (ms * 1e-3), 2) if ms else None,
+                "measured_ceilings_tb_per_s": {k: getattr(v, "value", v) for k, v in mem.items()},
+                "note": "upper bound: assumes every tensor element is read or written once"}
+
+    def compare(self, a: str, b: str) -> dict:
+        """Paired timing of state `b` against state `a` (both must have passed the battery): which of two
+        candidates is faster, when both are compared with `ref` too coarsely to tell."""
+        ia, ib = self.resolve(a), self.resolve(b)
+        for sid in (ia, ib):
+            ck = self.store.get_result(sid, "check")
+            if sid != self.ref_id and not (ck and ck.get("ok")):
+                raise SessionError("unverified", f"state {sid} has no passing battery", suggestion="check it first")
+        try:
+            r = harness.paired(self.manifest, self._hsaco(ia), self._hsaco(ib), root=self.root,
+                               reference_launch=self.launch_of(ia), candidate_launch=self.launch_of(ib))
+        except ExecutorError as e:
+            raise SessionError("gpu", str(e)[:1500]) from None
+        if not r.get("ok"):
+            return {"ok": False, "error": r.get("error"), "failed": r.get("failed")}
+        return {"ok": True, "a": ia, "b": ib, "outcome_b_vs_a": r["outcome"], "speedup_b_over_a": round(r["speedup"], 4),
+                "ci95": [round(x, 4) for x in r["speedup_ci95"]], "a_ms": round(r["reference"]["median_ms"], 5),
+                "b_ms": round(r["candidate"]["median_ms"], 5)}
 
     def verify(self, ref: str) -> dict:
         """Static check, full battery and paired timing of a state, all run again (no cached result is trusted)."""
@@ -398,8 +440,8 @@ class Session:
     def edit(self, parent: str, ops: list[dict], note: str = "") -> dict:
         """Structured edits. Each op: {"op": "replace" | "insert" | "delete", "block": label, "index": i,
         "text": instructions (replace / insert; one per line), "expect": the instruction now at that
-        address (optional, checked)}. `insert` places the text before `index` (index = length appends).
-        Addresses refer to the parent state; ops are applied from the last address backwards."""
+        address (optional, checked), "count": instructions to delete (delete only, default 1)}. `insert` places
+        the text before `index` (index = length appends). Addresses refer to the parent state; ops are applied from the last address backwards."""
         pid = self.resolve(parent)
         k0 = self._kernel(self.module(pid))
         blocks = copy.deepcopy(k0.blocks)
@@ -429,21 +471,25 @@ class Session:
                     raise SessionError("parse", f"ops[{n}]: {e.message}", location={"op": n, "text": e.text}) from None
                 if not new:
                     raise SessionError("parameter", f"ops[{n}]: {kind} needs `text`")
-            parsed.append((order[label], i, kind, label, new))
+            count = op.get("count", 1) if kind == "delete" else 1
+            if type(count) is not int or count < 1 or i + count > size:
+                raise SessionError("parameter", f"ops[{n}]: count {count!r} runs past the end of block {label} ({size} instructions)", values=op)
+            parsed.append((order[label], i, kind, label, new, count))
         seen = set()
-        for o, i, kind, label, new in parsed:
+        for o, i, kind, label, new, count in parsed:
             if kind != "insert":
-                if (o, i) in seen:
-                    raise SessionError("parameter", f"two ops change {label}[{i}]")
-                seen.add((o, i))
+                for j in range(i, i + count):
+                    if (o, j) in seen:
+                        raise SessionError("parameter", f"two ops change {label}[{j}]")
+                    seen.add((o, j))
         # from the last address backwards; at one address the replacement or deletion of the original
         # instruction comes first, then the insertion in front of it
-        for o, i, kind, label, new in sorted(parsed, key=lambda t: (t[0], t[1], t[2] != "insert"), reverse=True):
+        for o, i, kind, label, new, count in sorted(parsed, key=lambda t: (t[0], t[1], t[2] != "insert"), reverse=True):
             insts = index[label].insts
             if kind == "insert":
                 insts[i:i] = new
             elif kind == "delete":
-                del insts[i]
+                del insts[i:i + count]
             else:
                 insts[i:i + 1] = new
         blocks = asm.split_at_branches(blocks)
@@ -572,7 +618,8 @@ class Session:
                     "speedup": round(r["speedup"], 4), "speedup_ci95": [round(x, 4) for x in r["speedup_ci95"]],
                     "reference_ms": round(r["reference"]["median_ms"], 5), "candidate_ms": round(r["candidate"]["median_ms"], 5),
                     "pairs": r["pairs"], "case": r["case"], "protocol_version": r["protocol"]["version"],
-                    "noise_floor": r["protocol"]["noise_floor"], "device": r["gpu"]["device"], "clocks": r["clocks"]["levels"]}
+                    "noise_floor": r["protocol"]["noise_floor"], "device": r["gpu"]["device"], "clocks": r["clocks"]["levels"],
+                    "traffic": self.traffic(r["candidate"]["median_ms"])}
         self.store.put_result(sid, "bench", data)
         return {"id": sid, **data}
 
