@@ -16,7 +16,8 @@ from ..manifest import Manifest, ManifestError
 _MODULES: dict = {}
 
 
-def _load_function(m: Manifest):
+def _load_function(m: Manifest, magnitude: bool = False):
+    """The reference function; with `magnitude`, its `<function>_scale` companion when the file has one."""
     path = (m.path.parent / m.reference.file).resolve()
     key = (str(path), path.stat().st_mtime_ns)
     if key not in _MODULES:
@@ -25,18 +26,19 @@ def _load_function(m: Manifest):
         spec.loader.exec_module(mod)
         _MODULES[key] = mod
     try:
-        return getattr(_MODULES[key], m.reference.function)
+        fn = getattr(_MODULES[key], m.reference.function)
     except AttributeError:
         raise ManifestError(f"reference function {m.reference.function!r} not in {path}") from None
+    return getattr(_MODULES[key], m.reference.function + "_scale", fn) if magnitude else fn
 
 
-def _run(m: Manifest, values: dict[str, np.ndarray], resolved) -> dict[str, np.ndarray]:
+def _run(m: Manifest, values: dict[str, np.ndarray], resolved, magnitude: bool = False) -> dict[str, np.ndarray]:
     """Reference on decoded values → decoded outputs by name."""
     ref = m.reference
     if ref.kind == "einsum":
         out = {ref.output: np.einsum(ref.expr, *[values[n].astype(np.float64) for n in ref.inputs], optimize=True)}
     elif ref.kind == "python":
-        got = _load_function(m)(**values, **resolved.scalars)
+        got = _load_function(m, magnitude)(**values, **resolved.scalars)
         outs = m.outputs()
         out = got if isinstance(got, dict) else {outs[0].name: got}
     elif ref.kind == "tair":
@@ -68,9 +70,11 @@ def evaluate(m: Manifest, inputs: dict[str, np.ndarray], resolved) -> dict[str, 
 
 def scale(m: Manifest, inputs: dict[str, np.ndarray], resolved) -> dict[str, np.ndarray] | None:
     """The reference on |inputs| (sum of |terms| for sums and products): the magnitude the `cond`
-    tolerance is relative to. None when no output asks for it."""
+    tolerance is relative to. None when no output asks for it. A python reference whose terms can
+    cancel on |inputs| (`c*y - s*x`) defines `<function>_scale` next to it: called instead, with the
+    same arguments, it returns the sum of the magnitudes of the terms."""
     if not m.needs_scale():
         return None
     values = {k: np.abs(m.param(k).dtype.to_compute(v).astype(np.float64)) if m.param(k).dtype.is_float
               else m.param(k).dtype.to_compute(v) for k, v in inputs.items()}
-    return {k: np.abs(np.asarray(v, np.float64)) for k, v in _run(m, values, resolved).items()}
+    return {k: np.abs(np.asarray(v, np.float64)) for k, v in _run(m, values, resolved, magnitude=True).items()}

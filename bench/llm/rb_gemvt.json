@@ -1,0 +1,100 @@
+{
+ "name": "rb_gemvt",
+ "source": "rb_gemvt.hip",
+ "entry": "rb_gemvt",
+ "shapes": {
+  "M": 1000,
+  "N": 37
+ },
+ "bench_shapes": {
+  "M": 8192,
+  "N": 8192
+ },
+ "dynamic": [
+  "M",
+  "N"
+ ],
+ "params": [
+  {
+   "name": "m",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "M"
+  },
+  {
+   "name": "n",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "N"
+  },
+  {
+   "name": "alpha",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 1.5
+  },
+  {
+   "name": "A",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N",
+    "M"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "lda",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "M"
+  },
+  {
+   "name": "x",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "M"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "beta",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 0.5
+  },
+  {
+   "name": "y",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "inout"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "N"
+  ],
+  "block": [
+   256
+  ]
+ },
+ "tolerance": {
+  "y": {
+   "cond": 2e-05
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "rb_gemvt"
+ },
+ "tags": [
+  "llm",
+  "rocblas",
+  "contraction"
+ ]
+}

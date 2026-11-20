@@ -1,0 +1,147 @@
+{
+ "name": "vl_rotary_embedding",
+ "source": "vl_rotary_embedding.hip",
+ "entry": "vl_rotary_embedding",
+ "shapes": {
+  "N": 37,
+  "Hq": 5,
+  "Hk": 2,
+  "P": 100
+ },
+ "bench_shapes": {
+  "N": 16384,
+  "Hq": 32,
+  "Hk": 8,
+  "P": 4096
+ },
+ "dynamic": [
+  "N",
+  "Hq",
+  "Hk"
+ ],
+ "params": [
+  {
+   "name": "positions",
+   "kind": "tensor",
+   "dtype": "i64",
+   "shape": [
+    "N"
+   ],
+   "role": "in",
+   "init": {
+    "kind": "int_range",
+    "lo": 0,
+    "hi": "P"
+   }
+  },
+  {
+   "name": "query",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N",
+    "Hq",
+    128
+   ],
+   "role": "inout"
+  },
+  {
+   "name": "key",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N",
+    "Hk",
+    128
+   ],
+   "role": "inout"
+  },
+  {
+   "name": "cos_sin_cache",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "P",
+    128
+   ],
+   "role": "in"
+  },
+  {
+   "name": "rot_dim",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": 128
+  },
+  {
+   "name": "query_stride",
+   "kind": "scalar",
+   "dtype": "i64",
+   "value": "Hq * 128"
+  },
+  {
+   "name": "key_stride",
+   "kind": "scalar",
+   "dtype": "i64",
+   "value": "Hk * 128"
+  },
+  {
+   "name": "head_stride",
+   "kind": "scalar",
+   "dtype": "i64",
+   "value": 128
+  },
+  {
+   "name": "num_heads",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "Hq"
+  },
+  {
+   "name": "num_kv_heads",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "Hk"
+  },
+  {
+   "name": "head_size",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": 128
+  },
+  {
+   "name": "rope_dim_offset",
+   "kind": "scalar",
+   "dtype": "i64",
+   "value": 0
+  },
+  {
+   "name": "inverse",
+   "kind": "scalar",
+   "dtype": "bool",
+   "value": 0
+  }
+ ],
+ "launch": {
+  "grid": [
+   "N"
+  ],
+  "block": [
+   "min(Hq * 64, 512)"
+  ]
+ },
+ "tolerance": {
+  "*": {
+   "cond": 4e-07
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "vl_rotary_embedding"
+ },
+ "tags": [
+  "llm",
+  "vllm",
+  "elementwise"
+ ]
+}

@@ -1,0 +1,162 @@
+{
+ "name": "mo_bn_infer",
+ "source": "mo_bn_infer.hip",
+ "entry": "mo_bn_infer",
+ "shapes": {
+  "N": 30,
+  "C": 40,
+  "HW4": 300
+ },
+ "bench_shapes": {
+  "N": 256,
+  "C": 256,
+  "HW4": 196
+ },
+ "dynamic": [
+  "N",
+  "C",
+  "HW4"
+ ],
+ "params": [
+  {
+   "name": "in",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N",
+    "C",
+    "4 * HW4"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "out",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N",
+    "C",
+    "4 * HW4"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "estimatedMean",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "C"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "estimatedVariance",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "C"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "scale",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "C"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "bias",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "C"
+   ],
+   "role": "in",
+   "init": {
+    "kind": "int_range",
+    "lo": -3,
+    "hi": 4
+   }
+  },
+  {
+   "name": "epsilon",
+   "kind": "scalar",
+   "dtype": "f64",
+   "value": 1e-05
+  },
+  {
+   "name": "c",
+   "kind": "scalar",
+   "dtype": "u32",
+   "value": "C"
+  },
+  {
+   "name": "hw",
+   "kind": "scalar",
+   "dtype": "u32",
+   "value": "4 * HW4"
+  },
+  {
+   "name": "batchSize",
+   "kind": "scalar",
+   "dtype": "u32",
+   "value": "N"
+  },
+  {
+   "name": "cStride",
+   "kind": "scalar",
+   "dtype": "u32",
+   "value": "4 * HW4"
+  },
+  {
+   "name": "hwStride",
+   "kind": "scalar",
+   "dtype": "u32",
+   "value": 1
+  },
+  {
+   "name": "batchStride",
+   "kind": "scalar",
+   "dtype": "u32",
+   "value": "C * 4 * HW4"
+  },
+  {
+   "name": "alpha",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 0.0
+  },
+  {
+   "name": "beta",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 0.0
+  }
+ ],
+ "launch": {
+  "grid": [
+   "C",
+   "cdiv(HW4, 256)",
+   "min(max(1, 524288 // (C * 256 * cdiv(HW4, 256))), N)"
+  ],
+  "block": [
+   1,
+   256,
+   1
+  ]
+ },
+ "tolerance": {},
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "mo_bn_infer"
+ },
+ "tags": [
+  "llm",
+  "miopen",
+  "elementwise"
+ ]
+}

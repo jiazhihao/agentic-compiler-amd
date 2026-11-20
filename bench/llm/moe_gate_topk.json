@@ -1,0 +1,90 @@
+{
+ "name": "moe_gate_topk",
+ "source": "moe_gate_topk.hip",
+ "entry": "moe_gate_topk",
+ "shapes": {
+  "T": 300,
+  "E": 60
+ },
+ "bench_shapes": {
+  "T": 65536,
+  "E": 256
+ },
+ "dynamic": [
+  "T"
+ ],
+ "params": [
+  {
+   "name": "logits",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "T",
+    "E"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "weights",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "T",
+    8
+   ],
+   "role": "out"
+  },
+  {
+   "name": "indices",
+   "kind": "tensor",
+   "dtype": "i32",
+   "shape": [
+    "T",
+    8
+   ],
+   "role": "out"
+  },
+  {
+   "name": "num_tokens",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "T"
+  },
+  {
+   "name": "num_experts",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "E"
+  },
+  {
+   "name": "k",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": 8
+  }
+ ],
+ "launch": {
+  "grid": [
+   "cdiv(T, 256)"
+  ],
+  "block": [
+   256
+  ]
+ },
+ "tolerance": {
+  "weights": {
+   "rtol": 0.0001,
+   "atol": 1e-06
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "moe_gate_topk"
+ },
+ "tags": [
+  "llm",
+  "port",
+  "moe"
+ ]
+}

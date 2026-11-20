@@ -1,0 +1,91 @@
+{
+ "name": "mo_prelu_bwd",
+ "source": "mo_prelu_bwd.hip",
+ "entry": "mo_prelu_bwd",
+ "shapes": {
+  "N": 10001
+ },
+ "bench_shapes": {
+  "N": 67108864
+ },
+ "dynamic": [
+  "N"
+ ],
+ "params": [
+  {
+   "name": "input",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "weight",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    1
+   ],
+   "role": "in"
+  },
+  {
+   "name": "output_grad",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "input_grad",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "weight_grad_collector",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "N",
+   "kind": "scalar",
+   "dtype": "u64",
+   "value": "N"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "cdiv(N, 256)"
+  ],
+  "block": [
+   256
+  ]
+ },
+ "tolerance": {
+  "*": {
+   "rtol": 1e-06,
+   "atol": 0.0
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "mo_prelu_bwd"
+ },
+ "tags": [
+  "llm",
+  "miopen",
+  "elementwise"
+ ]
+}

@@ -1,0 +1,65 @@
+{
+ "name": "mo_glu_fwd",
+ "source": "mo_glu_fwd.hip",
+ "entry": "mo_glu_fwd",
+ "shapes": {
+  "N": 10001
+ },
+ "bench_shapes": {
+  "N": 67108864
+ },
+ "dynamic": [
+  "N"
+ ],
+ "params": [
+  {
+   "name": "input",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    2,
+    "N"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "output",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "N",
+   "kind": "scalar",
+   "dtype": "u64",
+   "value": "N"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "cdiv(N, 256)"
+  ],
+  "block": [
+   256
+  ]
+ },
+ "tolerance": {
+  "output": {
+   "rtol": 0.001,
+   "atol": 1e-06
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "mo_glu_fwd"
+ },
+ "tags": [
+  "llm",
+  "miopen",
+  "elementwise"
+ ]
+}

@@ -1,0 +1,126 @@
+{
+ "name": "vl_rms_norm",
+ "source": "vl_rms_norm.hip",
+ "entry": "vl_rms_norm",
+ "shapes": {
+  "B": 37,
+  "D4": 250
+ },
+ "bench_shapes": {
+  "B": 16384,
+  "D4": 1024
+ },
+ "dynamic": [
+  "B",
+  "D4"
+ ],
+ "params": [
+  {
+   "name": "out",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "B",
+    "4 * D4"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "input",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "B",
+    "4 * D4"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "input_stride_d2",
+   "kind": "scalar",
+   "dtype": "i64",
+   "value": "4 * D4"
+  },
+  {
+   "name": "input_stride_d3",
+   "kind": "scalar",
+   "dtype": "i64",
+   "value": 0
+  },
+  {
+   "name": "input_stride_d4",
+   "kind": "scalar",
+   "dtype": "i64",
+   "value": 0
+  },
+  {
+   "name": "input_shape_d2",
+   "kind": "scalar",
+   "dtype": "i64",
+   "value": 0
+  },
+  {
+   "name": "input_shape_d3",
+   "kind": "scalar",
+   "dtype": "i64",
+   "value": 0
+  },
+  {
+   "name": "weight",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "4 * D4"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "weight_stride",
+   "kind": "scalar",
+   "dtype": "i64",
+   "value": 0
+  },
+  {
+   "name": "epsilon",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 1e-06
+  },
+  {
+   "name": "num_tokens",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "B"
+  },
+  {
+   "name": "hidden_size",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "4 * D4"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "B"
+  ],
+  "block": [
+   "min(D4, 256)"
+  ]
+ },
+ "tolerance": {
+  "out": {
+   "rtol": 0.0001,
+   "atol": 1e-05
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "vl_rms_norm"
+ },
+ "tags": [
+  "llm",
+  "vllm",
+  "rowwise"
+ ]
+}

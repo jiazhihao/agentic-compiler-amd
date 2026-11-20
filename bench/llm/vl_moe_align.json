@@ -1,0 +1,147 @@
+{
+ "name": "vl_moe_align",
+ "source": "vl_moe_align.hip",
+ "entry": "vl_moe_align",
+ "shapes": {
+  "NT": 2400,
+  "E": 256
+ },
+ "bench_shapes": {
+  "NT": 524288,
+  "E": 256
+ },
+ "dynamic": [
+  "NT",
+  "E"
+ ],
+ "params": [
+  {
+   "name": "topk_ids",
+   "kind": "tensor",
+   "dtype": "i32",
+   "shape": [
+    "NT"
+   ],
+   "role": "in",
+   "init": {
+    "kind": "int_range",
+    "lo": -1,
+    "hi": "E + 1"
+   }
+  },
+  {
+   "name": "sorted_token_ids",
+   "kind": "tensor",
+   "dtype": "i32",
+   "shape": [
+    "NT + E * 63"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "expert_ids",
+   "kind": "tensor",
+   "dtype": "i32",
+   "shape": [
+    "cdiv(NT + E * 63, 64)"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "total_tokens_post_pad",
+   "kind": "tensor",
+   "dtype": "i32",
+   "shape": [
+    1
+   ],
+   "role": "out"
+  },
+  {
+   "name": "expert_map",
+   "kind": "tensor",
+   "dtype": "i32",
+   "shape": [
+    1
+   ],
+   "role": "in",
+   "init": "zeros"
+  },
+  {
+   "name": "num_experts",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "E"
+  },
+  {
+   "name": "padded_num_experts",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "cdiv(E, 64) * 64"
+  },
+  {
+   "name": "experts_per_warp",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": 64
+  },
+  {
+   "name": "block_size",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": 64
+  },
+  {
+   "name": "numel",
+   "kind": "scalar",
+   "dtype": "u64",
+   "value": "NT"
+  },
+  {
+   "name": "cumsum",
+   "kind": "tensor",
+   "dtype": "i32",
+   "shape": [
+    "E + 1"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "max_num_tokens_padded",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "NT + E * 63"
+  },
+  {
+   "name": "topk_num",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": 8
+  },
+  {
+   "name": "has_expert_map",
+   "kind": "scalar",
+   "dtype": "bool",
+   "value": 0
+  }
+ ],
+ "launch": {
+  "grid": [
+   2
+  ],
+  "block": [
+   1024
+  ],
+  "lds": "4 * cdiv(E, 64) * 64"
+ },
+ "tolerance": {},
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "vl_moe_align"
+ },
+ "tags": [
+  "llm",
+  "vllm",
+  "moe"
+ ]
+}

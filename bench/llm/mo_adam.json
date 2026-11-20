@@ -1,0 +1,197 @@
+{
+ "name": "mo_adam",
+ "source": "mo_adam.hip",
+ "entry": "mo_adam",
+ "shapes": {
+  "N": 10001
+ },
+ "bench_shapes": {
+  "N": 67108864
+ },
+ "dynamic": [
+  "N"
+ ],
+ "params": [
+  {
+   "name": "param_in",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "param_out",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "grad_in",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "exp_avg_in",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "exp_avg_out",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "exp_avg_sq_in",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "in",
+   "init": {
+    "kind": "int_range",
+    "lo": 0,
+    "hi": 2
+   }
+  },
+  {
+   "name": "exp_avg_sq_out",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "max_exp_avg_sq_in",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "in",
+   "init": {
+    "kind": "int_range",
+    "lo": 0,
+    "hi": 2
+   }
+  },
+  {
+   "name": "max_exp_avg_sq_out",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "inout",
+   "init": {
+    "kind": "int_range",
+    "lo": 0,
+    "hi": 2
+   }
+  },
+  {
+   "name": "lr",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 0.001
+  },
+  {
+   "name": "beta1",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 0.9
+  },
+  {
+   "name": "beta2",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 0.999
+  },
+  {
+   "name": "weight_decay",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 0.0
+  },
+  {
+   "name": "eps",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 1e-08
+  },
+  {
+   "name": "step",
+   "kind": "scalar",
+   "dtype": "u32",
+   "value": 10
+  },
+  {
+   "name": "amsgrad",
+   "kind": "scalar",
+   "dtype": "bool",
+   "value": 0
+  },
+  {
+   "name": "maximize",
+   "kind": "scalar",
+   "dtype": "bool",
+   "value": 0
+  },
+  {
+   "name": "adamw",
+   "kind": "scalar",
+   "dtype": "bool",
+   "value": 0
+  },
+  {
+   "name": "input_size",
+   "kind": "scalar",
+   "dtype": "u64",
+   "value": "N"
+  }
+ ],
+ "launch": {
+  "grid": [
+   1024
+  ],
+  "block": [
+   256
+  ]
+ },
+ "tolerance": {
+  "*": {
+   "rtol": 0.0001,
+   "atol": 1e-05,
+   "cond": 4e-05
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "mo_adam"
+ },
+ "tags": [
+  "llm",
+  "miopen",
+  "elementwise"
+ ]
+}

@@ -103,3 +103,25 @@ def test_timing_statistics():
         TimingProtocol.from_dict({"cache": "cold"})
     with pytest.raises(ValueError):
         TimingProtocol.from_dict({"nonsense": 1})
+
+
+def test_reference_scale_function(tmp_path):
+    """`<function>_scale` next to a python reference gives the magnitude when |inputs| would cancel."""
+    (tmp_path / "k.hip").write_text("")
+    (tmp_path / "refs.py").write_text(
+        "def rot(x, y, s, n):\n    return {'y': y - s * x}\n"
+        "def rot_scale(x, y, s, n):\n    return {'y': y + abs(s) * x}\n"
+        "def plain(x, y, s, n):\n    return {'y': y - s * x}\n")
+    d = {"name": "k", "source": "k.hip", "entry": "k", "shapes": {"N": 8}, "launch": {"grid": [1], "block": [8]},
+         "params": [{"name": "x", "kind": "tensor", "dtype": "f32", "shape": ["N"]},
+                    {"name": "y", "kind": "tensor", "dtype": "f32", "shape": ["N"], "role": "inout"},
+                    {"name": "s", "kind": "scalar", "dtype": "f32", "value": 0.5},
+                    {"name": "n", "kind": "scalar", "dtype": "i32", "value": "N"}],
+         "tolerance": {"y": {"cond": 1e-6}}, "reference": {"kind": "python", "file": "refs.py", "function": "rot"}}
+    mm = Manifest.from_dict(d, tmp_path / "k.json")
+    r = mm.resolve(mm.shapes)
+    inputs = {"x": np.full(8, 2.0, np.float32), "y": np.full(8, -1.0, np.float32)}
+    assert np.allclose(reference.evaluate(mm, inputs, r)["y"], -2.0)
+    assert np.allclose(reference.scale(mm, inputs, r)["y"], 2.0)          # |y| + |s| |x|, not |y| - s |x| = 0
+    d["reference"]["function"] = "plain"                                    # no companion: the reference on |inputs|
+    assert np.allclose(reference.scale(Manifest.from_dict(d, tmp_path / "k.json"), inputs, r)["y"], 0.0)

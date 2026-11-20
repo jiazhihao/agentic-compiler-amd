@@ -1,0 +1,128 @@
+{
+ "name": "attn_decode",
+ "source": "attn_decode.hip",
+ "entry": "attn_decode",
+ "shapes": {
+  "S": 300,
+  "Hk": 3,
+  "G": 2
+ },
+ "bench_shapes": {
+  "S": 8192,
+  "Hk": 8,
+  "G": 4
+ },
+ "dynamic": [
+  "S",
+  "Hk",
+  "G"
+ ],
+ "params": [
+  {
+   "name": "q",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "Hk * G",
+    128
+   ],
+   "role": "in",
+   "init": "normal"
+  },
+  {
+   "name": "k",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "S",
+    "Hk",
+    128
+   ],
+   "role": "in",
+   "init": "normal"
+  },
+  {
+   "name": "v",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "S",
+    "Hk",
+    128
+   ],
+   "role": "in"
+  },
+  {
+   "name": "o",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "Hk * G",
+    128
+   ],
+   "role": "out"
+  },
+  {
+   "name": "lse",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "Hk * G"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "kv_len",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "S"
+  },
+  {
+   "name": "num_kv_heads",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "Hk"
+  },
+  {
+   "name": "group_size",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "G"
+  },
+  {
+   "name": "scale",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 0.08838834764831845
+  }
+ ],
+ "launch": {
+  "grid": [
+   "Hk * G"
+  ],
+  "block": [
+   128
+  ]
+ },
+ "tolerance": {
+  "o": {
+   "rtol": 0.0001,
+   "atol": 1e-05,
+   "cond": 0.0001
+  },
+  "lse": {
+   "rtol": 0.0001,
+   "atol": 0.0001
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "attn_decode"
+ },
+ "tags": [
+  "llm",
+  "port",
+  "attention"
+ ]
+}

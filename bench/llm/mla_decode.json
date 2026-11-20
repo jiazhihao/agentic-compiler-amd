@@ -1,0 +1,115 @@
+{
+ "name": "mla_decode",
+ "source": "mla_decode.hip",
+ "entry": "mla_decode",
+ "shapes": {
+  "B": 2,
+  "H": 3,
+  "S": 300
+ },
+ "bench_shapes": {
+  "B": 4,
+  "H": 128,
+  "S": 2048
+ },
+ "dynamic": [
+  "B",
+  "H",
+  "S"
+ ],
+ "params": [
+  {
+   "name": "q",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "B",
+    "H",
+    576
+   ],
+   "role": "in",
+   "init": "normal"
+  },
+  {
+   "name": "kv_cache",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "B",
+    "S",
+    576
+   ],
+   "role": "in",
+   "init": "normal"
+  },
+  {
+   "name": "out",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "B",
+    "H",
+    512
+   ],
+   "role": "out"
+  },
+  {
+   "name": "lse",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "B",
+    "H"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "num_heads",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "H"
+  },
+  {
+   "name": "kv_len",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "S"
+  },
+  {
+   "name": "scale",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 0.041666666666666664
+  }
+ ],
+ "launch": {
+  "grid": [
+   "H",
+   "B"
+  ],
+  "block": [
+   256
+  ]
+ },
+ "tolerance": {
+  "out": {
+   "rtol": 0.0001,
+   "atol": 1e-05,
+   "cond": 0.0001
+  },
+  "lse": {
+   "rtol": 0.0001,
+   "atol": 0.0001
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "mla_decode"
+ },
+ "tags": [
+  "llm",
+  "port",
+  "attention"
+ ]
+}

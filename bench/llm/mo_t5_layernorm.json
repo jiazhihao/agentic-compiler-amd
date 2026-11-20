@@ -1,0 +1,99 @@
+{
+ "name": "mo_t5_layernorm",
+ "source": "mo_t5_layernorm.hip",
+ "entry": "mo_t5_layernorm",
+ "shapes": {
+  "R": 37,
+  "D": 1000
+ },
+ "bench_shapes": {
+  "R": 32768,
+  "D": 1024
+ },
+ "dynamic": [
+  "R",
+  "D"
+ ],
+ "params": [
+  {
+   "name": "x",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "R",
+    "D"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "weight",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "D"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "y",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "R",
+    "D"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "rstd",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "R"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "eps",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 1e-06
+  },
+  {
+   "name": "inner_size",
+   "kind": "scalar",
+   "dtype": "u64",
+   "value": "D"
+  },
+  {
+   "name": "mode",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": 1
+  }
+ ],
+ "launch": {
+  "grid": [
+   "R"
+  ],
+  "block": [
+   256
+  ]
+ },
+ "tolerance": {
+  "*": {
+   "rtol": 0.0001,
+   "atol": 1e-05
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "mo_t5_layernorm"
+ },
+ "tags": [
+  "llm",
+  "miopen",
+  "rowwise"
+ ]
+}
