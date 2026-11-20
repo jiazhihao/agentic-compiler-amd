@@ -3,6 +3,17 @@
 Tracked in GitHub issue #1, one sub-issue per milestone. Revised 2026-11-19 (see
 "What changed" at the end). Measured results go to [progress](progress.md).
 
+## What agc is
+
+agc is a harness through which an agent optimizes individual kernels, not a general
+compiler meant to beat `amdclang` on its own. For each benchmark kernel an agent session
+specializes and customizes the optimization: it picks and parameterizes passes,
+generates the kernel from its tensor program with a schedule fitted to its shapes,
+changes the launch, or edits the assembly directly, and agc checks and measures every
+step. The deliverable per kernel is a verified binary with its replayable trace. The
+default policy (`agc optimize`) is the unattended floor and the regression baseline; it
+automates what sessions have shown to pay repeatedly.
+
 ## Principles
 
 1. **Vertical slices.** Every milestone ends with something that runs on the GPU and a
@@ -20,6 +31,11 @@ Tracked in GitHub issue #1, one sub-issue per milestone. Revised 2026-11-19 (see
    recipe promotion and the profiler are stretch items, each with a stated trigger.
 5. **Honest numbers.** A speedup needs a passing battery and a paired timing whose
    confidence interval excludes 1.0. Every bench run includes an A/A control.
+6. **Per-kernel sessions are the unit of work.** A benchmark is worked kernel by kernel
+   in agent sessions; a transformation does not have to be general to be used, only
+   verified. What recurs across sessions is promoted to a pass, a template or a note,
+   and the report states for every kernel whether the result came from the policy or
+   from a session.
 
 ## Development host (observed 2026-11-19)
 
@@ -158,6 +174,16 @@ win is reported with its pass.
 - [x] Final report: per-kernel paired speedup against amdclang and, for GEMM, hipBLASLt;
       A/A controls; what did not work.
 
+### M10 — Per-kernel agent sessions on the LLM-kernel benchmark (#29)
+- [ ] Benchmark of LLM kernels (FlashInfer, vLLM, attention, MLA, KDA, MoE, rocBLAS, MIOpen)
+      with amdclang baselines.
+- [ ] The default policy on every kernel (the floor), then an agent session per kernel that
+      is not yet a win: specialization to the kernel's shapes and launch, custom `mir` edits,
+      traces kept.
+- [ ] Customizations that recur promoted to passes or templates (first: `coarsen`, #30).
+- **Exit:** per-kernel table (policy and session results against amdclang, fallbacks
+  reported as fallbacks) in the report and on #29.
+
 ## Stretch (not scheduled; opened as an issue when the trigger occurs)
 
 | Item | Trigger |
@@ -180,9 +206,13 @@ win is reported with its pass.
 | A missing wait or `s_nop` gives silent wrong results | M4 before any edited code runs; mutation suite; battery with poisoning and hidden seeds |
 | The hazard list for gfx950 is incomplete in public documents | Derived from the ISA document and LLVM's `GCNHazardRecognizer`, validated by zero violations on amdclang output |
 | Import path yields no wins over amdclang | Expected for some kernels and reported as such; the generator path (M6, M7) carries the headline |
+| No general pass wins on a kernel | Not required: an agent session customizes that kernel (M10); the result is reported as a session result with its trace |
 | MFMA GEMM does not reach hipBLASLt | The exit is relative to amdclang; the hipBLASLt gap is reported and analysed, not hidden |
 
 ## What changed in this revision
+
+- (2026-11-20) Positioning made explicit: agc is a harness for per-kernel agent
+  optimization, not a general compiler; principle 6 and M10 added.
 
 - The agent interface moved from tenth to sixth place (M5), before any automatic pass.
 - Backend passes moved after the generators and are scoped by what M5 measures; full

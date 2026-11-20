@@ -7,6 +7,18 @@ with no kernel source at all. The compiler owns semantics, legality, verificatio
 measurement; an agent (Claude Code through MCP) or a scripted policy chooses the
 transformations.
 
+**agc is a harness for an agent, not a general compiler.** The aim is not one fixed
+pipeline that beats `amdclang` on arbitrary code. The aim is that an agent, working on
+one kernel at a time, can beat `amdclang` on that kernel by specializing and customizing
+its optimization: reading the assembly, choosing or parameterizing a pass, generating the
+kernel from its tensor program with a schedule fitted to its shapes, changing the launch
+geometry, or editing instructions by hand. agc gives the agent the actions to do this
+and the checks that make the result trustworthy (static safety, the battery, paired
+timing). The unit of result is therefore a kernel with its verified, replayable trace,
+and a benchmark result is a set of per-kernel sessions. General passes and the default
+policy are what the sessions have shown to pay often enough to automate; they are the
+floor an agent starts from, not the product.
+
 This project reuses the design and infrastructure of the NVIDIA reference implementation
 ([jiazhihao/agentic-compiler](https://github.com/jiazhihao/agentic-compiler), Hopper/PTX)
 and changes the bottom of the stack. On NVIDIA the compiler emitted PTX and `ptxas`
@@ -24,11 +36,14 @@ statistically separated timing.
 
 ## 1. Goals and non-goals
 
-**Goal.** For a given workload (operation, shapes, dtypes, numerical contract), produce a
-binary faster than the ROCm compiler's build of the same program, and as close as
-possible to (or faster than) the best hand-tuned vendor kernel. Compile time is traded
-for performance: a session may spend minutes to hours of agent and GPU time on one
-kernel. Every result is a verified, replayable trace of named decisions.
+**Goal.** For a given workload (operation, shapes, dtypes, numerical contract), let an
+agent produce a binary faster than the ROCm compiler's build of the same program, and as
+close as possible to (or faster than) the best hand-tuned vendor kernel, by optimizing
+that kernel specifically. The manifest's shapes, dtypes, launch and numerical contract
+are the specialization context: a session may fix a schedule, an unroll factor, a tile
+size or a launch geometry that is right for this workload and wrong in general. Compile
+time is traded for performance: a session may spend minutes to hours of agent and GPU
+time on one kernel. Every result is a verified, replayable trace of named decisions.
 
 **Kept from the reference design.** The manifest as the contract (entry point, tensors,
 shapes, launch, reference program, numerical contract); immutable, content-addressed
@@ -37,7 +52,9 @@ an interpreter; compiler-owned checking and timing; one serialized GPU executor;
 agent action menu with legible rejections; trace reuse, recipe promotion and knowledge
 notes.
 
-**Non-goals.** General HIP C++ (the HIP path goes through `amdclang` and is bounded by
+**Non-goals.** A general-purpose optimizing compiler that is better than `amdclang` on
+every program with no agent in the loop (the default policy is measured and reported,
+but a fallback to amdclang's build is an accepted outcome of it); general HIP C++ (the HIP path goes through `amdclang` and is bounded by
 what can be imported), a drop-in `hipcc` replacement, RDNA/wave32, other CDNA generations
 (possible later through arch data), multi-GPU collectives, multi-kernel fusion.
 
@@ -55,6 +72,7 @@ what can be imported), a drop-in `hipcc` replacement, RDNA/wave32, other CDNA ge
 | D8 | **One machine-wide GPU executor** (subprocess workers, a lock, interactive before batch), using the HIP module API through `libamdhip64` via ctypes. | Isolation, reproducibility and accounting; no HIP headers needed at runtime. |
 | D9 | **`kir` (lane-level IR) and the Clang-AST frontend are deferred**, not dropped. | `amdclang` + import covers HIP inputs at parity; generators cover high-level inputs. A lane-level IR returns only if a measured case needs a lane-level transformation that neither path provides. |
 | D10 | **Agent and scripted policy share one action menu.** | The default policy is the regression baseline; the agent explores. |
+| D11 | **Per-kernel specialization through the agent is the product; general passes are its by-product.** Every optimization is available as an action on one kernel's state (a parameterized pass, a generator template with its knobs, a launch change, a free-form `mir` edit), and nothing has to be general to be used. | The wins differ by kernel (loads in flight for one, coarsening for another, MFMA or a DPP reduction for a third) and depend on shapes and launch. A fixed pipeline has to be right for all kernels; an agent with a harness only has to be right for the one in front of it, and the checks, not the generality of the transformation, make the result safe. A customization that recurs is promoted to a pass or a template and enters the default policy. |
 
 ## 3. The IR stack
 
@@ -130,7 +148,11 @@ thread trace give per-instruction stall evidence.
 
 ## 5. The agent interface
 
-A `Session` exposes the same operations through Python, MCP and the CLI.
+A `Session` exposes the same operations through Python, MCP and the CLI. It is the
+interface the agent optimizes one kernel through: inspect the state, try a
+transformation specific to this kernel, get it checked and measured, keep or discard
+it. The harness never trusts the agent: whatever the agent produces passes the same
+static checks, battery and paired timing as a built-in pass.
 
 | Group | Operations |
 |---|---|
@@ -138,6 +160,14 @@ A `Session` exposes the same operations through Python, MCP and the CLI.
 | Transform | `apply` (any pass by name), `import_asm`, `generate` (template from `tair`), `edit_ir` (free-form `mir` text) |
 | Validate and measure | `static_check` (verifier + hazards + waitcnt + encode), `check` (battery), `bench` (paired timing), `profile` |
 | Organize | `branch`, `tag`, `notes`, `search_memory` |
+
+The actions range from general to fully custom, and a session mixes them freely:
+
+| Level | Action | What is specialized |
+|---|---|---|
+| Automated | `optimize` (the default policy) | Nothing: tries the built-in candidates and keeps the best verified one |
+| Parameterized | `apply(pass, params)`, `generate(template, params)` | Factors, tiles, elements per lane, which loop, launch geometry |
+| Custom | `edit` / `edit_ir` on `mir` text | Anything expressible in CDNA4 assembly for this kernel and these shapes |
 
 Transformations create immutable, content-addressed states; verification and
 measurement attach to the exact state. Free-form edits start unverified and must pass
