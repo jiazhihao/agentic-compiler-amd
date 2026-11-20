@@ -33,7 +33,7 @@ fi_silu_and_mul:
 	s_cselect_b32 s3, s8, s3
 	s_mul_i32 s5, s3, s5
 	s_sub_i32 s2, s2, s5
-	v_lshl_or_b32 v0, s2, 8, v0
+	v_lshl_add_u32 v0, s2, 6, v0
 	v_cmp_gt_u32_e32 vcc, s6, v0
 	s_and_saveexec_b64 s[6:7], vcc
 	s_cbranch_execz .LBB0_2

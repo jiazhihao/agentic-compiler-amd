@@ -245,7 +245,7 @@ class Session:
                 "measured_ceilings_tb_per_s": {k: getattr(v, "value", v) for k, v in mem.items()},
                 "note": "upper bound: assumes every tensor element is read or written once"}
 
-    def compare(self, a: str, b: str) -> dict:
+    def compare(self, a: str, b: str, pairs: int | None = None) -> dict:
         """Paired timing of state `b` against state `a` (both must have passed the battery): which of two
         candidates is faster, when both are compared with `ref` too coarsely to tell."""
         ia, ib = self.resolve(a), self.resolve(b)
@@ -255,7 +255,7 @@ class Session:
                 raise SessionError("unverified", f"state {sid} has no passing battery", suggestion="check it first")
         try:
             r = harness.paired(self.manifest, self._hsaco(ia), self._hsaco(ib), root=self.root,
-                               reference_launch=self.launch_of(ia), candidate_launch=self.launch_of(ib))
+                               protocol=TimingProtocol(pairs=pairs) if pairs else None, reference_launch=self.launch_of(ia), candidate_launch=self.launch_of(ib))
         except ExecutorError as e:
             raise SessionError("gpu", str(e)[:1500]) from None
         if not r.get("ok"):
@@ -264,7 +264,7 @@ class Session:
                 "ci95": [round(x, 4) for x in r["speedup_ci95"]], "a_ms": round(r["reference"]["median_ms"], 5),
                 "b_ms": round(r["candidate"]["median_ms"], 5)}
 
-    def verify(self, ref: str) -> dict:
+    def verify(self, ref: str, pairs: int | None = None) -> dict:
         """Static check, full battery and paired timing of a state, all run again (no cached result is trusted)."""
         sid = self.resolve(ref)
         for kind in ("static", "check", "bench"):
@@ -279,7 +279,7 @@ class Session:
             ck = self.check(sid)
             if not ck["ok"]:
                 return {"id": sid, "ok": False, "stage": "battery", "failures": ck.get("failures"), "error": ck.get("error")}
-            b = self.bench(sid)
+            b = self.bench(sid, pairs)
             return {"id": sid, "ok": bool(b.get("ok")), "stage": "bench", "cases": ck.get("cases_total"), **{k: b.get(k) for k in
                     ("outcome", "speedup", "speedup_ci95", "reference_ms", "candidate_ms", "protocol_version", "error")}}
         finally:
@@ -583,9 +583,13 @@ class Session:
             self.store.put_result(sid, "check", cached)
         return {"id": sid, **{k: v for k, v in cached.items() if k != "t"}}
 
-    def bench(self, ref: str) -> dict:
+    def bench(self, ref: str, pairs: int | None = None) -> dict:
         """Paired timing against `ref` (amdclang) at the manifest's bench shapes. Needs a passing
-        battery. For `ref` itself this is the A/A control."""
+        battery. For `ref` itself this is the A/A control. `pairs`: more launches per code object than
+        the protocol's default, for effects of a few percent (the CI narrows with the square root)."""
+        if pairs is not None and (type(pairs) is not int or not 60 <= pairs <= 1000):
+            raise SessionError("parameter", "pairs must be an integer from 60 to 1000")
+        proto = TimingProtocol(pairs=pairs) if pairs else None
         sid = self.resolve(ref)
         hsaco = self._hsaco(sid)
         ck = self.store.get_result(sid, "check")
@@ -606,7 +610,7 @@ class Session:
             self.store.put_result(sid, "bench", data)
             return {"id": sid, **data}
         try:
-            r = harness.paired(self.manifest, self._hsaco(self.ref_id), hsaco, root=self.root,
+            r = harness.paired(self.manifest, self._hsaco(self.ref_id), hsaco, root=self.root, protocol=proto,
                                reference_launch=self.launch_of(self.ref_id), candidate_launch=self.launch_of(sid))
         except ExecutorError as e:
             raise SessionError("gpu", str(e)[:1500]) from None

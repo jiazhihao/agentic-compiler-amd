@@ -1,12 +1,14 @@
 #include "flashinfer_common.h"
 
+#define BS 64u
+
 extern "C" __global__ __launch_bounds__(256) void fi_silu_and_mul(float* __restrict__ out,
                                                                     const float* __restrict__ input,
                                                                     const int d, const uint32_t chunks) {
   const uint32_t n = (uint32_t)d / 4u;
   const uint32_t token = blockIdx.x / chunks;
   const uint32_t chunk = blockIdx.x - token * chunks;
-  const uint32_t idx = chunk * 256u + threadIdx.x;
+  const uint32_t idx = chunk * BS + threadIdx.x;
   if (idx >= n) return;
   const float* __restrict__ xin = input + (int64_t)token * 2 * d;
   const float* __restrict__ yin = xin + d;

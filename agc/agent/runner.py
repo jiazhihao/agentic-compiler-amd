@@ -60,20 +60,21 @@ def agent(prompt: str, root: Path, log: Path, minutes: int, model: str | None = 
 
 MAX_CI_WIDTH = 0.04      # a paired timing whose 95 % CI is wider than this was disturbed (shared device): not a measurement
 ATTEMPTS = 5
+PAIRS = 240               # launches per code object in the harness's timings (the session default is 60)
 
 
 def verify(s: Session, ref: str) -> dict:
     """The harness's own verdict on a state: static check and battery rerun, then paired timings until two
     are valid. A timing is valid when its CI is narrower than MAX_CI_WIDTH, whatever its direction. The
     state is a win when both valid timings are wins; the one with the lower bound is reported."""
-    v = s.verify(ref)
+    v = s.verify(ref, PAIRS)
     if not v.get("ok"):
         return v
     valid, runs = [], []
     b = v
     for n in range(ATTEMPTS):
         if n:
-            b = s.bench(ref)
+            b = s.bench(ref, PAIRS)
             if not b.get("ok"):
                 return {**v, "ok": False, "stage": "bench", "error": b.get("error")}
         lo, hi = b["speedup_ci95"]
@@ -102,10 +103,10 @@ def record(s: Session, sid: str, verdict: dict, report: dict, meta: dict) -> Pat
         shutil.copy(src, d / "source.hip")
     recipe = {"kernel": s.manifest.name, "launch": ex["launch"], "strict": ex["strict"],
               "path": [st["action"].get("name") for st in ex["trace"]],
-              "verified": {k: verdict.get(k) for k in ("outcome", "speedup", "speedup_ci95", "reference_ms", "candidate_ms",
-                                                       "cases", "protocol_version")},
+              "verified": {**{k: verdict.get(k) for k in ("outcome", "speedup", "speedup_ci95", "reference_ms", "candidate_ms",
+                                                          "cases", "protocol_version")}, "pairs": PAIRS, "runs": verdict.get("runs")},
               "summary": report.get("summary", ""), "tried": report.get("tried", []), "friction": report.get("friction", []),
-              "session": meta, "recorded": time.strftime("%Y-%m-%d")}
+              "lessons": report.get("lessons", []), "session": meta, "recorded": time.strftime("%Y-%m-%d")}
     (d / "recipe.json").write_text(json.dumps(recipe, indent=1) + "\n")
     return d
 
@@ -136,7 +137,7 @@ def run(manifest: str | Path, root: str | Path = ".agc", minutes: int = 45, benc
         meta = {"resumed": True}
     report = json.loads(rep_path.read_text()) if rep_path.exists() else {}
     result = {"kernel": name, "agent": meta, "reported": bool(report), "friction": report.get("friction", []),
-              "summary": report.get("summary", ""), "tried": report.get("tried", [])}
+              "summary": report.get("summary", ""), "tried": report.get("tried", []), "lessons": report.get("lessons", [])}
     best = report.get("best")
     if best is None:                                          # no report: take the store's best measured win, if any
         b = s.best()
@@ -149,12 +150,20 @@ def run(manifest: str | Path, root: str | Path = ".agc", minutes: int = 45, benc
         except SessionError as e:
             v = {"ok": False, "stage": "error", "error": f"{e.kind}: {e.message}"}
         result["verified"] = v
+        old = RECIPES / name / "recipe.json"
+        kept = json.loads(old.read_text())["verified"] if old.exists() else None
         if v.get("ok") and v.get("outcome") == "win":
-            result.update(outcome="win", state=best, speedup=v["speedup"], ci95=v["speedup_ci95"],
-                          recipe=str(record(s, best, v, report, meta)))
+            result.update(outcome="win", state=best, speedup=v["speedup"], ci95=v["speedup_ci95"])
+            if kept and kept["speedup_ci95"][0] >= v["speedup_ci95"][0]:
+                result["recipe_kept"] = f"the recorded recipe ({kept['speedup']}x, {kept['speedup_ci95']}) is not beaten"
+            else:
+                result["recipe"] = str(record(s, best, v, report, meta))
         else:
             result.update(outcome="fallback", why=f"the named state {best} did not verify as a win: "
                                                     f"{v.get('outcome') or v.get('stage')}")
+    old = RECIPES / name / "recipe.json"
+    if result["outcome"] == "fallback" and old.exists():
+        result["recipe_kept"] = "an earlier session's verified recipe stays recorded"
     (s.store.root / "harness-result.json").write_text(json.dumps(result, indent=1, default=str) + "\n")
     log(f"{name}: {result['outcome']}" + (f" {result['speedup']:.3f}x {result['ci95']}" if result["outcome"] == "win" else f" ({result['why']})"))
     return result

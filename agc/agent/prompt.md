@@ -37,7 +37,8 @@ Three levels, to be combined:
 reports `traffic`: the bytes the kernel moves and the TB/s that implies, next to the rates
 measured on this device. A kernel far below those rates is not memory-bound, whatever else it
 is. `compare(a, b)` times two verified states against each other when they are too close to rank
-through `ref`.
+through `ref`. For effects of a few percent pass `pairs=240` to `bench` and `compare`: the harness
+verifies with two 240-pair timings and takes the lower one, so a 60-pair win at 1.02 is not safe.
 
 ## How to work
 
@@ -60,7 +61,7 @@ start: then try the other levers on top of it (another level, another structure,
 new state). Stop earlier only when three consecutive ideas of different kinds bring less than
 1 % each over your best state.
 
-End by calling `report(best, summary, tried, friction)` exactly once:
+End by calling `report(best, summary, tried, friction, lessons)` exactly once:
 - `best`: the id of the state to ship; `ref` if nothing was a win. Never name an unverified state.
 - `summary`: what the winning state does differently, in two or three sentences, with its speedup.
 - `tried`: one entry per idea: `{{"what", "state", "outcome", "speedup"}}`, losses and refusals included.
@@ -68,5 +69,7 @@ End by calling `report(best, summary, tried, friction)` exactly once:
   checker finding you believe is wrong, information you had to dig for, an idea you could not
   express at any level. Be specific (state id, instruction, message): the compiler is improved
   from this list.
+- `lessons`: facts you measured that a session on another kernel should know (what paid, what
+  did not, by how much, and why you think so). They go into the shared notes.
 
 {extra}

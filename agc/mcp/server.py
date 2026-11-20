@@ -149,13 +149,14 @@ def relaunch(ref: str, launch: dict, note: str = "") -> dict:
 
 
 @tool
-def report(best: str, summary: str, tried: list | None = None, friction: list | None = None) -> dict:
+def report(best: str, summary: str, tried: list | None = None, friction: list | None = None, lessons: list | None = None) -> dict:
     """End of a session: name the state to ship (`ref` if nothing beat amdclang), summarize what was done, list what
     was tried with its measured outcome, and list friction: what was missing or awkward in the tools, transforms or
-    IR, and what would have let you go further. The harness re-verifies the named state itself."""
+    IR, and what would have let you go further. `lessons`: measured facts about the machine or about what pays
+    that would help a session on another kernel (with the numbers). The harness re-verifies the named state itself."""
     s = _s()
     sid = s.resolve(best)
-    out = {"best": sid, "summary": summary, "tried": tried or [], "friction": friction or []}
+    out = {"best": sid, "summary": summary, "tried": tried or [], "friction": friction or [], "lessons": lessons or []}
     (s.store.root / "report.json").write_text(json.dumps(out, indent=1))
     return {"recorded": str(s.store.root / "report.json"), "best": sid}
 
@@ -196,18 +197,19 @@ def check(ref: str) -> dict:
 
 
 @tool
-def bench(ref: str) -> dict:
+def bench(ref: str, pairs: int | None = None) -> dict:
     """Paired timing against `ref` (amdclang) at the bench shapes: both code objects alternate in one process;
     speedup with a 95% CI; outcome win / parity / loss (beyond the 1% noise floor). Needs a passing battery;
-    for `ref` itself it is the A/A control."""
-    return _s().bench(ref)
+    for `ref` itself it is the A/A control. `pairs` (60 to 1000, default 60): more launches narrow the CI; use 240
+    when the effect is a few percent. `traffic` in the result: bytes moved and TB/s against rates measured here."""
+    return _s().bench(ref, pairs)
 
 
 @tool
-def compare(a: str, b: str) -> dict:
+def compare(a: str, b: str, pairs: int | None = None) -> dict:
     """Paired timing of state b against state a (both verified): ranks two candidates that are too close to tell
     apart through their separate timings against ref."""
-    return _s().compare(a, b)
+    return _s().compare(a, b, pairs)
 
 
 @tool

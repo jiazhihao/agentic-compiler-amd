@@ -2,12 +2,12 @@
  "kernel": "fi_silu_and_mul",
  "launch": {
   "grid": [
-   "B * cdiv(D4, 256)",
+   "B * cdiv(D4, 64)",
    1,
    1
   ],
   "block": [
-   256,
+   64,
    1,
    1
   ],
@@ -15,7 +15,7 @@
   "args": [
    {
     "dtype": "u32",
-    "value": "cdiv(D4, 256)"
+    "value": "cdiv(D4, 64)"
    }
   ]
  },
@@ -25,96 +25,49 @@
  ],
  "verified": {
   "outcome": "win",
-  "speedup": 1.0275,
+  "speedup": 1.0434,
   "speedup_ci95": [
-   1.0182,
-   1.039
+   1.0364,
+   1.0495
   ],
-  "reference_ms": 0.0994,
-  "candidate_ms": 0.09704,
+  "reference_ms": 0.09876,
+  "candidate_ms": 0.0952,
   "cases": 77,
-  "protocol_version": "agc-timing-amd-2"
+  "protocol_version": "agc-timing-amd-2",
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 1.0434,
+    "ci95": [
+     1.0364,
+     1.0495
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 1.0494,
+    "ci95": [
+     1.0417,
+     1.0571
+    ],
+    "valid": true
+   }
+  ]
  },
- "summary": "Shipped af9c55145247b261: 1.0505x over amdclang (95% CI 1.0422-1.0585, 0.09938 ms vs 0.10442 ms, 77/77 battery cases). It is a source-level rewrite: the per-thread strided loop (8 iterations per thread at the bench shape) is gone; the launch is one 256-thread workgroup per 256 vec4 of a row (grid B*cdiv(D4,256), appended u32 arg cdiv(D4,256)), each thread loads one x vec4 and one y vec4, and stores one vec4. The math is x*rcp(1+exp2(-x*log2e))*y instead of expf plus IEEE division, so the result meets the manifest tolerance (rtol 1e-4) and is NOT bit-identical with amdclang. The kernel is memory-bound: cutting arithmetic from ~110 to ~40 instructions per vec4 alone measured parity, and all the gain (4-5%) comes from the loop-free short waves; every loop-free variant landed in 1.03-1.05 and they are not distinguishable from each other, so the margin is small and real but there is nothing further in reach.",
- "tried": [
-  {
-   "what": "same structure and launch, cheap math only (exp2 + rcp instead of expf + IEEE division)",
-   "state": "d89f65be97693948",
-   "outcome": "parity",
-   "speedup": 1.0044
-  },
-  {
-   "what": "apply unroll_loads factor 4 on the cheap-math loop",
-   "state": "d89f65be97693948",
-   "outcome": "refused: back edge is not s_cbranch_scc0 on a counter compare (masked exec loop)",
-   "speedup": null
-  },
-  {
-   "what": "source: 4 strides' loads (8 dwordx4 loads) in flight per loop iteration + tail loop, same launch, cheap math",
-   "state": "ecfd5adbc0f9f7d7",
-   "outcome": "parity",
-   "speedup": 1.0036
-  },
-  {
-   "what": "source: loop-free, grid B*cdiv(D4,256), block 256, one vec4 per thread, cheap math",
-   "state": "af9c55145247b261",
-   "outcome": "win (CI 1.0422-1.0585)",
-   "speedup": 1.0505
-  },
-  {
-   "what": "source: loop-free, 4 contiguous vec4 (64 B) per thread, grid B*cdiv(D4,1024), block 256",
-   "state": "01be6d5fa6923d5b",
-   "outcome": "loss (CI 0.9489-0.9670)",
-   "speedup": 0.9612
-  },
-  {
-   "what": "source: loop-free, block 64, grid B*cdiv(D4,64)",
-   "state": "b126ed12576bc7a4",
-   "outcome": "win (CI 1.0416-1.0644), same as block 256 within noise",
-   "speedup": 1.0517
-  },
-  {
-   "what": "source: loop-free, block 1024, grid B*cdiv(D4,1024)",
-   "state": "63c114e56052d519",
-   "outcome": "win (CI 1.0317-1.0513), same as block 256 within noise",
-   "speedup": 1.0402
-  },
-  {
-   "what": "source: loop-free with a 2D grid (x: chunk, y: token), removing the scalar division prologue and the extra arg",
-   "state": "a0e992c98e76d27b",
-   "outcome": "win (CI 1.0197-1.0370), not better than the 1D grid",
-   "speedup": 1.0276
-  },
-  {
-   "what": "machine IR on the 2D-grid state: removed exp2's denormal-range handling (4 cmp, 8 cndmask, 4 add, 4 ldexp per vec4)",
-   "state": "febc3c8bf7a909a9",
-   "outcome": "win (CI 1.0357-1.0694), not distinguishable from the untrimmed loop-free states",
-   "speedup": 1.0525
-  },
-  {
-   "what": "relaunch probe of af9c with an identical launch (made by mistake, never checked or benched)",
-   "state": "6a668085bb6855a4",
-   "outcome": "not measured",
-   "speedup": null
-  },
-  {
-   "what": "coarsen on ref (three earlier states found in the session, not repeated)",
-   "state": "36ea9376f813a81c, e49b41a66fffd024, 2f0f986f91dd6762",
-   "outcome": "loss, loss, parity",
-   "speedup": "0.9675, 0.9713, 0.9914"
-  }
- ],
+ "summary": "Loop-free source rewrite: one vec4 (16 bytes) per thread, block 64, grid B*cdiv(D4, 64) with one appended u32 argument, exp2 and rcp in place of expf and the division (within the 1e-4 tolerance, not bit-identical). Chosen by the harness among the session's loop-free variants with 240-pair timings.",
+ "tried": [],
  "friction": [
-  "unroll_loads refuses masked loops (d89f65be97693948, .LBB0_2: 'the back edge is not s_cbranch_scc0 on a counter compare'). amdclang emits the exec-mask form (s_andn2_b64 exec + s_cbranch_execnz) for every per-thread strided loop, so the transform never applies to this family; I had to redo it at the source level (ecfd5adbc0f9f7d7).",
-  "No tool says what bounds a kernel. I inferred 'memory-bound' only by spending timed candidates (arithmetic cut 3x gave parity; loads in flight gave parity). A bytes-moved / achieved-bandwidth figure in bench or features (here about 400 MB in 0.1 ms) next to the device's known ceiling would have told me up front that only a few percent were available.",
-  "Paired bench results for near-identical states spread over 1.03 to 1.05 across runs with differing clock levels (1879 to 2400 MHz reported), so variants within about 2% of each other cannot be ranked; a way to bench two candidates against each other directly (not only against ref) would settle choices like block 64 vs 256 vs 1D vs 2D grid.",
-  "The reference clock state varies between benches (reference_ms 0.0987 to 0.1045 in this session), which makes it hard to compare candidate_ms across benches.",
-  "Whether a 2D grid is allowed in `launch` and whether __builtin_amdgcn_rcpf / __builtin_exp2f lower to v_rcp_f32 / v_exp_f32 are not documented in the skill files; both worked, found by trying.",
-  "exp2f lowers with denormal-range handling (cmp/cndmask/add/ldexp, 20 instructions per vec4) that is dead for 1+exp2(t); there is no source-level way to ask for the raw v_exp_f32, so it took a whole-body edit_ir (febc3c8bf7a909a9). A multi-delete by range in `edit` would have made that cheaper than retyping the body.",
-  "relaunch accepts a launch identical to the parent's and creates a new state (6a668085bb6855a4) instead of saying nothing changed."
+  "Every loop-free variant (block 64 / 256 / 1024, 1D or 2D grid, with or without exp2 range handling) lands at 1.03 to 1.04 and they are indistinguishable from each other: compare(63c114e56052d519, 1a1dde47d134cbdb) gives parity with CI 0.988 to 1.014. Run-to-run spread of the reference itself (0.098 to 0.104 ms across benches in this session) is as large as the effect being measured, so ranking candidates at this level is not possible with 60 pairs.",
+  "bench reports 3.8 to 4.0 TB/s against a 4.7 TB/s read+write ceiling, which suggests about 15% headroom, but nothing I could express reaches it. Whether that ceiling is attainable for a 2-read-stream + 1-write-stream kernel, or was measured on a different stream mix, is not stated; knowing how the ceiling was measured would say whether to keep trying.",
+  "Several elements per lane loses consistently on this kernel (a5b53ea1e03987d3 0.96, 01be6d5fa6923d5b 0.96, coarsen d3aa1f2109b8bca7 0.99) although the notes report 1.5x for gelu and cast_bf16. I have no tool to see why (per-wave timing, cache or TLB behaviour, how workgroups are scheduled over rows); a profile or counter view would turn this from guessing into diagnosis.",
+  "static_check on a5b53ea1e03987d3 warns that global_store_dwordx4 in .LBB0_5 reads v6/v7 'not written on every path'. They are written on both arms of an exec-masked if/else (s_and_saveexec / s_andn2_saveexec), so each active lane has them defined; the undefined-read analysis does not follow per-lane exec masks. It is only a warning, but it is a false positive for the standard amdclang if/else lowering.",
+  "The cheap-math states are not IEEE-equivalent at infinities: x * rcp(1 + exp2(-x*log2e)) gives NaN for x = -inf where the baseline's x / (1 + expf(-x)) gives -0. The battery passes 77/77, so either it has no infinite inputs or they are not compared; info() does not list the input distributions, so I could not tell which. Worth stating in the contract whether non-finite inputs are in scope.",
+  "__builtin_amdgcn_exp2f works and lowers to a bare v_exp_f32 (no range handling), which replaces the manual edit_ir trim used earlier for febc3c8bf7a909a9; the skill only mentions __builtin_exp2f 'plus range handling'."
  ],
+ "lessons": [],
  "session": {
-  "resumed": true
+  "sessions": 2,
+  "seconds": 314
  },
  "recorded": "2026-11-20"
 }

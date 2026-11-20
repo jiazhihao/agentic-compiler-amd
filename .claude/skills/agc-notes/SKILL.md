@@ -30,6 +30,16 @@ the agc timing protocol unless stated.
 - **MFMA.** amdclang never emits it. `v_mfma_f32_32x32x16_bf16` with operands loaded straight
   into operand layout is 380x amdclang's bf16 GEMM at 4096-class shapes.
 
+- **Loop-free threads for per-thread strided loops** (`fi_silu_and_mul`, source level). Library
+  kernels launch one workgroup per row and let each thread loop over the row in steps of the
+  block size. Launching `rows * cdiv(row_groups, block)` workgroups with one group of elements
+  (one 16-byte vector) per thread and no loop gave 1.03x to 1.06x at 4 TB/s, where cheaper
+  arithmetic (3x fewer instructions) and four strides' loads in flight each measured parity.
+  Block 64, 256 and 1024 are within 2 % of each other; block 64 was best under 240-pair timing.
+- **Cheaper math within tolerance**: `__builtin_amdgcn_exp2f` lowers to a bare `v_exp_f32`,
+  `__builtin_amdgcn_rcpf` to `v_rcp_f32`; `__builtin_exp2f` adds 20 instructions of range
+  handling. On a memory-bound kernel this alone is parity; it differs from libm at infinities.
+
 ## What does not pay
 
 - **Memory-bound elementwise kernels**: `axpy` is at about 4.7 TB/s; fewer scalar loads or waits
@@ -40,11 +50,20 @@ the agc timing protocol unless stated.
   128x128 outputs per wave). hipBLASLt is still 2.8x faster; closing that needs LDS-shared
   operands (issue #23).
 - **One element per lane in a generated elementwise kernel**: 3 % slower than amdclang.
+- **Several 16-byte vectors per thread on a kernel that already moves 16 bytes per lane**
+  (`fi_silu_and_mul`): 0.96x, and `coarsen` on the loop-free state 0.99x. The 1.5x of "several
+  elements per lane" is for kernels that move 4 bytes per lane.
 
 ## Machine facts (measured here)
 
 - Kernels under about 50 us are dominated by launch overhead (18 to 28 us): use `bench_shapes`.
 - A/A controls stay within 1 %; `win` / `loss` need the whole 95 % CI beyond 1 %.
+- Effects of a few percent: 60 pairs give a CI of about +/-1.2 %, 240 pairs about +/-0.6 %
+  (`bench(id, pairs=240)`), and two runs of the same state can differ by 1 % to 2 % because the
+  clock level differs between runs. Rank close candidates with `compare(a, b, pairs=240)`. The
+  harness accepts a win only when two 240-pair timings are both wins.
+- Memory rates reached here: 7.5 TB/s read-only (GEMM operand loads), 4.7 TB/s for two streams
+  read and one written (`axpy`). `bench` reports a kernel's rate next to these.
 - Clocks float between 500 / 1012 / 2400 MHz levels on the SR-IOV VFs and cannot be locked.
 - MFMA layouts (`arch("mfma")`, `layouts`): for 32x32x16 bf16, lane l element e of A is
   `A[l % 32][8 (l // 32) + e]`, of B is `B[8 (l // 32) + e][l % 32]`; result register r is
