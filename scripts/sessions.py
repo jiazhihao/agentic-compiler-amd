@@ -15,7 +15,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from agc import agent, corpus
-from agc.session import Session
 
 BENCH = Path(__file__).resolve().parent.parent / "bench" / "llm"
 POLICY = corpus.BASELINES.with_name("llm-gfx950.json")
@@ -73,8 +72,7 @@ def table() -> str:
 
 
 def comment(name: str) -> str:
-    s = Session.open(BENCH / f"{name}.json", ".agc")
-    r = json.loads((s.store.root / "harness-result.json").read_text())
+    r = json.loads((Path(".agc") / "harness" / f"{name}.json").read_text())
     L = [f"**Session result: {r['outcome']}**" + (f" {r['speedup']:.3f}x, 95% CI {r['ci95'][0]:.3f} to {r['ci95'][1]:.3f} "
                                                   f"(harness verification: static check, full battery, two valid paired timings)" if r["outcome"] == "win" else f" ({r.get('why')})"), ""]
     a = r.get("agent", {})

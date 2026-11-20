@@ -161,9 +161,10 @@ def source(text: str = "", launch: dict | None = None, note: str = "", defines: 
     refine the result at the machine level with edit / apply. `defines` ({"UNR": 8}) become -D macros, so a sweep
     resends only the numbers when the text is unchanged; `flags` takes -f... / -m... compiler flags (for example
     "-fno-slp-vectorize", "-fno-vectorize"). `features(id)` warns when amdclang spilled registers to scratch.
-    Sweeps: `like=<state made by source>` reuses that state's text (and its launch unless one is given), so only
-    `defines` change; launch expressions may use the defines' names ("cdiv(N, EPT * 256)"). Define names need three
-    or more characters. A workgroup has at most 1024 threads."""
+    Sweeps: `like=<state made by source>` (`baseline` included, when it is a rewritten source or built with flags)
+    reuses that state's text, launch, flags and defines; `defines` given here override single knobs, `flags` given
+    here replace the copied ones. Launch expressions may use the defines' names ("cdiv(N, EPT * 256)"). New define
+    names need three or more characters. A workgroup has at most 1024 threads."""
     return _s().source(text, launch, note, defines, flags, like)
 
 

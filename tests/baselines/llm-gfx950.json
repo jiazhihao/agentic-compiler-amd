@@ -1418,7 +1418,7 @@
   },
   "rb_gemvn": {
    "library": "rocblas",
-   "amdclang_ms": 0.10022,
+   "amdclang_ms": 0.095,
    "fallback": true,
    "chosen": {
     "path": "amdclang",
@@ -1434,7 +1434,7 @@
      "bit_identical": true,
      "verified": false,
      "outcome": "rejected",
-     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_12: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_17: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_23: the back edge is not `s_cbranch_scc0` on a counter compare"
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_15: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_20: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_26: the back edge is not `s_cbranch_scc0` on a counter compare"
     },
     {
      "path": "import+pass",

@@ -131,7 +131,7 @@ Kernels from FlashInfer, vLLM, rocBLAS and MIOpen, and ports of attention, MLA, 
 | `rb_axpy` | rocblas | 0.1551 | | fallback (no verified win) | | |
 | `rb_copy` | rocblas | 0.1092 | | fallback (no verified win) | | |
 | `rb_dot` | rocblas | 0.1384 | | fallback (no verified win) | | |
-| `rb_gemvn` | rocblas | 0.1002 | | fallback (no verified win) | | |
+| `rb_gemvn` | rocblas | 0.0950 | | fallback (no verified win) | | |
 | `rb_gemvt` | rocblas | 0.0888 | | fallback (no verified win) | | |
 | `rb_ger` | rocblas | 0.0938 | | fallback (no verified win) | | |
 | `rb_nrm2` | rocblas | 0.0858 | | fallback (no verified win) | | |
@@ -176,7 +176,7 @@ One agent session per kernel through the harness (`agc agent`); each number is t
 | `rb_axpy` | rocblas | 0.1621 | -O3, source as shipped |  | 0.1551 | fallback |  |  | 1.00 |
 | `rb_copy` | rocblas | 0.1112 | -O3, source as shipped |  | 0.1092 | fallback |  |  | 1.00 |
 | `rb_dot` | rocblas | 0.1394 | restructured source | 1.07 | 0.1384 | fallback |  |  | 1.07 |
-| `rb_gemvn` | rocblas | 0.2273 | restructured source + -ffast-math + own launch | 2.18 | 0.1002 | fallback |  |  | 2.18 |
+| `rb_gemvn` | rocblas | 0.2217 | restructured source + -ffast-math + own launch | 2.30 | 0.0950 | fallback |  |  | 2.30 |
 | `rb_gemvt` | rocblas | 0.1104 | restructured source + -ffast-math + own launch | 1.24 | 0.0888 | fallback |  |  | 1.24 |
 | `rb_ger` | rocblas | 0.1049 | restructured source + -ffast-math + own launch | 1.11 | 0.0938 | fallback |  |  | 1.11 |
 | `rb_nrm2` | rocblas | 0.1219 | restructured source + own launch | 1.40 | 0.0858 | fallback |  |  | 1.40 |
@@ -190,7 +190,7 @@ One agent session per kernel through the harness (`agc agent`); each number is t
 
 The baseline is the strongest amdclang build found per kernel (`scripts/strong_baseline.py`): the source as shipped or a restructured source, with or without `-ffast-math`, with its own launch where that is faster; all of it is amdclang's code. The policy and session columns are what agc adds on top of that build (machine IR passes and edits), verified by the full battery and paired timings. The last column is for orientation: the best verified agc state, or else the baseline, over amdclang -O3 on the source as shipped.
 
-8 of 36 kernels have a verified agc gain over the strongest amdclang build; 28 fallbacks; geomean of the agc gain 1.022 with fallbacks at 1.0; geomean over -O3 on the shipped source 1.536.
+8 of 36 kernels have a verified agc gain over the strongest amdclang build; 28 fallbacks; geomean of the agc gain 1.022 with fallbacks at 1.0; geomean over -O3 on the shipped source 1.539.
 
 ## Reproduce
 

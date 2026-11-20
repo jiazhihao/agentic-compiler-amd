@@ -218,6 +218,12 @@ class Session:
                 text = Path(src.action["file"]).read_text()
             if launch is None:
                 launch = src.action.get("launch_given")
+            inherited = dict(src.action.get("defines") or
+                             dict(f[2:].split("=", 1) for f in src.action.get("flags", []) if f.startswith("-D")))
+            defines = {**inherited, **{str(k): v for k, v in (defines or {}).items()}}     # the copied state's knobs, overridden
+            short_defines = short_defines or any(len(k) < 3 for k in inherited)
+            if flags is None:                                # and its flags, unless others are given
+                flags = [f for f in src.action.get("flags", []) if not f.startswith("-D")]
         if not text.strip():
             raise SessionError("parameter", "source needs `text`, or `like` naming a state made by source")
         given = copy.deepcopy(launch)

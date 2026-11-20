@@ -2265,41 +2265,40 @@
      "defines": null,
      "launch": null,
      "outcome": "parity",
-     "speedup": 1.011,
+     "speedup": 1.0083,
      "ci95": [
-      1.0083,
-      1.0141
+      1.005,
+      1.0105
      ],
-     "ms": 0.2176
+     "ms": 0.22006
     },
     {
      "what": "restructured source",
      "flags": [],
      "defines": {
-      "R": "1",
-      "W": "16",
-      "C": "8"
+      "BXX": "32",
+      "WAV": "16",
+      "CPI": "8"
      },
      "launch": {
       "grid": [
-       "cdiv(M, 64)",
+       "cdiv(M, BXX)",
        1,
        1
       ],
       "block": [
-       64,
+       32,
        16,
        1
-      ],
-      "lds": 0
+      ]
      },
      "outcome": "win",
-     "speedup": 2.1765,
+     "speedup": 2.3252,
      "ci95": [
-      2.166,
-      2.1816
+      2.3111,
+      2.3331
      ],
-     "ms": 0.1017
+     "ms": 0.09534
     },
     {
      "what": "restructured source",
@@ -2307,53 +2306,52 @@
       "-ffast-math"
      ],
      "defines": {
-      "R": "1",
-      "W": "16",
-      "C": "8"
+      "BXX": "32",
+      "WAV": "16",
+      "CPI": "8"
      },
      "launch": {
       "grid": [
-       "cdiv(M, 64)",
+       "cdiv(M, BXX)",
        1,
        1
       ],
       "block": [
-       64,
+       32,
        16,
        1
-      ],
-      "lds": 0
+      ]
      },
      "outcome": "win",
-     "speedup": 2.1796,
+     "speedup": 2.3347,
      "ci95": [
-      2.1724,
-      2.1927
+      2.3239,
+      2.3409
      ],
-     "ms": 0.1014,
+     "ms": 0.09532,
      "verified": {
       "outcome": "win",
-      "speedup": 2.1789,
+      "speedup": 2.3049,
       "speedup_ci95": [
-       2.1731,
-       2.1852
+       2.2976,
+       2.3165
       ],
-      "candidate_ms": 0.1015,
+      "candidate_ms": 0.0962,
       "cases": 77,
       "runs": [
        {
-        "speedup": 2.1789,
+        "speedup": 2.3316,
         "ci95": [
-         2.1731,
-         2.1852
+         2.3241,
+         2.3393
         ],
         "valid": true
        },
        {
-        "speedup": 2.1879,
+        "speedup": 2.3049,
         "ci95": [
-         2.1827,
-         2.1927
+         2.2976,
+         2.3165
         ],
         "valid": true
        }
@@ -2361,37 +2359,36 @@
      }
     }
    ],
-   "amdclang_O3_ms": 0.22734,
+   "amdclang_O3_ms": 0.22174,
    "baseline": {
     "source": "baselines/rb_gemvn.hip",
     "flags": [
      "-ffast-math"
     ],
     "defines": {
-     "R": "1",
-     "W": "16",
-     "C": "8"
+     "BXX": "32",
+     "WAV": "16",
+     "CPI": "8"
     },
     "launch": {
      "grid": [
-      "cdiv(M, 64)",
+      "cdiv(M, BXX)",
       1,
       1
      ],
      "block": [
-      64,
+      32,
       16,
       1
-     ],
-     "lds": 0
+     ]
     }
    },
-   "over_shipped_O3": 2.1789,
+   "over_shipped_O3": 2.3049,
    "ci95": [
-    2.1731,
-    2.1852
+    2.2976,
+    2.3165
    ],
-   "ms": 0.1015
+   "ms": 0.0962
   },
   "rb_gemvt": {
    "candidates": [

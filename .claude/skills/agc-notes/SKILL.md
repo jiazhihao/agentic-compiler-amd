@@ -138,6 +138,17 @@ Measured on the LLM benchmark; recipes in `bench/llm/sessions/`.
 - `headroom` assumes each tensor element is touched once. Attention-like kernels re-read their
   inputs hundreds of times: work out the real traffic before choosing a lever.
 
+- Strided reads (a column-major matrix walked by rows: 128 to 256-byte fragments at a 32 KB
+  stride, `rb_gemvn`) plateau at 2.6 to 2.9 TB/s against 4.5 TB/s for contiguous streams: read a
+  `headroom` of 1.2 to 1.3 on such a kernel as "at the floor". There the time is set by the
+  launch geometry, not the loop body: one workgroup per CU (256) with 8 waves each was best;
+  16 dword loads in flight with a pipelined `vmcnt(8)` wait and scalar operands was 0.92x
+  against amdclang's 10 loads and a full wait per iteration.
+- A lane group narrower than a wave is a source-level knob: block (32, 16) puts two 32-row
+  groups in one wave and doubles the workgroups at the same wave count (1.06x on `rb_gemvn`).
+- `global_load_dword vdst, v_off32, s[base:base+1]` (scalar base + 32-bit vector offset) is
+  legal and removes per-lane 64-bit address arithmetic.
+
 ## Rules that bit
 
 - Register tuples start on an even VGPR/AGPR and on a multiple of min(size, 4) for SGPRs

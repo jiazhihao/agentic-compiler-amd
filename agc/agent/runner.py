@@ -223,7 +223,11 @@ def run(manifest: str | Path, root: str | Path = ".agc", minutes: int = 45, benc
                                                     f"{v.get('outcome') or v.get('stage')}")
     if result["outcome"] != "win" and old.exists():
         result["recipe_kept"] = "an earlier session's verified recipe stays recorded"
-    (s.store.root / "harness-result.json").write_text(json.dumps(result, indent=1, default=str) + "\n")
+    text = json.dumps(result, indent=1, default=str) + "\n"
+    (s.store.root / "harness-result.json").write_text(text)
+    last = root / "harness"                                   # by kernel name: the store's name changes with the baseline
+    last.mkdir(parents=True, exist_ok=True)
+    (last / f"{name}.json").write_text(text)
     log(f"{name}: {result['outcome']}" + (f" {result['speedup']:.3f}x {result['ci95']}" if result["outcome"] == "win" else f" ({result['why']})"))
     return result
 
