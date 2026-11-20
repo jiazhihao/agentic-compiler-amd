@@ -28,7 +28,7 @@ COUNTERS = {"vmcnt": "vmcnt", "expcnt": "expcnt", "lgkmcnt": "lgkmcnt"}
 _LIMITS = {"v": "max_arch_vgprs", "a": "max_agprs", "s": "max_sgprs"}
 
 
-def _fit(op, spec, enc: Encoding, isa: Isa, arch: Arch, narrow_addr: bool = False) -> str | None:
+def _fit(op, spec, enc: Encoding, isa: Isa, arch: Arch, narrow_addr: bool = False, lane_dst: bool = False) -> str | None:
     """Why `op` cannot be the operand `spec`, or None."""
     classes = isa.type_classes(spec.type)
     words = max(1, math.ceil(spec.size / 32))
@@ -45,6 +45,8 @@ def _fit(op, spec, enc: Encoding, isa: Isa, arch: Arch, narrow_addr: bool = Fals
         if (op.neg or op.abs) and not (("NEG" in fields or "SRC0_NEG" in fields) and spec.is_in):
             return "neg/abs modifier is not available in this encoding"
         cls = {"vcc_lo": "vcc", "exec_lo": "exec"}.get(op.cls, op.cls)
+        if cls == "vcc" and spec.type == "OPR_SREG_NOVCC" and lane_dst:
+            return None                               # amdclang reloads a spilled VCC half with v_readlane_b32 vcc_lo, ...
         if cls not in classes:
             return f"a {op.cls} register is not allowed here ({spec.type})"
         if not op.special:
@@ -139,7 +141,7 @@ def _select(inst: Inst, isa: Isa, arch: Arch, labels):
         else:
             based = any(s.field == "SADDR" and isinstance(o, Reg) and o.cls != "off" for o, s in zip(ops, specs))
             why = next((f"operand {i + 1} ({s.field or s.type}): {w}" for i, (o, s) in enumerate(zip(ops, specs))
-                        if (w := _fit(o, s, enc, isa, arch, based))), None)
+                        if (w := _fit(o, s, enc, isa, arch, based, inst.mnemonic.startswith("v_readlane")))), None)
             if why is None and sum(isinstance(o, (Imm, Sym)) and "literal" in isa.type_classes(s.type)
                                    and str(o) not in isa.inline_constants(s.type)
                                    for o, s in zip(ops, specs)) > 1:

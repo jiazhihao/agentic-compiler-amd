@@ -1,0 +1,123 @@
+{
+ "kernel": "fa_attention_causal",
+ "launch": {
+  "grid": [
+   "N",
+   1,
+   1
+  ],
+  "block": [
+   256,
+   1,
+   1
+  ],
+  "lds": 0
+ },
+ "strict": false,
+ "path": [
+  "source"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 2.1932,
+  "speedup_ci95": [
+   2.1896,
+   2.1974
+  ],
+  "reference_ms": 0.20092,
+  "candidate_ms": 0.09149,
+  "cases": 49,
+  "protocol_version": "agc-timing-amd-2",
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 2.2081,
+    "ci95": [
+     2.2043,
+     2.211
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 2.1932,
+    "ci95": [
+     2.1896,
+     2.1974
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "State e12fdb0f056767c5 (source level) is 2.197x faster than amdclang (240 pairs, CI 2.192..2.202; 0.0920 ms vs 0.2021 ms), static check and full battery (49/49) pass. It launches 4 waves per query row (block 256): wave w takes key tiles w, w+4, ... with no barriers inside the tile loop (each wave is its own lockstep unit with its own LDS scratch row), hoists q (the compiler puts it in SGPRs with s_load_dwordx16), loads each key row as 16 dwordx4 loads in flight, replaces the two LDS tree reductions (7 barriers each) by one LDS write + 64 LDS reads reduced in registers in the same tree order, issues the V loads 16 at a time, uses a bare v_exp_f32 (exp2 builtin), and merges the 4 partial (m, l, o) triples through LDS after a single barrier. Results meet the manifest tolerance, not bit-identity (exp2 instead of expf, merged partial softmaxes). Headroom case: the reference headroom is 9.9 under the one-touch model, so 1.5x was possible in principle and was reached; but the model undercounts: K and V are re-read by every query row (about 1.07 GB of cache traffic at N=2048), and the remaining time looks bound by that traffic and wave count, where three further ideas plateaued.",
+ "tried": [
+  {
+   "what": "one wave per row, no barriers, q hoisted, 16 x4 K loads in flight, LDS write + 64 reads per reduction, all 64 V loads in flight with p kept in a 64-entry array (compiler spilled it: 320 B scratch, 14 VGPR spills)",
+   "state": "687d7b30a308f5aa",
+   "outcome": "loss",
+   "speedup": 0.631
+  },
+  {
+   "what": "GEMM-style: lane = query row, K/V rows uniform across the wave, 8 waves per workgroup split the key range, 135 KB LDS merge (compiler used per-lane global loads at a uniform address, not scalar loads; 91 VGPR spills, 128-VGPR cap)",
+   "state": "18a2c0b587d721df",
+   "outcome": "loss",
+   "speedup": 0.133
+  },
+  {
+   "what": "first design without scratch: p re-read from LDS in chunks of 16 alongside 16 V loads in flight, exp2 builtin; 110 VGPRs, 0 spills",
+   "state": "48ff2bfa34b53cf6",
+   "outcome": "win",
+   "speedup": 1.762
+  },
+  {
+   "what": "4 waves per row (block 256), wave w takes tiles w mod 4, partials merged via LDS after one barrier",
+   "state": "e12fdb0f056767c5",
+   "outcome": "win (240 pairs)",
+   "speedup": 2.197
+  },
+  {
+   "what": "on top of W=4: branch-free partial tile (V row index clamped, p = 0) instead of the serial tail loop",
+   "state": "f88083ab136163b5",
+   "outcome": "win, parity with e12fdb0f056767c5",
+   "speedup": 2.183
+  },
+  {
+   "what": "on top of W=4: low-VGPR variant (84 instead of 120 VGPRs: K in two halves, reductions in chunks of 16) for higher occupancy",
+   "state": "23f11eec31b453fd",
+   "outcome": "win, slightly below e12fdb0f056767c5",
+   "speedup": 2.157
+  },
+  {
+   "what": "8 waves per row (block 512)",
+   "state": "8f6db42e52456eb4",
+   "outcome": "win, below W=4",
+   "speedup": 2.073
+  }
+ ],
+ "friction": [
+  "No machine-IR work was done: the budget went into source restructuring, and the passes (coarsen, unroll_loads) and DPP reductions were not tried on the winning state. A DPP reduction would remove the LDS write + 64 reads per reduction, but writing it by hand in a 500-instruction listing did not fit in the time.",
+  "bench's traffic/headroom model assumes each tensor element is touched once. For this kernel K and V are re-read by every query row (about N^2/2 * 512 B = 1.07 GB at N=2048 against 2.1 MB modelled), so headroom 9.9 and tb_per_s 0.01 are misleading; a per-kernel traffic expression in the manifest, or a count derived from executed loads, would have pointed at the right bound from the start.",
+  "Scratch use is only visible after check (resources.scratch_bytes, vgpr_spills); features() of state 687d7b30a308f5aa shows scratch_store/scratch_load in mnemonics but no warning. A static_check or features warning 'this state spills to scratch' would have saved two timed candidates (0.63x and 0.13x).",
+  "amdclang caps this kernel at 128 VGPRs and spills beyond it (states 687d7b30a308f5aa, 18a2c0b587d721df) although the ISA allows 256; I found no way to raise the cap from source().",
+  "In state 18a2c0b587d721df amdclang loaded a wave-uniform, loop-variant row (K[j], V[j]) with per-lane global_load_dwordx4 instead of s_load_dwordx16, although it used s_load_dwordx16 for the loop-invariant q row; there is no source-level way to ask for a scalar load, so the 'lane = query, shared K/V row' design could not be expressed without hand-written IR.",
+  "features() reports waves_per_simd 0 with limiter lds for state 18a2c0b587d721df (135168 B LDS, 8 waves per workgroup), which still ran; the number looks wrong.",
+  "No per-wave or per-phase profile: I could not tell latency, instruction throughput, dispatch of 8192 waves and cache traffic apart except by building variants. static_check also warns of an undefined read of v76 in 687d7b30a308f5aa (.LBB0_2[49]) that I did not investigate; the state passed the battery."
+ ],
+ "lessons": [
+  "Scratch (stack) memory is very expensive on this device: the same design measured 0.63x with 320 B of scratch and 14 VGPR spills (687d7b30a308f5aa) and 1.76x with none (48ff2bfa34b53cf6); a state with 91 spills ran at 0.13x. Check resources.scratch_bytes after every source() and restructure (smaller in-flight chunks, re-read from LDS instead of keeping a 64-entry array) until it is 0. That scratch is the cause is inferred from this pair, which also differ in chunking and exp; it was not isolated.",
+  "amdclang keeps at most 128 VGPRs for these kernels and spills beyond; arrays of 64 per-lane values indexed by a variable go to scratch.",
+  "A workgroup of exactly one wave (block 64) needs no barriers around LDS: replacing a barrier tree reduction (7 barriers) by one LDS write and 64 LDS reads (ds_read_b128) reduced in registers in the same tree order is legal as long as the reads may alias the write (so the compiler cannot reorder them), and was part of a 1.76x win.",
+  "A wave-uniform, loop-invariant row is loaded by amdclang with s_load_dwordx16 into SGPRs and used directly as fmac operands (q row: 4 scalar loads instead of 64 per-lane loads per tile). A uniform but loop-variant row is not: it stays a per-lane global load.",
+  "Splitting a long per-row loop over several waves of one workgroup with a single final LDS merge paid 1.76x -> 2.20x at 4 waves (causal attention, longest row 32 tiles); 8 waves measured 2.07x, so the gain saturates once the wave count (8192 here) reaches the device's wave slots.",
+  "Past that point, higher occupancy (120 -> 84 VGPRs, 2.16x vs 2.20x) and removing a serial tail loop (2.18x vs 2.20x) each brought nothing.",
+  "The headroom figure is not reliable for kernels that re-read inputs (attention, GEMM-like): compute the real traffic by hand before choosing a lever."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 2.8327087999999994,
+  "turns": 40,
+  "final": "The kernel is now 2.20x faster than amdclang's build (0.0920 ms against 0.2021 ms, 240 pairs, CI 2.192 to 2.202), above the 1.5x target. The state to ship is `e12fdb0f056767c5`; it passes the static check and the full battery (49/49), and the report is filed.\n\nWhat the winning state does differently, all at the source level:\n- **Four waves per query row** (block 256): each wave takes every fourth key tile, and the four partial results are merged through LDS after a single barrier.\n- **No barriers inside the tile loop**: the two barrier-tree reductions are replaced by one LDS write and 64 LDS reads, reduced in registers.\n- **Loads in flight**: the query row is loaded once, each key row as 16 wide loads, and the V loads 16 at a time.\n- **Cheaper exp**: the exp2 builtin instead of `expf`.\n\nResults meet the manifest tolerance but are not bit-identical to the baseline.\n\nOn the headroom question: the reference headroom is 9.9, so 1.5x was possible in principle. That figure is misleading here, though, because every query row re-reads K and V \u2014 about 1.07 GB of cache traffic at N=2048 against the 2.1 MB the model assumes.\n\n| Idea | State | Speedup |\n|---|---|---|\n| One wave per row, no barriers, but spilling to scratch | `687d7b30a308f5aa` | 0.63 (loss) |\n| Lane = query row, K/V rows shared across the wave | `18a2c0b587d721df` | 0.13 (loss) |\n| One wave per row with no scratch | `48ff2bfa34b53cf6` | 1.76 |\n| Four waves per row | `e12fdb0f056767c5` | 2.20 |\n| Four waves, branch-free partial tile | `f88083ab136163b5` | 2.18 |\n| Four waves, fewer registers for occupancy | `23f11eec31b453fd` | 2.16 |\n| Eight waves per row | `8f6db42e52456eb4` | 2.07 |\n\nThe first loss and the first win are the same design; the win has no scratch spills (the loss had 14), which is the likely cause but was not isolated. I stopped after the last three variants each failed to beat the four-wave state.\n\nNo machine-IR work was done: `coarsen`, `unroll_loads` and DPP reductions were not tried on the wi",
+  "seconds": 362,
+  "log": ".agc/sessions/fa_attention_causal-000447bc35/agent/20261120-170417.jsonl"
+ },
+ "recorded": "2026-11-20"
+}

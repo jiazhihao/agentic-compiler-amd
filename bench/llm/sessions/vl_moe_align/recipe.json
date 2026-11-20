@@ -1,0 +1,131 @@
+{
+ "kernel": "vl_moe_align",
+ "launch": {
+  "grid": [
+   "1 + cdiv(NT + E * 63, 4096)",
+   1,
+   1
+  ],
+  "block": [
+   1024,
+   1,
+   1
+  ],
+  "lds": "4 * cdiv(E, 64) * 64 + 256"
+ },
+ "strict": false,
+ "path": [
+  "source"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 5.8989,
+  "speedup_ci95": [
+   5.8804,
+   5.912
+  ],
+  "reference_ms": 0.26927,
+  "candidate_ms": 0.0456,
+  "cases": 77,
+  "protocol_version": "agc-timing-amd-2",
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 5.8989,
+    "ci95": [
+     5.8804,
+     5.912
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 5.8419,
+    "ci95": [
+     5.8226,
+     5.8746
+    ],
+    "valid": false
+   },
+   {
+    "speedup": 5.7183,
+    "ci95": [
+     5.7035,
+     5.7472
+    ],
+    "valid": false
+   },
+   {
+    "speedup": 5.958,
+    "ci95": [
+     5.9407,
+     5.9761
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "Source-level restructuring, 5.75x over amdclang (240 pairs, CI 5.73-5.78; 0.269 ms -> 0.0465 ms; 60-pair run 5.97x). Reference headroom was 13: the baseline was latency-bound, not memory-bound (2 workgroups, each thread looping 512+ times with one 4-byte load, a full wait, two integer divisions and a masked LDS atomic per element). The winning state (a) fills sorted_token_ids loop-free with one 16-byte store per thread over 1 + cdiv(NT+E*63, 4096) workgroups instead of one looping workgroup, (b) counts in workgroup 0 with global_load_dwordx4, 8 loads in flight per iteration, no division per element (warp_idx*epw + id%epw == id), and invalid ids clamped with one v_min_u32 to a dummy LDS slot (launch lds + 256 bytes) so ds_add_u32 needs no lane mask, (c) hoists the cumsum reads and the division out of the expert_ids loop. Outputs are bit-identical (77/77 battery cases). The remaining 45 us is about 2.2x the copy model; counting must stay in one workgroup (shared LDS histogram, no zero-initialised global buffer to merge into), and that one workgroup is what bounds it now.",
+ "tried": [
+  {
+   "what": "v1 source: fill loop-free 16 B/thread over 133 workgroups; count with x4 loads, 4 in flight, no per-element division, masked ds_add (branches on has_expert_map kept); expert_ids loop hoisted",
+   "state": "2c8af372a7703cd1",
+   "outcome": "win",
+   "speedup": 5.07
+  },
+  {
+   "what": "v2: v1 + loop unswitched on has_expert_map, one unsigned compare per element, 8 x4 loads in flight",
+   "state": "ed0a39887abbf653",
+   "outcome": "win",
+   "speedup": 5.38
+  },
+  {
+   "what": "v3: v2 + invalid ids clamped to a dummy LDS slot (lds + 256 B), unmasked ds_add_u32 (3 instructions per element vector)",
+   "state": "1ea884ae0c814727",
+   "outcome": "win (best)",
+   "speedup": 5.75
+  },
+  {
+   "what": "v4: v3 with 16 x4 loads in flight instead of 8",
+   "state": "f264660901c46427",
+   "outcome": "win, but slower than v3 (48.1 us vs 45.1 us)",
+   "speedup": 5.62
+  },
+  {
+   "what": "v5: v3 with the fill at 4 x 16-byte vectors per thread (34 workgroups instead of 133)",
+   "state": "a62ea77d8ab5d006",
+   "outcome": "win, slightly slower than v3 (46.3 us)",
+   "speedup": 5.84
+  },
+  {
+   "what": "v6: v3 with each wave reading one contiguous chunk of topk_ids (consecutive 1 KB rows) instead of rows strided by 16 KB",
+   "state": "bc1a6411cd46b85d",
+   "outcome": "win, slower than v3 (47.3 us)",
+   "speedup": 5.68
+  }
+ ],
+ "friction": [
+  "No way to time a part of a kernel: bench needs a state that passes the battery, so I could not time 'count workgroup only' or 'fill only' to find which part holds the remaining 25 us above launch overhead; I had to infer it from three correct variants (v4, v5, v6). A profiling bench mode that skips the output comparison (marked non-shippable) or per-workgroup timing would have settled it in one run.",
+  "check/features report lds_bytes 4224 for state 1ea884ae0c814727 although the launch asks for 4*cdiv(E,64)*64 + 256 bytes of dynamic LDS on top of the 4224 static bytes: the tool does not show the LDS size the launch actually allocates, so I could not confirm that the dummy slot at byte 5248 is inside the allocation (the result is correct either way since the slot is never read, but it should be visible).",
+  "Counting cannot be spread over workgroups: every output buffer is poisoned and there is no scratch argument the harness zero-initialises, so a global atomic histogram is impossible. A launch option for a zeroed scratch buffer (appended arg of kind tensor, init zeros) would open multi-workgroup reductions for this kernel class.",
+  "state() returns the full listing only (about 1000 instructions here, very long); a block or range filter (e.g. state(ref, blocks=['.LBB0_53'])) or a 'loops only' view would make inspecting the hot loop cheap.",
+  "static_check on bc1a6411cd46b85d warns 'reads s23 / v7 not written on every path' for v_mad_u64_u32 v[6:7], s[6:7], s23, v3, v[6:7] in amdclang's own output (.LBB0_54 index 6, .Lft18 index 3); this looks like a false positive on compiler-generated code (probably the dead high half / carry-out operand).",
+  "source() needs the whole file resent for a one-constant change (UNR, fill vectors, grid); a way to pass -D macros per source state would make sweeps cheap."
+ ],
+ "lessons": [
+  "vl_moe_align (histogram + fill, 2 workgroups of 1024 threads with per-thread strided loops): reference headroom 13, i.e. latency-bound. Source-level restructuring alone gave 5.75x (0.269 ms -> 0.0465 ms) with no machine-IR edits.",
+  "Library kernels that dedicate one looping workgroup to a memset-like fill: replacing it by a loop-free 16-byte store per thread over cdiv(n, 4096) workgroups, plus wide loads in flight in the other workgroup, took the kernel from 269 us to 53 us (5.07x) in one step.",
+  "Integer division by a runtime value inside a per-element loop (x / epw * epw + x % epw) is an identity that amdclang does not remove; dropping it and unswitching the loop on a bool argument, with 8 instead of 4 loads in flight, gave 53.0 -> 50.5 us.",
+  "Masked LDS atomics: clamping out-of-range indices with one v_min_u32 to a dummy LDS slot (never read back) instead of compare + s_and_saveexec + restore per element cut the loop to 3 instructions per element vector and gave 50.5 -> 45.1 us (60 pairs).",
+  "Once 8 x 16-byte loads were in flight in a single 16-wave workgroup, nothing else moved it: 16 in flight 48.1 us (worse), contiguous per-wave chunks instead of rows strided by 16 KB 47.3 us (worse), fill at 64 B per thread with 4x fewer workgroups 46.3 us (no gain). A single workgroup reading 2 MB and doing 524288 LDS atomic adds sits at about 25 us above launch overhead; fill granularity (34 vs 133 workgroups) is irrelevant next to it.",
+  "60-pair and 240-pair timings of the same state differed by 4 % here (5.97x vs 5.75x): rank variants that are within 5 % by compare or 240 pairs, not by their separate 60-pair results."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 3.1592157999999997,
+  "turns": 38,
+  "final": "`vl_moe_align` now runs **5.75x** faster than amdclang's build (0.269 ms \u2192 0.0465 ms, 240 pairs, CI 5.73\u20135.78), well past the 1.5x goal. The state to ship is `1ea884ae0c814727`; it passes the static check and the full battery (77/77), and the report is recorded.\n\n**Which case this was:** reference headroom was 13, so the baseline was nowhere near the memory limit. It was latency-bound: two workgroups, each thread looping over 500 times with one 4-byte load, a full wait, integer divisions and a masked LDS atomic add per element.\n\n**What the winning state does differently** (all at the source level, no machine-IR edits):\n- **Fill:** `sorted_token_ids` is written with one 16-byte store per thread and no loop, spread over `1 + cdiv(NT + E*63, 4096)` workgroups instead of one looping workgroup.\n- **Count:** workgroup 0 reads with 16-byte loads, 8 in flight per iteration, and no per-element division.\n- **Unmasked atomics:** out-of-range ids are clamped to a dummy LDS slot that is never read back (launch LDS + 256 bytes), so the atomic add needs no lane mask.\n- **Tail:** the `cumsum` reads and the division are hoisted out of the `expert_ids` loop.\n\n| Variant | State | Time | Speedup (60 pairs) |\n|---|---|---|---|\n| Loop-free fill, 4 wide loads in flight | `2c8af372a7703cd1` | 53.0 \u00b5s | 5.07x |\n| + unswitched on `has_expert_map`, 8 in flight | `ed0a39887abbf653` | 50.5 \u00b5s | 5.38x |\n| + dummy-slot clamp (**best**) | `1ea884ae0c814727` | 45.1 \u00b5s | 5.97x (5.75x at 240 pairs) |\n| Best with 16 loads in flight | `f264660901c46427` | 48.1 \u00b5s | 5.62x |\n| Best with 4x fewer fill workgroups | `a62ea77d8ab5d006` | 46.3 \u00b5s | 5.84x |\n| Best with contiguous per-wave input chunks | `bc1a6411cd46b85d` | 47.3 \u00b5s | 5.68x |\n\nI stopped after six timed candidates because the last three ideas, of different kinds, each failed to beat the best state. The remaining time is about 2.2x the copy model, and the fill is not what holds it (4x fewer fill workgroups changed nothing). That leaves the single",
+  "seconds": 391,
+  "log": ".agc/sessions/vl_moe_align-63bd5dddfa/agent/20261120-171608.jsonl"
+ },
+ "recorded": "2026-11-20"
+}

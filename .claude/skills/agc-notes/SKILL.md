@@ -40,6 +40,40 @@ the agc timing protocol unless stated.
   `__builtin_amdgcn_rcpf` to `v_rcp_f32`; `__builtin_exp2f` adds 20 instructions of range
   handling. On a memory-bound kernel this alone is parity; it differs from libm at infinities.
 
+## What pays when the kernel is far from the memory floor (agent sessions, source level first)
+
+Measured on the LLM benchmark; recipes in `bench/llm/sessions/`.
+
+- **Change the algorithm when the source makes repeated passes.** `moe_gate_topk` read each
+  row 10 times, one dword per wait: a single pass with an online softmax sum and a sorted top-8
+  kept by sorting networks gave 18x. `vl_moe_align`: a looping workgroup that fills an array
+  became a loop-free 16-byte store per thread, plus 8 wide loads in flight in the counting
+  workgroup: 5.9x.
+- **Share loads between outputs that re-read the same data.** Attention kernels read K and V
+  once per head or per query. Two heads per workgroup (`mla_decode`) 2.5x; four queries per
+  workgroup (`fa_attention`) 3.9x, with an optimum (2 queries 2.5x, 8 queries 3.0x). Pick the
+  count so that the workgroups about equal the 256 CUs.
+- **Split the output, recompute the shared part** when workgroups cannot communicate:
+  `attn_decode` with 8 workgroups per head, each recomputing the scores and owning 16 output
+  columns: 7.4x (2 / 4 / 8 workgroups: 6.5x / 7.3x / 7.4x).
+- **Loads in flight**: 16 `global_load_dwordx4` per wait for key rows, 16 to 32 for values.
+  Prefetch loads into dead registers cost 10 %.
+- **Fewer, flatter reductions**: a two-level LDS reduction over 1024 threads (2 barriers) instead
+  of a tree (log2 N + 2 barriers); one max per 2048 keys instead of per 64-key tile; a
+  one-wave workgroup needs no barriers around LDS at all.
+- **More waves per workgroup shorten serial chains** (`fa_attention` block 64 -> 256: 113 us ->
+  56 us; block 1024 slower again). Splitting a long per-row loop over 4 waves with one final
+  LDS merge: 1.76x -> 2.20x (`fa_attention_causal`); 8 waves no better.
+- **A wave-uniform, loop-invariant row belongs in SGPRs**: amdclang loads the query with
+  `s_load_dwordx16` and uses the scalars as VALU operands, sometimes; when it emits per-lane
+  loads instead, do it by hand (`v_fmac_f32_e64 acc, sN, vK`).
+- **Linear accumulators stay partial per thread** and are summed once at the end through LDS.
+- **Branchless per-lane top-k**: compare (order-preserving integer key of the float, ~index)
+  as one signed 64-bit value: ties resolve to the lower index and any sorting network is right.
+  Keep the 32-bit halves in separate variables, or clang emits two 64-bit compares per exchange.
+- **Masked LDS atomics**: clamp out-of-range indices with `v_min_u32` to a dummy slot instead
+  of masking EXEC per element.
+
 ## What does not pay
 
 - **Memory-bound elementwise kernels**: `axpy` is at about 4.7 TB/s; fewer scalar loads or waits
@@ -75,6 +109,22 @@ the agc timing protocol unless stated.
   `D[8 (r // 4) + 4 (l // 32) + r % 4][l % 32]`.
 - All corpus kernels are at the hardware occupancy limit (8 waves per SIMD); registers only
   matter for MFMA kernels (256 AccVGPRs leave 1 wave per SIMD).
+
+## amdclang at the source level
+
+- It keeps a kernel within 128 VGPRs and spills beyond that to scratch. **Scratch in a loop
+  is fatal**: the same design ran at 0.63x with 14 spills and 1.76x with none; 91 spills
+  0.13x. `features(id)` warns; keep batches at or below about 16 x4 loads (64 registers) plus
+  temporaries, and keep running outputs in LDS rather than in arrays indexed by a variable.
+- It merges source-level load batches (24 + 8 became 32), vectorizes short loops over queries
+  into `v_pk_fma` pairs with duplicated operand registers (`#pragma clang loop unroll(disable)
+  vectorize(disable) interleave(disable)`, or `flags: ["-fno-slp-vectorize"]`), and does not
+  remove `x / d * d + x % d`.
+- Cutting ALU instructions in a load-bound loop pays little (77 instead of 183 per iteration:
+  1.03x); `v_pk_fma` with 4 accumulators was 8 % slower than `v_pk_mul` + adds with scalar
+  operands.
+- `headroom` assumes each tensor element is touched once. Attention-like kernels re-read their
+  inputs hundreds of times: work out the real traffic before choosing a lever.
 
 ## Rules that bit
 

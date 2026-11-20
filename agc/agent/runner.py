@@ -58,7 +58,7 @@ def agent(prompt: str, root: Path, log: Path, minutes: int, model: str | None = 
     return out
 
 
-MAX_CI_WIDTH = 0.04      # a paired timing whose 95 % CI is wider than this was disturbed (shared device): not a measurement
+MAX_CI_WIDTH = 0.04      # a paired timing whose 95 % CI is wider than this fraction of the speedup was disturbed (shared device): not a measurement
 ATTEMPTS = 5
 PAIRS = 240               # launches per code object in the harness's timings (the session default is 60)
 
@@ -78,8 +78,9 @@ def verify(s: Session, ref: str) -> dict:
             if not b.get("ok"):
                 return {**v, "ok": False, "stage": "bench", "error": b.get("error")}
         lo, hi = b["speedup_ci95"]
-        runs.append({"speedup": b["speedup"], "ci95": [lo, hi], "valid": hi - lo <= MAX_CI_WIDTH})
-        if hi - lo <= MAX_CI_WIDTH:
+        ok = (hi - lo) / b["speedup"] <= MAX_CI_WIDTH
+        runs.append({"speedup": b["speedup"], "ci95": [lo, hi], "valid": ok})
+        if ok:
             valid.append(b)
         if len(valid) == 2:
             break

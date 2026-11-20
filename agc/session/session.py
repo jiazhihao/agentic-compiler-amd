@@ -181,7 +181,10 @@ class Session:
             raise SessionError("parameter", f"launch: {e}", values={"symbols": sorted(m.shapes)}) from None
         return out
 
-    def source(self, text: str, launch: dict | None = None, note: str = "") -> dict:
+    SOURCE_FLAGS = re.compile(r"^-(f[\w=-]+|m[\w=-]+|O[0-3s])$")
+
+    def source(self, text: str, launch: dict | None = None, note: str = "", defines: dict | None = None,
+               flags: list | None = None) -> dict:
         """A new root state from a rewritten HIP source: compiled with amdclang (same flags as the
         baseline), imported into machine IR. The kernel must keep the manifest's entry name and
         parameters; `launch` may change the grid and block and append arguments. The state starts
@@ -189,18 +192,27 @@ class Session:
         m = self.manifest
         d = self.store.root / "src"
         d.mkdir(parents=True, exist_ok=True)
+        extra = []
+        for key, val in (defines or {}).items():
+            if not re.fullmatch(r"[A-Za-z_]\w*", str(key)) or not re.fullmatch(r"[\w.+-]*", str(val)):
+                raise SessionError("parameter", f"define {key}={val}: a name and a plain number or identifier")
+            extra.append(f"-D{key}={val}")
+        for f in flags or []:
+            if not self.SOURCE_FLAGS.match(str(f)):
+                raise SessionError("parameter", f"flag {f!r} is not allowed", suggestion="-f..., -m... and -O0..3 flags only")
+            extra.append(str(f))
         path = d / f"{hashlib.sha256(text.encode()).hexdigest()[:16]}.hip"
         path.write_text(text)
         inc = [m.path.parent] + ([Path(m.source).resolve().parent] if m.source else [])
         try:
-            b = toolchain.hip_build(path, [*toolchain.HIP_FLAGS, *m.hip_flags], mcpu=m.arch, include_dirs=inc)
+            b = toolchain.hip_build(path, [*toolchain.HIP_FLAGS, *m.hip_flags, *extra], mcpu=m.arch, include_dirs=inc)
             module = emit.import_asm(b.asm)
         except toolchain.ToolchainError as e:
             raise SessionError("toolchain", f"amdclang rejected the source: {e}"[:3000]) from None
         except asm.AsmError as e:
             raise SessionError("toolchain", f"cannot import amdclang's assembly: {e.message}", location={"line": e.line, "text": e.text}) from None
         self._kernel(module)
-        action = {"name": "source", "note": note, "file": str(path), "sha": path.stem}
+        action = {"name": "source", "note": note, "file": str(path), "sha": path.stem, **({"flags": extra} if extra else {})}
         if launch is not None:
             action["launch"] = self._launch(None, launch)
         return self._put(None, module, action)
@@ -250,6 +262,29 @@ class Session:
                        headroom_note="time / memory_floor: about 1.0 means the kernel moves bytes as fast as a copy does here and "
                                      "only moving fewer bytes can help; well above 1 means it is not bound by memory")
         return out
+
+    def probe(self, ref: str) -> dict:
+        """A diagnostic timing of a state that passes the static checks but not necessarily the battery:
+        to time a part of a kernel (a phase removed, a loop cut short). Never a result: it is not stored
+        as a bench, cannot be reported, and says whether the output happened to be right."""
+        sid = self.resolve(ref)
+        hsaco = self._hsaco(sid)
+        try:
+            r = harness.bench(self.manifest, hsaco, root=self.root, launch=self.launch_of(sid))
+        except ExecutorError as e:
+            raise SessionError("gpu", str(e)[:1500]) from None
+        if "timing" not in r:
+            return {"id": sid, "diagnostic": True, "ok": False, "error": r.get("error")}
+        return {"id": sid, "diagnostic": True, "median_ms": round(r["timing"]["median_ms"], 5), "output_correct": bool(r.get("ok")),
+                "note": "not a result: unverified timing for diagnosis only"}
+
+    def battery(self) -> dict:
+        """What the battery runs: the shape variants and input distributions (hidden seeds are not shown)."""
+        from ..runtime.inputs import build_battery, hidden_secret, public_view
+        cases = public_view(build_battery(self.manifest, hidden_secret(self.root)))
+        shapes = [dict(t) for t in sorted({tuple(sorted(c["symbols"].items())) for c in cases})]
+        return {"cases": len(cases), "shape_variants": shapes, "distributions": sorted({c["distribution"] for c in cases}),
+                "hidden_cases": sum(bool(c["hidden"]) for c in cases)}
 
     def compare(self, a: str, b: str, pairs: int | None = None) -> dict:
         """Paired timing of state `b` against state `a` (both must have passed the battery): which of two
@@ -317,7 +352,9 @@ class Session:
         return "\n".join(out)
 
     # ---- inspect ---------------------------------------------------------------
-    def state(self, ref: str = "ref", include_ir: bool = True) -> dict:
+    OUTLINE_ABOVE = 400      # instructions: larger kernels are shown as an outline unless blocks are named
+
+    def state(self, ref: str = "ref", include_ir: bool = True, blocks: list | None = None, full: bool = False) -> dict:
         sid = self.resolve(ref)
         rec = self.store.record(sid)
         if self.launch_of(sid):
@@ -326,8 +363,62 @@ class Session:
                        [n for n, b in self.store.branches().items() if b["head"] == sid]
         rec["children"] = [c.id for c in self.store.children(sid)]
         if include_ir:
-            rec["listing"] = self.listing(self._kernel(self.module(sid)))
+            k = self._kernel(self.module(sid))
+            n = sum(len(b.insts) for b in k.blocks)
+            if blocks:
+                known = {b.label for b in k.blocks}
+                missing = [b for b in blocks if b not in known]
+                if missing:
+                    raise SessionError("parameter", f"no block(s) {missing}", values={"blocks": sorted(known)})
+                rec["listing"] = self.listing(Kernel(k.name, [b for b in k.blocks if b.label in blocks], k.descriptor, k.metadata))
+            elif n > self.OUTLINE_ABOVE and not full:
+                g = cfg(k, table(), self.arch)
+                heads = {s for b, ss in enumerate(g.succ) for s in ss if s <= b}
+                rec["outline"] = [{"block": b.label, "instructions": len(b.insts), "loop_header": i in heads,
+                                   "successors": [k.blocks[s].label for s in g.succ[i]],
+                                   "memory": sum(x.load or x.store for x in g.infos[i])} for i, b in enumerate(k.blocks)]
+                rec["note"] = (f"{n} instructions: the outline is shown. state(ref, blocks=[...]) lists blocks, "
+                               "find(ref, pattern) searches the listing, full=True returns everything")
+            else:
+                rec["listing"] = self.listing(k)
         return rec
+
+    def find(self, ref: str, pattern: str, limit: int = 200) -> dict:
+        """Instructions of a state whose text matches a regular expression, with their addresses."""
+        try:
+            rx = re.compile(pattern)
+        except re.error as e:
+            raise SessionError("parameter", f"bad regular expression: {e}") from None
+        k = self._kernel(self.module(self.resolve(ref)))
+        hits = [f"{b.label}[{i}] {x}" for b in k.blocks for i, x in enumerate(b.insts) if rx.search(str(x))]
+        return {"matches": len(hits), "lines": hits[:limit]}
+
+    def liveness(self, ref: str, block: str) -> dict:
+        """Registers live into and out of a block, and the registers no instruction of the kernel names
+        (free for an edit). Vector writes are masked by EXEC, so a vector register stays live across them."""
+        from ..mir.analysis import liveness
+        k = self._kernel(self.module(self.resolve(ref)))
+        idx = next((i for i, b in enumerate(k.blocks) if b.label == block), None)
+        if idx is None:
+            raise SessionError("parameter", f"no block {block!r}", values={"blocks": [b.label for b in k.blocks]})
+        g = cfg(k, table(), self.arch)
+        after = liveness(g)
+        infos = g.infos[idx]
+        def before(i):
+            live = set(after[idx][i]) - {u for u in infos[i].defs if u[0] not in ("v", "a", "lds")}
+            return live | infos[i].uses
+        def fmt(units):
+            out = {}
+            for c in ("v", "s", "a"):
+                out[c] = sorted(u[1] for u in units if u[0] == c)
+            out["other"] = sorted({u[0] for u in units if u[0] not in ("v", "s", "a")})
+            return out
+        used = {c: {u[1] for infos_ in g.infos for i in infos_ for u in (i.uses | i.defs) if u[0] == c} for c in ("v", "s", "a")}
+        used["v"] |= set(range(k.descriptor.get("system_vgpr_workitem_id", 0) + 1))
+        free = {"v": [i for i in range(self.arch.res("max_arch_vgprs")) if i not in used["v"]][:64],
+                "s": [i for i in range(self.arch.res("max_sgprs")) if i not in used["s"]][:32]}
+        return {"block": block, "live_in": fmt(before(0)) if infos else {}, "live_out": fmt(after[idx][-1]) if infos else {},
+                "never_named_in_kernel": free}
 
     def list_states(self) -> list[dict]:
         out = []
@@ -345,8 +436,17 @@ class Session:
         k = self._kernel(self.module(sid))
         g = cfg(k, table(), self.arch)
         use = abi.register_use(k)
-        block = self.manifest.resolve(self.manifest.timing_symbols()).block
+        from ..manifest import eval_expr
+        sym = self.manifest.timing_symbols()
+        block = self.manifest.resolve(sym).block
         lds = k.descriptor.get("group_segment_fixed_size", 0)
+        launch = self.launch_of(sid)
+        if launch:
+            dims = [eval_expr(d, sym) for d in launch["block"]]
+            block = (dims + [1, 1])[:3]
+            lds += eval_expr(launch.get("lds", 0), sym)
+        spill = {b.label: sum(x.mnemonic.startswith("scratch_") for x in b.insts) for b in k.blocks}
+        spill = {b: n for b, n in spill.items() if n}
         occ = self.arch.occupancy(arch_vgprs=max(use["v"], 1), agprs=use["a"], sgprs=use["s"] + self.arch.res("sgpr_reserved"),
                                   lds_bytes=lds, workgroup_size=block[0] * block[1] * block[2])
         infos = [i for b in g.infos for i in b]
@@ -359,6 +459,10 @@ class Session:
                 "loads": sum(i.load for i in infos), "stores": sum(i.store for i in infos),
                 "registers": {"vgprs": use["v"], "agprs": use["a"], "sgprs": use["s"]}, "lds_bytes": lds,
                 "occupancy": {"waves_per_simd": occ["waves_per_simd"], "limiter": occ["limiter"]},
+                "block": list(block), "scratch_bytes": k.descriptor.get("private_segment_fixed_size", 0),
+                "scratch_accesses_by_block": spill,
+                **({"warning": f"amdclang spilled registers to scratch memory ({sum(spill.values())} accesses): every spill is "
+                               "extra memory traffic; fewer values live at once (smaller load batches) avoid it"} if spill else {}),
                 "mnemonics": dict(collections.Counter(i.inst.mnemonic for i in infos).most_common(12))}
 
     def actions(self, ref: str = "ref") -> dict:
@@ -631,6 +735,10 @@ class Session:
                     "noise_floor": r["protocol"]["noise_floor"], "device": r["gpu"]["device"], "clocks": r["clocks"]["levels"],
                     "traffic": self.traffic(r["candidate"]["median_ms"]),
                     "reference_headroom": self.traffic(r["reference"]["median_ms"]).get("headroom")}
+            width = (r["speedup_ci95"][1] - r["speedup_ci95"][0]) / r["speedup"]
+            if width > 0.04:
+                data["disturbed"] = (f"the CI is {width:.0%} of the speedup: something else ran on the device; "
+                                     "time this state again before using the number")
         self.store.put_result(sid, "bench", data)
         return {"id": sid, **data}
 

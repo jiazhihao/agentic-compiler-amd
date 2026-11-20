@@ -12,8 +12,10 @@ name with fresh 240-pair timings and takes the lower of two.
 `bench` reports `traffic` for the timed state and `reference_headroom` for amdclang's build:
 the time divided by what a plain copy of the same bytes takes on this device. A reference headroom
 of 1.5 or more means 1.5x is possible in principle; near 1.0 the kernel already moves bytes as fast
-as the memory system does, and only touching fewer bytes, or fewer times, can help (check whether
-it really reads and writes everything the model assumes). Say in the report which case this is.
+as the memory system does, and only touching fewer bytes, or fewer times, can help. The model
+assumes every tensor element is touched exactly once: a kernel that re-reads a tensor (per head,
+per query, per pass) moves more than the model says, and reading it once is then the lever.
+Say in the report which case this is.
 
 ## What you have
 
@@ -37,6 +39,12 @@ Three levels, to be combined:
    `unroll_loads`, `fix_waits`, `fix_hazards`) on any state, including one made by `source`.
    This is the place for what amdclang does not do: loads in flight across iterations, later and
    weaker waits, wide loads, fused instructions, DPP reductions, MFMA.
+
+Reading large kernels: `state(id)` gives an outline above 400 instructions; `state(id, blocks=[...])`
+lists blocks, `find(id, regex)` searches, `liveness(id, block)` gives live and free registers,
+`features(id)` warns about scratch spills. `battery()` shows the shapes and input distributions
+`check` runs. `probe(id)` times a statically clean but incomplete variant (a phase removed) to see
+where the time goes; it is a diagnosis, never a result.
 
 `check` then `bench` every candidate; a state that fails the battery has no speed. `compare(a, b)` times two verified states against each other when they are too close to rank
 through `ref`. For effects of a few percent pass `pairs=240` to `bench` and `compare`: the harness

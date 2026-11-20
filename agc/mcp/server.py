@@ -78,10 +78,38 @@ def info() -> dict:
 
 
 @tool
-def state(ref: str = "ref", include_ir: bool = True) -> dict:
+def state(ref: str = "ref", include_ir: bool = True, blocks: list | None = None, full: bool = False) -> dict:
     """A state: its action, parent, children, what is known about it (static / check / bench), and the kernel body
-    as a numbered listing (`label:` lines and `[index] instruction`), which is how `edit` addresses instructions."""
-    return _s().state(ref, include_ir)
+    as a numbered listing (`label:` lines and `[index] instruction`), which is how `edit` addresses instructions.
+    Kernels above 400 instructions come back as an outline (blocks, sizes, loop headers, successors): name the
+    blocks to list with `blocks=[...]`, or pass full=True."""
+    return _s().state(ref, include_ir, blocks, full)
+
+
+@tool
+def find(ref: str, pattern: str) -> dict:
+    """Instructions of a state matching a regular expression, as `block[index] instruction` (for example every
+    write of a register: "^\\S+ v12\\b", every scratch access: "^scratch_")."""
+    return _s().find(ref, pattern)
+
+
+@tool
+def liveness(ref: str, block: str) -> dict:
+    """Registers live into and out of a block, and registers the kernel never names (free for an edit)."""
+    return _s().liveness(ref, block)
+
+
+@tool
+def probe(ref: str) -> dict:
+    """Diagnostic timing of a state that passes static_check but need not pass the battery (a phase removed, a loop
+    cut short): tells where the time goes. Never a result and never reportable."""
+    return _s().probe(ref)
+
+
+@tool
+def battery() -> dict:
+    """What `check` runs: shape variants and input distributions (seeds stay hidden)."""
+    return _s().battery()
 
 
 @tool
@@ -123,14 +151,16 @@ def edit_ir(parent: str, ir: str, note: str = "", launch: dict | None = None) ->
 
 
 @tool
-def source(text: str, launch: dict | None = None, note: str = "") -> dict:
+def source(text: str, launch: dict | None = None, note: str = "", defines: dict | None = None, flags: list | None = None) -> dict:
     """The source level: compile a rewritten HIP source with amdclang (the baseline's flags) and import it as a new
     root state. Keep the entry name and the manifest's parameters in order; further parameters must be appended and
     supplied through launch["args"]. `launch` may change grid and block (expressions over the shape symbols, e.g.
     "cdiv(N, 1024)"). Includes resolve next to the manifest. The state is unverified: static_check, check, bench.
     Use this to restructure a kernel (several elements per thread, another work split, another block size), then
-    refine the result at the machine level with edit / apply."""
-    return _s().source(text, launch, note)
+    refine the result at the machine level with edit / apply. `defines` ({"UNR": 8}) become -D macros, so a sweep
+    resends only the numbers when the text is unchanged; `flags` takes -f... / -m... compiler flags (for example
+    "-fno-slp-vectorize", "-fno-vectorize"). `features(id)` warns when amdclang spilled registers to scratch."""
+    return _s().source(text, launch, note, defines, flags)
 
 
 @tool
