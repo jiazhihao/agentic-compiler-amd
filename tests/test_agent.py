@@ -136,3 +136,30 @@ def test_a_manifest_baseline_is_validated(tmp_path):
     for bad in ({"threads": 4}, {"source": "missing.hip"}, "fast"):
         with pytest.raises(ManifestError, match="baseline"):
             Manifest.load(_with_baseline(tmp_path, bad))
+
+
+def test_rep_blocks_expand_in_edit_text():
+    from agc.session.session import expand
+    text = "s_nop 0\n%rep i 2\n  %rep j 4 6\n  v_add_f32 v{8 + 4*i + j}, v{j}, v{i}\n  %end\n%end\ns_endpgm"
+    assert expand(text).split("\n") == ["s_nop 0", "  v_add_f32 v12, v4, v0", "  v_add_f32 v13, v5, v0",
+                                        "  v_add_f32 v16, v4, v1", "  v_add_f32 v17, v5, v1", "s_endpgm"]
+    assert expand("%rep i 0 12 4\nx{i}\n%end") == "x0\nx4\nx8" and expand("%rep i 0\nx\n%end\ny") == "y"
+    for bad in ("%rep i 2\nx", "x\n%end", "%rep i 2\nv{k}\n%end", "%rep i\nx\n%end"):
+        with pytest.raises(SessionError) as e:
+            expand(bad)
+        assert e.value.kind == "parse"
+
+
+@needs_toolchain
+def test_edit_replaces_a_run_to_the_end_of_a_block_and_liveness_names_dead_registers(tmp_path):
+    s = Session.open(KERNELS / "axpy.json", tmp_path, quick=True)
+    k = s._kernel(s.module("ref"))
+    b = k.blocks[0]
+    tail = "\n".join(str(i) for i in b.insts[1:])
+    st = s.edit("ref", [{"op": "replace", "block": b.label, "index": 1, "count": "end", "text": "%rep i 2\ns_nop {i}\n%end\n" + tail}])
+    k2 = s._kernel(s.module(st["id"]))
+    assert [str(i) for i in k2.blocks[0].insts[1:3]] == ["s_nop 0", "s_nop 1"]
+    assert sum(len(x.insts) for x in k2.blocks) == sum(len(x.insts) for x in k.blocks) + 2
+    lv = s.liveness("ref", b.label)["if_vector_writes_cover_all_lanes"]
+    named = {int(n) for i in b.insts for n in __import__("re").findall(r"\bv(\d+)\b", str(i))}
+    assert lv["dead_across_block"]["v"] and not named & set(lv["dead_across_block"]["v"])

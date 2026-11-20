@@ -89,13 +89,15 @@ def state(ref: str = "ref", include_ir: bool = True, blocks: list | None = None,
 @tool
 def find(ref: str, pattern: str) -> dict:
     """Instructions of a state matching a regular expression, as `block[index] instruction` (for example every
-    write of a register: "^\\S+ v12\\b", every scratch access: "^scratch_")."""
+    write of a register: "^\\S+ v12\\b", every scratch access: "^scratch_"). Register tuples print as `s[30:31]`: escape the brackets and do not put \\b after `]`."""
     return _s().find(ref, pattern)
 
 
 @tool
 def liveness(ref: str, block: str) -> dict:
-    """Registers live into and out of a block, and registers the kernel never names (free for an edit)."""
+    """Registers live into and out of a block (conservative: a vector write under EXEC does not end a value),
+    the same under the classical rule with the registers that are dead across the block (temporaries for an
+    edit inside it; read the stated condition), and registers the kernel never names."""
     return _s().liveness(ref, block)
 
 
@@ -131,13 +133,30 @@ def actions(ref: str = "ref") -> dict:
     return _s().actions(ref)
 
 
+def _short(st: dict) -> dict:
+    """A state as returned to the agent after an edit: long texts it just sent are not echoed back."""
+    a = st.get("action")
+    if isinstance(a, dict):
+        a = dict(a)
+        if isinstance(a.get("ops"), list):
+            a["ops"] = [{**o, "text": o["text"][:200] + f" ... ({len(o['text'].splitlines())} lines)"}
+                        if isinstance(o, dict) and len(str(o.get("text", ""))) > 240 else o for o in a["ops"]]
+        st = {**st, "action": a}
+    return st
+
+
 @tool
 def edit(parent: str, ops: list, note: str = "") -> dict:
     """Structured edits → a new state. ops: [{"op": "replace"|"insert"|"delete", "block": label, "index": i,
     "text": "one instruction per line", "expect": "the instruction now at block[index]" (optional, checked)}].
-    `insert` places text before index (index == block length appends). `delete` takes "count" for a run of
-    instructions. Addresses refer to the parent's listing."""
-    return _s().edit(parent, ops, note)
+    `insert` places text before index (index == block length appends). `delete` and `replace` take "count" for a
+    run of instructions ("end": to the end of the block, so a whole block is {"op": "replace", "index": 0,
+    "count": "end"}). Addresses refer to the parent's listing. Repetition in `text` (here and in edit_ir):
+        %rep i 16                  ; i = 0..15; `%rep i 4 12` is 4..11; `%rep i 0 64 4` steps by 4; blocks nest
+          v_fmac_f32 v{40 + i}, s{68 + i}, v{8 + i}
+        %end
+    `{...}` is integer arithmetic over the counters. The result echoes each op's text only in short form."""
+    return _short(_s().edit(parent, ops, note))
 
 
 @tool
@@ -147,7 +166,7 @@ def edit_ir(parent: str, ir: str, note: str = "", launch: dict | None = None) ->
     `launch` (optional) changes how the state is launched: {"grid": [...], "block": [...], "lds": bytes,
     "args": [{"dtype": "u32", "value": "expression over the shape symbols"}]}; appended args get kernarg slots after
     the existing arguments (their offsets are returned in the state's action as `arg_offsets`)."""
-    return _s().edit_ir(parent, ir, note, launch)
+    return _short(_s().edit_ir(parent, ir, note, launch))
 
 
 @tool

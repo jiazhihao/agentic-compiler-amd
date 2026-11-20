@@ -61,6 +61,62 @@ def transform(name: str, doc: str, params: dict | None = None, launch: bool = Fa
     return deco
 
 
+_REP = re.compile(r"^\s*%rep\s+([A-Za-z_]\w*)\s+(.+?)\s*$")
+_END = re.compile(r"^\s*%end\s*$")
+
+
+def expand(text: str) -> str:
+    """Repetition in edit text, for unrolled code written once:
+
+        %rep i 16                    ; i = 0 .. 15  (`%rep i 4 12`: 4 .. 11; `%rep i 0 64 4`: 0, 4, .. 60)
+          global_load_dwordx4 v[{20 + 4*i}:{23 + 4*i}], v[2:3], off, off offset:{64*i}
+        %end
+
+    `{expression}` is integer arithmetic over the enclosing counters (+ - * // % and parentheses). Blocks nest."""
+    if "%rep" not in text and "%end" not in text:
+        return text
+    from ..manifest import eval_expr
+
+    def subst(line: str, env: dict) -> str:
+        try:
+            return re.sub(r"\{([^{}]+)\}", lambda m: str(eval_expr(m.group(1), env)), line)
+        except ManifestError as e:
+            raise SessionError("parse", f"%rep: {e}", location={"text": line}) from None
+
+    def block(lines: list[str], pos: int, env: dict, top: bool) -> tuple[list[str], int]:
+        out = []
+        while pos < len(lines):
+            line = lines[pos]
+            m = _REP.match(line.split(";")[0])
+            if m:
+                try:
+                    nums = [eval_expr(x, env) for x in m.group(2).split()]
+                except ManifestError as e:
+                    raise SessionError("parse", f"%rep: {e}", location={"text": line}) from None
+                if not 1 <= len(nums) <= 3:
+                    raise SessionError("parse", "%rep NAME COUNT | NAME START STOP [STEP]", location={"text": line})
+                rng = range(*nums)
+                if len(rng) > 4096:
+                    raise SessionError("parse", "%rep: more than 4096 repetitions", location={"text": line})
+                end = pos + 1
+                for v in rng or [None]:
+                    body, end = block(lines, pos + 1, {**env, m.group(1): v if v is not None else 0}, False)
+                    if v is not None:
+                        out += body
+                pos = end
+            elif _END.match(line.split(";")[0]):
+                if top:
+                    raise SessionError("parse", "%end without %rep", location={"text": line})
+                return out, pos + 1
+            else:
+                out.append(subst(line, env) if env else line)
+                pos += 1
+        if not top:
+            raise SessionError("parse", "%rep without %end")
+        return out, pos
+    return "\n".join(block(text.splitlines(), 0, {}, True)[0])
+
+
 class Session:
     def __init__(self, manifest: Manifest, store: Store, root: Path, quick: bool = False):
         self.manifest, self.store, self.root, self.quick = manifest, store, root, quick
@@ -469,7 +525,20 @@ class Session:
         used["v"] |= set(range(k.descriptor.get("system_vgpr_workitem_id", 0) + 1))
         free = {"v": [i for i in range(self.arch.res("max_arch_vgprs")) if i not in used["v"]][:64],
                 "s": [i for i in range(self.arch.res("max_sgprs")) if i not in used["s"]][:32]}
+        cl = liveness(g, masked_defs_kill=True)            # a vector write ends the old value: true where EXEC covers every lane read later
+        cin = (set(cl[idx][0]) - set(infos[0].defs)) | infos[0].uses if infos else set()
+        cout = set(cl[idx][-1]) if infos else set()
+        named = {u for i in infos for u in (i.uses | i.defs)}
+        dead = {c: [n for n in range(self.arch.res("max_arch_vgprs" if c == "v" else "max_sgprs"))
+                    if (c, n) not in cin and (c, n) not in cout and (c, n) not in named][:96] for c in ("v", "s")}
         return {"block": block, "live_in": fmt(before(0)) if infos else {}, "live_out": fmt(after[idx][-1]) if infos else {},
+                "if_vector_writes_cover_all_lanes": {
+                    "what": "the classical analysis: a vector write ends the register's old value. Valid when the writes that "
+                            "redefine a register run under an EXEC covering every lane that later reads it (straight-line code and "
+                            "loops whose mask only shrinks); check that before relying on it",
+                    "live_in": fmt(cin), "live_out": fmt(cout),
+                    "dead_across_block": {"what": "not live into or out of the block and not named in it: usable as temporaries "
+                                                  "inside this block (SGPRs: exact; VGPRs: under the condition above)", **dead}},
                 "never_named_in_kernel": free}
 
     def list_states(self) -> list[dict]:
@@ -556,6 +625,7 @@ class Session:
         dialect (a numbered listing is accepted). Register counts in the descriptor follow the code.
         The state starts unverified."""
         pid = self.resolve(parent)
+        text = expand(text)
         if ".amdgcn_target" in text:
             try:
                 module = asm.parse(text)
@@ -601,8 +671,9 @@ class Session:
 
     def edit(self, parent: str, ops: list[dict], note: str = "") -> dict:
         """Structured edits. Each op: {"op": "replace" | "insert" | "delete", "block": label, "index": i,
-        "text": instructions (replace / insert; one per line), "expect": the instruction now at that
-        address (optional, checked), "count": instructions to delete (delete only, default 1)}. `insert` places
+        "text": instructions (replace / insert; one per line; `%rep` blocks are expanded, see `expand`),
+        "expect": the instruction now at that address (optional, checked), "count": instructions to delete
+        or to replace (default 1; "end": to the end of the block)}. `insert` places
         the text before `index` (index = length appends). Addresses refer to the parent state; ops are applied from the last address backwards."""
         pid = self.resolve(parent)
         k0 = self._kernel(self.module(pid))
@@ -628,13 +699,15 @@ class Session:
             new = []
             if kind != "delete":
                 try:
-                    new = [asm.parse_inst(l) for l in str(op.get("text", "")).splitlines() if l.strip()]
+                    new = [asm.parse_inst(l) for l in expand(str(op.get("text", ""))).splitlines() if l.strip()]
                 except asm.AsmError as e:
                     raise SessionError("parse", f"ops[{n}]: {e.message}", location={"op": n, "text": e.text}) from None
                 if not new:
                     raise SessionError("parameter", f"ops[{n}]: {kind} needs `text`")
-            count = op.get("count", 1) if kind == "delete" else 1
-            if type(count) is not int or count < 1 or (kind == "delete" and i + count > size):
+            count = op.get("count", 1) if kind != "insert" else 1
+            if count in ("end", -1):                         # to the end of the block
+                count = size - i
+            if type(count) is not int or count < 1 or (kind != "insert" and i + count > size):
                 raise SessionError("parameter", f"ops[{n}]: count {count!r} runs past the end of block {label} ({size} instructions)", values=op)
             parsed.append((order[label], i, kind, label, new, count))
         seen = set()
@@ -653,7 +726,7 @@ class Session:
             elif kind == "delete":
                 del insts[i:i + count]
             else:
-                insts[i:i + 1] = new
+                insts[i:i + count] = new
         blocks = asm.split_at_branches(blocks)
         if not any(b.insts for b in blocks):
             raise SessionError("parameter", "the edit leaves no instructions")
