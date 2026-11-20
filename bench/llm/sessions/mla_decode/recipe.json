@@ -126,5 +126,13 @@
   "seconds": 665,
   "log": ".agc/sessions/mla_decode-de1ad0bfaf/agent/20261120-163946.jsonl"
  },
- "recorded": "2026-11-20"
+ "recorded": "2026-11-20",
+ "attribution": {
+  "levels": [
+   "mir",
+   "source"
+  ],
+  "amdclang_on_rewritten_source": 1.7026,
+  "machine_level_gain": 1.493
+ }
 }

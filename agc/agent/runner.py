@@ -102,7 +102,22 @@ def record(s: Session, sid: str, verdict: dict, report: dict, meta: dict) -> Pat
     src = next((st["action"].get("file") for st in ex["trace"] if st["action"].get("name") == "source"), None)
     if src and Path(src).exists():
         shutil.copy(src, d / "source.hip")
-    recipe = {"kernel": s.manifest.name, "launch": ex["launch"], "strict": ex["strict"],
+    # Attribution: how much of the speedup amdclang itself delivers on the rewritten source, and how much
+    # the machine-level work after it adds. A recipe that is only a `source` state is amdclang's own code.
+    anc = s.store.ancestry(sid)
+    attribution = {"levels": sorted({"source" if a.action.get("name") == "source" else "program" if a.action.get("name") == "generate"
+                                     else "import" if a.action.get("name") == "import" else "mir" for a in anc})}
+    if anc[0].action.get("name") == "source":
+        if len(anc) == 1:
+            attribution.update(amdclang_on_rewritten_source=verdict.get("speedup"), machine_level_gain=1.0)
+        else:
+            try:
+                b = s.bench(anc[0].id, PAIRS)
+                attribution.update(amdclang_on_rewritten_source=b["speedup"],
+                                   machine_level_gain=round(verdict["speedup"] / b["speedup"], 3))
+            except SessionError as e:                         # the source state alone does not verify
+                attribution.update(amdclang_on_rewritten_source=None, note=f"{e.kind}: {e.message}"[:200])
+    recipe = {"kernel": s.manifest.name, "launch": ex["launch"], "strict": ex["strict"], "attribution": attribution,
               "path": [st["action"].get("name") for st in ex["trace"]],
               "verified": {**{k: verdict.get(k) for k in ("outcome", "speedup", "speedup_ci95", "reference_ms", "candidate_ms",
                                                           "cases", "protocol_version")}, "pairs": PAIRS, "runs": verdict.get("runs")},

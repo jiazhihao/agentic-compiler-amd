@@ -121,5 +121,12 @@
   "seconds": 192,
   "log": ".agc/sessions/mo_reduce_sum-4af6e257d9/agent/20261120-182102.jsonl"
  },
- "recorded": "2026-11-20"
+ "recorded": "2026-11-20",
+ "attribution": {
+  "levels": [
+   "source"
+  ],
+  "amdclang_on_rewritten_source": 1.8612,
+  "machine_level_gain": 1.0
+ }
 }

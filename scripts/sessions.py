@@ -18,6 +18,7 @@ from agc.session import Session
 
 BENCH = Path(__file__).resolve().parent.parent / "bench" / "llm"
 POLICY = corpus.BASELINES.with_name("llm-gfx950.json")
+FLAGS = corpus.BASELINES.with_name("llm-flags-gfx950.json")
 
 
 def recipes() -> dict:
@@ -26,21 +27,31 @@ def recipes() -> dict:
 
 def table() -> str:
     pol, rec = json.loads(POLICY.read_text())["kernels"], recipes()
-    rows = ["| kernel | library | amdclang ms | default policy | agent session (95% CI) | how |", "|---|---|---|---|---|---|"]
+    flags = json.loads(FLAGS.read_text())["kernels"] if FLAGS.exists() else {}
+    rows = ["| kernel | library | amdclang -O3 ms | amdclang -O3 -ffast-math | default policy | agent session (95% CI) | amdclang on the rewritten source | machine-level gain | how |",
+            "|---|---|---|---|---|---|---|---|---|"]
     best = []
     for n, k in pol.items():
         p = "fallback" if k["fallback"] else f"{k['chosen']['speedup']:.3f}"
+        fm = flags.get(n, {}).get("-ffast-math")
+        fm = "same code" if fm == "identical code" else f"{fm[1]:.3f}" if isinstance(fm, list) else "fails" if fm else ""
         r = rec.get(n)
         sp = max(1.0 if k["fallback"] else k["chosen"]["speedup"], r["verified"]["speedup"] if r else 1.0)
         best.append(sp)
         if r:
             v = r["verified"]
             how = " + ".join(r["path"]) + ("" if r["launch"] is None else ", own launch")
-            rows.append(f"| `{n}` | {k['library']} | {k['amdclang_ms']:.4f} | {p} | **{v['speedup']:.3f}** ({v['speedup_ci95'][0]:.3f} to {v['speedup_ci95'][1]:.3f}) | {how} |")
+            a = r.get("attribution", {})
+            src = a.get("amdclang_on_rewritten_source")
+            rows.append(f"| `{n}` | {k['library']} | {k['amdclang_ms']:.4f} | {fm} | {p} | **{v['speedup']:.3f}** ({v['speedup_ci95'][0]:.3f} to {v['speedup_ci95'][1]:.3f}) "
+                        f"| {'' if src is None else f'{src:.3f}'} | {'' if a.get('machine_level_gain') is None else f'{a['machine_level_gain']:.2f}'} | {how} |")
         else:
-            rows.append(f"| `{n}` | {k['library']} | {k['amdclang_ms']:.4f} | {p} | | |")
+            rows.append(f"| `{n}` | {k['library']} | {k['amdclang_ms']:.4f} | {fm} | {p} | | | | |")
     wins = sum(s > 1 for s in best)
-    rows += ["", f"{wins} of {len(best)} kernels faster than amdclang (policy or session); {len(best) - wins} fallbacks; "
+    rows += ["", "All speedups are over amdclang -O3 on the benchmark source as shipped. \"amdclang on the rewritten source\" is the part of a "
+                 "session's speedup that amdclang itself delivers once the source is restructured; \"machine-level gain\" is what agc's own "
+                 "level adds on top (1.00: none). The -ffast-math column is the unmodified source with that flag.",
+             "", f"{wins} of {len(best)} kernels faster than amdclang (policy or session); {len(best) - wins} fallbacks; "
                  f"geomean of the best verified result {math.exp(sum(map(math.log, best)) / len(best)):.3f} with fallbacks at 1.0."]
     return "\n".join(rows)
 

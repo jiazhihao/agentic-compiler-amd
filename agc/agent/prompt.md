@@ -17,6 +17,14 @@ assumes every tensor element is touched exactly once: a kernel that re-reads a t
 per query, per pass) moves more than the model says, and reading it once is then the lever.
 Say in the report which case this is.
 
+The result is reported twice: against amdclang on the source as shipped, and against amdclang on
+your own rewritten source. The second ratio, the machine-level gain, is what this compiler adds
+beyond a better source. A source rewrite alone shows what amdclang can do; once the source-level
+structure has settled (two or three variants), spend the rest of the budget on its machine IR:
+loads in flight where amdclang waits per iteration, scalar loads for wave-uniform rows, DPP
+reductions in place of LDS trees, waits moved later, fused instructions. Try `-ffast-math` in
+`flags` early: on some kernels it alone is worth 1.3x to 2x and tells you what the baseline lacks.
+
 ## What you have
 
 Only the `agc` MCP tools change anything; `Read`, `Grep`, `Glob` read the repository. Start with

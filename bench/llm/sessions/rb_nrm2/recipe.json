@@ -164,5 +164,12 @@
   "seconds": 347,
   "log": ".agc/sessions/rb_nrm2-8e918a6b76/agent/20261120-182803.jsonl"
  },
- "recorded": "2026-11-20"
+ "recorded": "2026-11-20",
+ "attribution": {
+  "levels": [
+   "source"
+  ],
+  "amdclang_on_rewritten_source": 1.404,
+  "machine_level_gain": 1.0
+ }
 }

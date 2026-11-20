@@ -1,0 +1,144 @@
+{
+ "kernel": "fi_merge_state",
+ "launch": {
+  "grid": [
+   "cdiv(P*H*32, (64))",
+   1,
+   1
+  ],
+  "block": [
+   "(64)",
+   1,
+   1
+  ],
+  "lds": 0,
+  "args": [
+   {
+    "dtype": "u32",
+    "value": "P*H"
+   }
+  ]
+ },
+ "strict": false,
+ "path": [
+  "source"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 1.0519,
+  "speedup_ci95": [
+   1.0439,
+   1.0595
+  ],
+  "reference_ms": 0.10738,
+  "candidate_ms": 0.10188,
+  "cases": 77,
+  "protocol_version": "agc-timing-amd-2",
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 1.0632,
+    "ci95": [
+     1.058,
+     1.0747
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 1.0519,
+    "ci95": [
+     1.0439,
+     1.0595
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "Memory-bound case: amdclang's build is at reference headroom 1.12 to 1.21 (every element touched exactly once, no re-reads), so 1.5x was out of reach; the shipped state is 1.041x (240 pairs, CI 1.0345 to 1.0496; 1.060x at 60 pairs), at headroom 1.09 to 1.10. State 465fdc7b495abe86 is a source-level relaunch: instead of one workgroup per position with block (32, H) = 16 waves at H=32, it launches cdiv(P*H, 2) one-wave workgroups of 64 threads over the flattened (position, head) rows, so each wave reads two heads = 1 KB contiguous of v_a and v_b, with a row >= P*H guard for odd totals (P*H passed as an appended argument). The arithmetic is the baseline's unchanged (true division kept), so results match within the battery without relying on tolerance.",
+ "tried": [
+  {
+   "what": "Flat rows, block 256 (8 heads per workgroup), reciprocal (v_rcp_f32) instead of division",
+   "state": "389649a98a784d07",
+   "outcome": "win",
+   "speedup": 1.0412
+  },
+  {
+   "what": "Flat rows, block 64 (2 heads per one-wave workgroup), reciprocal instead of division",
+   "state": "b07220b61b1a84f4",
+   "outcome": "win at 60 pairs (CI 1.056 to 1.079); parity against the division variant in compare at 240 pairs (1.0043, CI 0.9974 to 1.0094)",
+   "speedup": 1.065
+  },
+  {
+   "what": "Flat rows, block 1024 (32 heads per workgroup), reciprocal",
+   "state": "d79f783ae961323b",
+   "outcome": "parity",
+   "speedup": 0.999
+  },
+  {
+   "what": "Flat rows, block 128, reciprocal",
+   "state": "4e95a49254211b1a",
+   "outcome": "win against ref at 60 pairs (1.0788, CI 1.061 to 1.094, in a run where ref was slow at 0.112 ms); 0.9879 against block 64 in compare at 240 pairs (CI 0.9838 to 0.992)",
+   "speedup": 1.0788
+  },
+  {
+   "what": "Flat rows, block 64, baseline's true division (shipped)",
+   "state": "465fdc7b495abe86",
+   "outcome": "win",
+   "speedup": 1.041
+  },
+  {
+   "what": "Block 64 with s_a / s_b read through wave-uniform addresses (scalar loads, second row clamped) instead of per-lane 4-byte gathers",
+   "state": "a555001fc25d178b",
+   "outcome": "parity against 465fdc7b495abe86 in compare at 240 pairs (0.9949, CI 0.992 to 1.0027); not benched against ref",
+   "speedup": 0.9949
+  },
+  {
+   "what": "Block 64 with 32 bytes per lane (4 heads per wave, 2 KB contiguous per tensor)",
+   "state": "a8699eecec3f6e77",
+   "outcome": "loss against 465fdc7b495abe86 in compare at 120 pairs (0.9587, CI 0.9532 to 0.9677); not benched against ref",
+   "speedup": 0.9587
+  },
+  {
+   "what": "coarsen factor 2 on the block-64 state",
+   "state": "0faf110cac31237b",
+   "outcome": "loss against 465fdc7b495abe86 in compare at 120 pairs (0.9741, CI 0.9656 to 0.9817); not benched against ref",
+   "speedup": 0.9741
+  },
+  {
+   "what": "Earlier attempts found in the session: coarsen on ref (three factors)",
+   "state": "69bb3e14b5998111, b7f0eb9b1ccfcf66, f165f320b8ad14f9",
+   "outcome": "loss",
+   "speedup": "0.9529, 0.9455, 0.9685"
+  }
+ ],
+ "friction": [
+  "The reference timing drifted between runs from 0.1039 to 0.1122 ms (reference_headroom reported as 1.12, 1.15, 1.16, 1.17 and 1.21 for the same ref), so 60-pair speedups against ref are not comparable across candidates: block 128 measured 1.079 against ref but 0.988 against block 64 in a direct compare. The same state 465fdc7b495abe86 measured 1.060 at 60 pairs and 1.041 at 240 pairs. A bench that times several candidates against ref in one interleaved process would rank a sweep in one job.",
+  "compare() returns no traffic / headroom and does not record a verdict on the state, so states ranked only by compare (a555001fc25d178b, a8699eecec3f6e77, 0faf110cac31237b) have no bench entry in list_states.",
+  "No machine-level edit was attempted: the block-64 listing is straight-line with all four loads issued before the first wait, and I saw nothing left for unroll_loads, later waits or wide loads to act on. I did not test that assumption with an edit.",
+  "The existing coarsen states in list_states carry no factor in the summary line (action is just `coarsen`), so I could not tell which factors had already been tried without opening each state."
+ ],
+ "lessons": [
+  "fi_merge_state is a memory-bound elementwise kernel (270.5 MB read, 135.3 MB written, each element once; reference headroom 1.12 to 1.21). Best result 1.041x at 240 pairs, ending at headroom about 1.10; consistent with the notes that kernels at headroom 1.0 to 1.2 gain a few percent at most.",
+  "What paid was launch geometry alone: flattening block (32, H) with one workgroup per position (16 waves per workgroup at H=32) into one-wave workgroups of 64 threads over flattened rows, each wave reading 1 KB contiguous per input. Block sweep on the flattened source against ref at 60 pairs: 64 -> 1.065, 128 -> 1.079 (noisy ref run), 256 -> 1.041, 1024 -> 0.999 (parity). Direct compare at 240 pairs put block 128 at 0.988 of block 64.",
+  "Replacing two IEEE divisions (v_div_scale / v_div_fmas / v_div_fixup sequences, about 25 VALU instructions) with one v_rcp_f32 and two multiplies was parity on this kernel: 1.0043 in compare at 240 pairs (CI 0.9974 to 1.0094). Arithmetic is not the bound; keep the exact division and stay bit-compatible.",
+  "Reading the per-head scalars through wave-uniform scalar loads instead of per-lane 4-byte gathers of the same two addresses: parity (0.9949, CI 0.992 to 1.0027).",
+  "32 bytes per lane (2 KB contiguous per wave per tensor) lost 4 % against 16 bytes per lane (0.9587), and coarsen factor 2 on the one-wave block-64 state lost 2.6 % (0.9741). Both agree with the existing notes for fi_silu_and_mul and rb_nrm2.",
+  "60-pair timings against ref moved by 2 % for the same state between runs here (1.060 then 1.041 at 240 pairs) because the ref time itself drifted by up to 8 %; rank a sweep with compare at 240 pairs, not with separate benches against ref."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 1.3602662,
+  "turns": 39,
+  "final": "The 1.5x target was not reached: the best verified state is `465fdc7b495abe86` at **1.041x** over amdclang (240 pairs, CI 1.0345 to 1.0496). It passes the static check and the full 77-case battery, and the report is filed with it as the state to ship.\n\nThis is the memory-bound case. amdclang's build already runs at 1.12 to 1.21 times the memory floor, and every tensor element is touched exactly once, so there are no re-reads to remove. The shipped state ends at about 1.10 times the floor.\n\n**What the winning state does:** it replaces one workgroup per position (block `(32, H)`, 16 waves at H=32) with one-wave workgroups of 64 threads over the flattened (position, head) rows. Each wave reads two heads, 1 KB contiguous from each input. A guard on `row >= P*H` handles odd totals, and the arithmetic is the baseline's unchanged, including the true division.\n\n**What did not help on top of it:**\n\n| Idea | Result against the block-64 state |\n|---|---|\n| Reciprocal instead of the two divisions | parity (1.004) |\n| Scalar loads for the per-head scalars | parity (0.995) |\n| Block 128 | 0.988 |\n| 32 bytes per lane | loss (0.959) |\n| `coarsen` factor 2 | loss (0.974) |\n\nAgainst amdclang, block 256 was 1.041x and block 1024 was parity. I stopped after three ideas of different kinds each brought less than 1 %.\n\nI made no machine-level edits. The block-64 listing is straight-line with all four loads issued before the first wait, and I saw nothing left for the passes to act on, but I did not test that with an edit.\n\nThe reference timing drifted by up to 8 % between runs, so 60-pair speedups against `ref` were not comparable across candidates. The same shipped state measured 1.060x at 60 pairs and 1.041x at 240; the harness's re-verification may land nearer the lower figure.",
+  "seconds": 167,
+  "log": ".agc/sessions/fi_merge_state-c22f458c82/agent/20261120-190817.jsonl"
+ },
+ "recorded": "2026-11-20",
+ "attribution": {
+  "levels": [
+   "source"
+  ],
+  "amdclang_on_rewritten_source": 1.0519,
+  "machine_level_gain": 1.0
+ }
+}

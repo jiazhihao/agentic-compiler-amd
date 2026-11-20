@@ -107,5 +107,12 @@
   "seconds": 155,
   "log": ".agc/sessions/mo_t5_layernorm-897f366ecf/agent/20261120-184142.jsonl"
  },
- "recorded": "2026-11-20"
+ "recorded": "2026-11-20",
+ "attribution": {
+  "levels": [
+   "source"
+  ],
+  "amdclang_on_rewritten_source": 1.7396,
+  "machine_level_gain": 1.0
+ }
 }

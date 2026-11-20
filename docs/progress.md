@@ -21,6 +21,33 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 
 ## Log
 
+### 2026-11-20 — baseline audit of the LLM benchmark (#29, #34)
+- **Attribution.** For every recorded session recipe the source-rewritten state was timed on its
+  own. 22 of 23 recipes are amdclang's compilation of the rewritten source with no machine-level
+  work; their speedups are source restructurings that amdclang delivers by itself. Only
+  `mla_decode` has a machine-level part: 1.70x from the rewritten source, 2.54x after the `mir`
+  edits (1.49x from agc's own level). Recipes and the session table now carry
+  `amdclang on the rewritten source` and `machine-level gain`; the harness measures both when
+  it records a recipe.
+- **Flags** (`tests/baselines/llm-flags-gfx950.json`, unmodified sources, 120 pairs against
+  `-O3`): `-ffast-math` gives `fi_rope` 1.98x, `fa_attention_causal` 1.44x, `fa_attention`
+  1.35x, `rb_gemvt` 1.19x, `mo_glu_fwd` 1.08x, `mla_decode` 1.08x, `moe_gate_topk` 1.06x,
+  `mo_t5_layernorm` 1.05x, `fi_rmsnorm` 1.03x; it loses 2 % to 4 % on `attn_decode`, `kda_step`,
+  `mo_prelu_bwd`. `-funroll-loops` produces identical code everywhere; `-O2` is identical or
+  parity. So `fi_rope`'s 2.1x session and `rb_gemvt`'s 1.23x are almost entirely fast-math.
+- **Ports.** `attn_decode`, `fa_attention*`, `mla_decode`, `kda_step` and `moe_gate_topk` are
+  simplified ports written for this benchmark; the optimized upstream kernels (FlashInfer's
+  decode attention, vLLM's top-k template) were not extracted. Their baselines are weaker than
+  what the libraries ship, and the largest session speedups (18x, 7.4x, 3.9x) are on them.
+- **Measurement.** Timings are paired, verified at the bench shapes before and after, A/A
+  controls within 1 %. The bench shapes give 0.1 ms kernels of which about 20 us is launch.
+- **What stands as compiler-level results**: the default policy's `coarsen` wins (1.02x to
+  1.11x on 10 kernels, bit-identical `mir` transformations of amdclang's code) and
+  `mla_decode`'s 1.49x. Everything else in the session table is what a better source gives
+  amdclang.
+- Session prompt changed: the machine-level gain is the reported contribution, and the budget
+  after the source structure settles goes to the machine IR.
+
 ### 2026-11-20 — the per-kernel harness and the first agent sessions (#34, #35 to #60)
 - `agc.agent` (`agc agent MANIFEST`, `agc replay`): a headless Claude Code session per kernel
   with the agc MCP tools as its only way to act. The harness reruns the static check and the

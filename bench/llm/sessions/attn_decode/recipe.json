@@ -145,5 +145,12 @@
   "seconds": 521,
   "log": ".agc/sessions/attn_decode-ef3ccd4f9c/agent/20261120-162837.jsonl"
  },
- "recorded": "2026-11-20"
+ "recorded": "2026-11-20",
+ "attribution": {
+  "levels": [
+   "source"
+  ],
+  "amdclang_on_rewritten_source": 7.3994,
+  "machine_level_gain": 1.0
+ }
 }

@@ -149,46 +149,48 @@ Kernels from FlashInfer, vLLM, rocBLAS and MIOpen, and ports of attention, MLA, 
 
 One agent session per kernel through the harness (`agc agent`); each number is the harness's own verification of the recorded recipe (static check, full battery, the lower of two 240-pair timings). Kernels without a session result are still open.
 
-| kernel | library | amdclang ms | default policy | agent session (95% CI) | how |
-|---|---|---|---|---|---|
-| `attn_decode` | port | 1.2545 | fallback | **7.399** (7.393 to 7.407) | source, own launch |
-| `fa_attention` | port | 0.2209 | fallback | **3.863** (3.856 to 3.871) | source, own launch |
-| `fa_attention_causal` | port | 0.2010 | fallback | **2.193** (2.190 to 2.197) | source, own launch |
-| `fi_fused_add_rmsnorm` | flashinfer | 0.1045 | 1.015 | | |
-| `fi_gelu_tanh_and_mul` | flashinfer | 0.1067 | fallback | | |
-| `fi_merge_state` | flashinfer | 0.1084 | fallback | | |
-| `fi_merge_state_in_place` | flashinfer | 0.0998 | fallback | | |
-| `fi_merge_states` | flashinfer | 0.1089 | 1.071 | | |
-| `fi_rmsnorm` | flashinfer | 0.1273 | 1.019 | | |
-| `fi_rope` | flashinfer | 0.1069 | fallback | **2.115** (2.103 to 2.126) | source + edit, own launch |
-| `fi_silu_and_mul` | flashinfer | 0.0988 | fallback | **1.043** (1.036 to 1.050) | source, own launch |
-| `kda_step` | port | 0.1998 | fallback | **1.697** (1.694 to 1.703) | source, own launch |
-| `mla_decode` | port | 0.4568 | fallback | **2.541** (2.539 to 2.543) | source + edit + edit, own launch |
-| `mo_active_fwd` | miopen | 0.1094 | fallback | | |
-| `mo_adam` | miopen | 0.3764 | fallback | | |
-| `mo_bn_infer` | miopen | 0.1055 | fallback | | |
-| `mo_glu_fwd` | miopen | 0.1892 | 1.113 | | |
-| `mo_prelu_bwd` | miopen | 0.2189 | fallback | | |
-| `mo_reduce_sum` | miopen | 0.1566 | fallback | **1.861** (1.853 to 1.866) | source, own launch |
-| `mo_rope_fwd` | miopen | 0.1873 | 1.066 | | |
-| `mo_t5_layernorm` | miopen | 0.1133 | fallback | **1.740** (1.735 to 1.744) | source, own launch |
-| `moe_gate_topk` | port | 0.6575 | fallback | **17.971** (17.915 to 18.024) | source |
-| `rb_axpy` | rocblas | 0.1642 | 1.039 | | |
-| `rb_copy` | rocblas | 0.1097 | 1.029 | | |
-| `rb_dot` | rocblas | 0.1398 | fallback | | |
-| `rb_gemvn` | rocblas | 0.2208 | fallback | **2.187** (2.177 to 2.195) | source, own launch |
-| `rb_gemvt` | rocblas | 0.1076 | fallback | **1.234** (1.231 to 1.236) | source, own launch |
-| `rb_ger` | rocblas | 0.1041 | fallback | | |
-| `rb_nrm2` | rocblas | 0.1233 | fallback | **1.404** (1.398 to 1.408) | source, own launch |
-| `rb_rot` | rocblas | 0.2022 | 1.077 | | |
-| `rb_scal` | rocblas | 0.1035 | 1.058 | | |
-| `rb_swap` | rocblas | 0.1906 | 1.054 | | |
-| `vl_fused_add_rms_norm` | vllm | 0.1403 | fallback | | |
-| `vl_moe_align` | vllm | 0.2715 | fallback | **5.899** (5.880 to 5.912) | source, own launch |
-| `vl_rms_norm` | vllm | 0.1320 | fallback | | |
-| `vl_rotary_embedding` | vllm | 0.1242 | fallback | | |
+| kernel | library | amdclang -O3 ms | amdclang -O3 -ffast-math | default policy | agent session (95% CI) | amdclang on the rewritten source | machine-level gain | how |
+|---|---|---|---|---|---|---|---|---|
+| `attn_decode` | port | 1.2545 | 0.980 | fallback | **7.399** (7.393 to 7.407) | 7.399 | 1.00 | source, own launch |
+| `fa_attention` | port | 0.2209 | 1.345 | fallback | **3.863** (3.856 to 3.871) | 3.863 | 1.00 | source, own launch |
+| `fa_attention_causal` | port | 0.2010 | 1.445 | fallback | **2.193** (2.190 to 2.197) | 2.193 | 1.00 | source, own launch |
+| `fi_fused_add_rmsnorm` | flashinfer | 0.1045 | 1.006 | 1.015 | | | | |
+| `fi_gelu_tanh_and_mul` | flashinfer | 0.1067 | 1.004 | fallback | **1.067** (1.063 to 1.072) | 1.067 | 1.00 | source, own launch |
+| `fi_merge_state` | flashinfer | 0.1084 | 0.998 | fallback | **1.052** (1.044 to 1.060) | 1.052 | 1.00 | source, own launch |
+| `fi_merge_state_in_place` | flashinfer | 0.0998 | 1.002 | fallback | | | | |
+| `fi_merge_states` | flashinfer | 0.1089 | 0.995 | 1.071 | | | | |
+| `fi_rmsnorm` | flashinfer | 0.1273 | 1.032 | 1.019 | | | | |
+| `fi_rope` | flashinfer | 0.1069 | 1.980 | fallback | **2.115** (2.103 to 2.126) | 2.149 | 0.98 | source + edit, own launch |
+| `fi_silu_and_mul` | flashinfer | 0.0988 | 1.006 | fallback | **1.043** (1.036 to 1.050) | 1.043 | 1.00 | source, own launch |
+| `kda_step` | port | 0.1998 | 0.958 | fallback | **1.697** (1.694 to 1.703) | 1.697 | 1.00 | source, own launch |
+| `mla_decode` | port | 0.4568 | 1.081 | fallback | **2.541** (2.539 to 2.543) | 1.703 | 1.49 | source + edit + edit, own launch |
+| `mo_active_fwd` | miopen | 0.1094 | 1.000 | fallback | | | | |
+| `mo_adam` | miopen | 0.3764 | 1.008 | fallback | | | | |
+| `mo_bn_infer` | miopen | 0.1055 | 0.989 | fallback | **1.161** (1.159 to 1.166) | 1.161 | 1.00 | source, own launch |
+| `mo_glu_fwd` | miopen | 0.1892 | 1.082 | 1.113 | | | | |
+| `mo_prelu_bwd` | miopen | 0.2189 | 0.982 | fallback | **1.117** (1.112 to 1.120) | 1.117 | 1.00 | source, own launch |
+| `mo_reduce_sum` | miopen | 0.1566 | same code | fallback | **1.861** (1.853 to 1.866) | 1.861 | 1.00 | source, own launch |
+| `mo_rope_fwd` | miopen | 0.1873 | 0.998 | 1.066 | | | | |
+| `mo_t5_layernorm` | miopen | 0.1133 | 1.050 | fallback | **1.740** (1.735 to 1.744) | 1.740 | 1.00 | source, own launch |
+| `moe_gate_topk` | port | 0.6575 | 1.064 | fallback | **17.971** (17.915 to 18.024) | 17.971 | 1.00 | source |
+| `rb_axpy` | rocblas | 0.1642 | 0.967 | 1.039 | | | | |
+| `rb_copy` | rocblas | 0.1097 | same code | 1.029 | | | | |
+| `rb_dot` | rocblas | 0.1398 | 1.000 | fallback | **1.028** (1.023 to 1.031) | 1.028 | 1.00 | source |
+| `rb_gemvn` | rocblas | 0.2208 | 1.009 | fallback | **2.187** (2.177 to 2.195) | 2.187 | 1.00 | source, own launch |
+| `rb_gemvt` | rocblas | 0.1076 | 1.185 | fallback | **1.234** (1.231 to 1.236) | 1.234 | 1.00 | source, own launch |
+| `rb_ger` | rocblas | 0.1041 | 1.001 | fallback | **1.087** (1.084 to 1.091) | 1.087 | 1.00 | source, own launch |
+| `rb_nrm2` | rocblas | 0.1233 | same code | fallback | **1.404** (1.398 to 1.408) | 1.404 | 1.00 | source, own launch |
+| `rb_rot` | rocblas | 0.2022 | 1.004 | 1.077 | | | | |
+| `rb_scal` | rocblas | 0.1035 | 0.996 | 1.058 | | | | |
+| `rb_swap` | rocblas | 0.1906 | same code | 1.054 | | | | |
+| `vl_fused_add_rms_norm` | vllm | 0.1403 | 0.999 | fallback | **1.414** (1.406 to 1.419) | 1.414 | 1.00 | source, own launch |
+| `vl_moe_align` | vllm | 0.2715 | same code | fallback | **5.899** (5.880 to 5.912) | 5.899 | 1.00 | source, own launch |
+| `vl_rms_norm` | vllm | 0.1320 | 1.004 | fallback | **1.132** (1.126 to 1.138) | 1.132 | 1.00 | source, own launch |
+| `vl_rotary_embedding` | vllm | 0.1242 | 0.996 | fallback | **1.048** (1.044 to 1.052) | 1.048 | 1.00 | source, own launch |
 
-24 of 36 kernels faster than amdclang (policy or session); 12 fallbacks; geomean of the best verified result 1.479 with fallbacks at 1.0.
+All speedups are over amdclang -O3 on the benchmark source as shipped. "amdclang on the rewritten source" is the part of a session's speedup that amdclang itself delivers once the source is restructured; "machine-level gain" is what agc's own level adds on top (1.00: none). The -ffast-math column is the unmodified source with that flag.
+
+33 of 36 kernels faster than amdclang (policy or session); 3 fallbacks; geomean of the best verified result 1.521 with fallbacks at 1.0.
 
 ## Reproduce
 

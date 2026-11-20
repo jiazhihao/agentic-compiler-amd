@@ -102,5 +102,12 @@
  "session": {
   "resumed": true
  },
- "recorded": "2026-11-20"
+ "recorded": "2026-11-20",
+ "attribution": {
+  "levels": [
+   "source"
+  ],
+  "amdclang_on_rewritten_source": 17.9713,
+  "machine_level_gain": 1.0
+ }
 }

@@ -109,5 +109,13 @@
   "seconds": 186,
   "log": ".agc/sessions/fi_rope-a5eb3742db/agent/20261120-182435.jsonl"
  },
- "recorded": "2026-11-20"
+ "recorded": "2026-11-20",
+ "attribution": {
+  "levels": [
+   "mir",
+   "source"
+  ],
+  "amdclang_on_rewritten_source": 2.1493,
+  "machine_level_gain": 0.984
+ }
 }

@@ -119,5 +119,12 @@
   "seconds": 362,
   "log": ".agc/sessions/fa_attention_causal-000447bc35/agent/20261120-170417.jsonl"
  },
- "recorded": "2026-11-20"
+ "recorded": "2026-11-20",
+ "attribution": {
+  "levels": [
+   "source"
+  ],
+  "amdclang_on_rewritten_source": 2.1932,
+  "machine_level_gain": 1.0
+ }
 }

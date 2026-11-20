@@ -127,5 +127,12 @@
   "seconds": 391,
   "log": ".agc/sessions/vl_moe_align-63bd5dddfa/agent/20261120-171608.jsonl"
  },
- "recorded": "2026-11-20"
+ "recorded": "2026-11-20",
+ "attribution": {
+  "levels": [
+   "source"
+  ],
+  "amdclang_on_rewritten_source": 5.8989,
+  "machine_level_gain": 1.0
+ }
 }
