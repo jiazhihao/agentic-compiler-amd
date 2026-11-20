@@ -13,6 +13,7 @@ import math
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from agc import agent, corpus
 from agc.session import Session
 
@@ -105,9 +106,17 @@ def main(argv) -> int:
     elif a.cmd == "comment":
         print(comment(a.kernel))
     else:
+        import llmbench
+        import strong_baseline
         for n in a.kernels:
-            agent.run(BENCH / f"{n}.json", minutes=a.minutes, benches=a.benches, model=a.model, extra=a.extra,
-                      log=lambda t: print(t, flush=True))
+            r = agent.run(BENCH / f"{n}.json", minutes=a.minutes, benches=a.benches, model=a.model, extra=a.extra,
+                          log=lambda t: print(t, flush=True))
+            if r.get("baseline_candidate") and strong_baseline.promote(n):
+                # the session's own source is a stronger amdclang build: it becomes the baseline, and the
+                # policy record and the recipe (if any) are measured again against it
+                strong_baseline.run([n])
+                agent.replay([n], log=lambda t: print(t, flush=True), update=True)
+                llmbench.main([n])
     return 0
 
 

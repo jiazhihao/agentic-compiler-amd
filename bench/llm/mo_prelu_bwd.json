@@ -87,5 +87,24 @@
   "llm",
   "miopen",
   "elementwise"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/mo_prelu_bwd.hip",
+  "defines": {
+   "EPT": "2",
+   "BLK": "128"
+  },
+  "launch": {
+   "grid": [
+    "cdiv(N, EPT * BLK)",
+    1,
+    1
+   ],
+   "block": [
+    "BLK",
+    1,
+    1
+   ]
+  }
+ }
 }

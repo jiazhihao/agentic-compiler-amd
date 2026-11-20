@@ -102,95 +102,95 @@ Largest deviation from 1.0: 0.39 %.
 
 ## LLM-kernel benchmark (default policy)
 
-Kernels from FlashInfer, vLLM, rocBLAS and MIOpen, and ports of attention, MLA, KDA and MoE kernels (`bench/llm/README.md`). This is the default policy only, the floor: no per-kernel agent session has run yet.
+Kernels from FlashInfer, vLLM, rocBLAS and MIOpen, and ports of attention, MLA, KDA and MoE kernels (`bench/llm/README.md`). This is the default policy only, measured against each kernel's baseline: the strongest amdclang build found for it (next section), not merely -O3 on the source as shipped.
 
-| kernel | library | amdclang ms | agc ms | speedup (95% CI) | how | bit-identical |
+| kernel | library | baseline ms | agc ms | speedup (95% CI) | how | bit-identical |
 |---|---|---|---|---|---|---|
-| `attn_decode` | port | 1.2545 | | fallback (no verified win) | | |
-| `fa_attention` | port | 0.2209 | | fallback (no verified win) | | |
-| `fa_attention_causal` | port | 0.2010 | | fallback (no verified win) | | |
-| `fi_fused_add_rmsnorm` | flashinfer | 0.1045 | 0.1025 | **1.01** (1.01 to 1.03) | `coarsen(factor=4)` | yes |
-| `fi_gelu_tanh_and_mul` | flashinfer | 0.1067 | | fallback (no verified win) | | |
-| `fi_merge_state` | flashinfer | 0.1084 | | fallback (no verified win) | | |
-| `fi_merge_state_in_place` | flashinfer | 0.0998 | | fallback (no verified win) | | |
-| `fi_merge_states` | flashinfer | 0.1089 | 0.1019 | **1.07** (1.06 to 1.08) | `coarsen(factor=2)` | yes |
-| `fi_rmsnorm` | flashinfer | 0.1273 | 0.1251 | **1.02** (1.01 to 1.03) | `coarsen(factor=2)` | yes |
-| `fi_rope` | flashinfer | 0.1069 | | fallback (no verified win) | | |
-| `fi_silu_and_mul` | flashinfer | 0.0988 | | fallback (no verified win) | | |
-| `kda_step` | port | 0.1998 | | fallback (no verified win) | | |
-| `mla_decode` | port | 0.4568 | | fallback (no verified win) | | |
-| `mo_active_fwd` | miopen | 0.1094 | | fallback (no verified win) | | |
-| `mo_adam` | miopen | 0.3764 | | fallback (no verified win) | | |
-| `mo_bn_infer` | miopen | 0.1055 | | fallback (no verified win) | | |
-| `mo_glu_fwd` | miopen | 0.1892 | 0.1696 | **1.11** (1.11 to 1.12) | `coarsen(factor=8)` | yes |
-| `mo_prelu_bwd` | miopen | 0.2189 | | fallback (no verified win) | | |
-| `mo_reduce_sum` | miopen | 0.1566 | | fallback (no verified win) | | |
-| `mo_rope_fwd` | miopen | 0.1873 | 0.1761 | **1.07** (1.06 to 1.08) | `coarsen(factor=2)` | yes |
-| `mo_t5_layernorm` | miopen | 0.1133 | | fallback (no verified win) | | |
-| `moe_gate_topk` | port | 0.6575 | | fallback (no verified win) | | |
-| `rb_axpy` | rocblas | 0.1642 | 0.1578 | **1.04** (1.04 to 1.04) | `coarsen(factor=2)` | yes |
-| `rb_copy` | rocblas | 0.1097 | 0.1071 | **1.03** (1.02 to 1.03) | `coarsen(factor=2)` | yes |
-| `rb_dot` | rocblas | 0.1398 | | fallback (no verified win) | | |
-| `rb_gemvn` | rocblas | 0.2208 | | fallback (no verified win) | | |
-| `rb_gemvt` | rocblas | 0.1076 | | fallback (no verified win) | | |
-| `rb_ger` | rocblas | 0.1041 | | fallback (no verified win) | | |
-| `rb_nrm2` | rocblas | 0.1233 | | fallback (no verified win) | | |
-| `rb_rot` | rocblas | 0.2022 | 0.1870 | **1.08** (1.07 to 1.09) | `coarsen(factor=2)` | yes |
-| `rb_scal` | rocblas | 0.1035 | 0.0979 | **1.06** (1.05 to 1.06) | `coarsen(factor=8)` | yes |
-| `rb_swap` | rocblas | 0.1906 | 0.1804 | **1.05** (1.05 to 1.06) | `coarsen(factor=2)` | yes |
-| `vl_fused_add_rms_norm` | vllm | 0.1403 | | fallback (no verified win) | | |
-| `vl_moe_align` | vllm | 0.2715 | | fallback (no verified win) | | |
-| `vl_rms_norm` | vllm | 0.1320 | | fallback (no verified win) | | |
-| `vl_rotary_embedding` | vllm | 0.1242 | | fallback (no verified win) | | |
+| `attn_decode` | port | 0.1666 | | fallback (no verified win) | | |
+| `fa_attention` | port | 0.0545 | | fallback (no verified win) | | |
+| `fa_attention_causal` | port | 0.0883 | | fallback (no verified win) | | |
+| `fi_fused_add_rmsnorm` | flashinfer | 0.1008 | | fallback (no verified win) | | |
+| `fi_gelu_tanh_and_mul` | flashinfer | 0.0943 | | fallback (no verified win) | | |
+| `fi_merge_state` | flashinfer | 0.1001 | | fallback (no verified win) | | |
+| `fi_merge_state_in_place` | flashinfer | 0.0945 | | fallback (no verified win) | | |
+| `fi_merge_states` | flashinfer | 0.1021 | 0.0959 | **1.05** (1.04 to 1.07) | `coarsen(factor=2)` | yes |
+| `fi_rmsnorm` | flashinfer | 0.1229 | 0.1177 | **1.04** (1.04 to 1.05) | `coarsen(factor=2)` | yes |
+| `fi_rope` | flashinfer | 0.0475 | | fallback (no verified win) | | |
+| `fi_silu_and_mul` | flashinfer | 0.0969 | | fallback (no verified win) | | |
+| `kda_step` | port | 0.1187 | | fallback (no verified win) | | |
+| `mla_decode` | port | 0.2652 | | fallback (no verified win) | | |
+| `mo_active_fwd` | miopen | 0.1112 | | fallback (no verified win) | | |
+| `mo_adam` | miopen | 0.3365 | | fallback (no verified win) | | |
+| `mo_bn_infer` | miopen | 0.0881 | | fallback (no verified win) | | |
+| `mo_glu_fwd` | miopen | 0.1777 | 0.1673 | **1.06** (1.06 to 1.07) | `coarsen(factor=4)` | yes |
+| `mo_prelu_bwd` | miopen | 0.1937 | | fallback (no verified win) | | |
+| `mo_reduce_sum` | miopen | 0.0841 | | fallback (no verified win) | | |
+| `mo_rope_fwd` | miopen | 0.1872 | 0.1741 | **1.08** (1.07 to 1.08) | `coarsen(factor=2)` | yes |
+| `mo_t5_layernorm` | miopen | 0.0653 | | fallback (no verified win) | | |
+| `moe_gate_topk` | port | 0.0362 | | fallback (no verified win) | | |
+| `rb_axpy` | rocblas | 0.1551 | | fallback (no verified win) | | |
+| `rb_copy` | rocblas | 0.1092 | | fallback (no verified win) | | |
+| `rb_dot` | rocblas | 0.1384 | | fallback (no verified win) | | |
+| `rb_gemvn` | rocblas | 0.1002 | | fallback (no verified win) | | |
+| `rb_gemvt` | rocblas | 0.0888 | | fallback (no verified win) | | |
+| `rb_ger` | rocblas | 0.0938 | | fallback (no verified win) | | |
+| `rb_nrm2` | rocblas | 0.0858 | | fallback (no verified win) | | |
+| `rb_rot` | rocblas | 0.2050 | 0.1957 | **1.04** (1.03 to 1.05) | `coarsen(factor=8)` | yes |
+| `rb_scal` | rocblas | 0.1047 | 0.0983 | **1.07** (1.06 to 1.07) | `coarsen(factor=2)` | yes |
+| `rb_swap` | rocblas | 0.1939 | 0.1857 | **1.04** (1.04 to 1.05) | `coarsen(factor=2)` | yes |
+| `vl_fused_add_rms_norm` | vllm | 0.1000 | | fallback (no verified win) | | |
+| `vl_moe_align` | vllm | 0.0466 | | fallback (no verified win) | | |
+| `vl_rms_norm` | vllm | 0.1133 | | fallback (no verified win) | | |
+| `vl_rotary_embedding` | vllm | 0.1184 | | fallback (no verified win) | | |
 
-10 wins and 26 fallbacks over 36 kernels; geomean 1.015 with fallbacks counted as 1.0. Protocol `agc-timing-amd-2`, recorded 2026-11-20.
+7 wins and 29 fallbacks over 36 kernels; geomean 1.01 with fallbacks counted as 1.0. Protocol `agc-timing-amd-2`, recorded 2026-11-20.
 
 ## LLM-kernel benchmark (agent sessions)
 
-One agent session per kernel through the harness (`agc agent`); each number is the harness's own verification of the recorded recipe (static check, full battery, the lower of two 240-pair timings). Kernels without a session result are still open.
+One agent session per kernel through the harness (`agc agent`); each number is the harness's own verification of the recorded recipe (static check, full battery, the lower of two 240-pair timings) against the strongest amdclang build.
 
-| kernel | library | amdclang -O3 ms | amdclang -O3 -ffast-math | default policy | agent session (95% CI) | amdclang on the rewritten source | machine-level gain | how |
-|---|---|---|---|---|---|---|---|---|
-| `attn_decode` | port | 1.2545 | 0.980 | fallback | **7.399** (7.393 to 7.407) | 7.399 | 1.00 | source, own launch |
-| `fa_attention` | port | 0.2209 | 1.345 | fallback | **3.863** (3.856 to 3.871) | 3.863 | 1.00 | source, own launch |
-| `fa_attention_causal` | port | 0.2010 | 1.445 | fallback | **2.193** (2.190 to 2.197) | 2.193 | 1.00 | source, own launch |
-| `fi_fused_add_rmsnorm` | flashinfer | 0.1045 | 1.006 | 1.015 | | | | |
-| `fi_gelu_tanh_and_mul` | flashinfer | 0.1067 | 1.004 | fallback | **1.067** (1.063 to 1.072) | 1.067 | 1.00 | source, own launch |
-| `fi_merge_state` | flashinfer | 0.1084 | 0.998 | fallback | **1.052** (1.044 to 1.060) | 1.052 | 1.00 | source, own launch |
-| `fi_merge_state_in_place` | flashinfer | 0.0998 | 1.002 | fallback | | | | |
-| `fi_merge_states` | flashinfer | 0.1089 | 0.995 | 1.071 | | | | |
-| `fi_rmsnorm` | flashinfer | 0.1273 | 1.032 | 1.019 | | | | |
-| `fi_rope` | flashinfer | 0.1069 | 1.980 | fallback | **2.115** (2.103 to 2.126) | 2.149 | 0.98 | source + edit, own launch |
-| `fi_silu_and_mul` | flashinfer | 0.0988 | 1.006 | fallback | **1.043** (1.036 to 1.050) | 1.043 | 1.00 | source, own launch |
-| `kda_step` | port | 0.1998 | 0.958 | fallback | **1.697** (1.694 to 1.703) | 1.697 | 1.00 | source, own launch |
-| `mla_decode` | port | 0.4568 | 1.081 | fallback | **2.541** (2.539 to 2.543) | 1.703 | 1.49 | source + edit + edit, own launch |
-| `mo_active_fwd` | miopen | 0.1094 | 1.000 | fallback | | | | |
-| `mo_adam` | miopen | 0.3764 | 1.008 | fallback | **1.062** (1.058 to 1.064) |  |  | source + coarsen, own launch |
-| `mo_bn_infer` | miopen | 0.1055 | 0.989 | fallback | **1.161** (1.159 to 1.166) | 1.161 | 1.00 | source, own launch |
-| `mo_glu_fwd` | miopen | 0.1892 | 1.082 | 1.113 | | | | |
-| `mo_prelu_bwd` | miopen | 0.2189 | 0.982 | fallback | **1.117** (1.112 to 1.120) | 1.117 | 1.00 | source, own launch |
-| `mo_reduce_sum` | miopen | 0.1566 | same code | fallback | **1.861** (1.853 to 1.866) | 1.861 | 1.00 | source, own launch |
-| `mo_rope_fwd` | miopen | 0.1873 | 0.998 | 1.066 | | | | |
-| `mo_t5_layernorm` | miopen | 0.1133 | 1.050 | fallback | **1.740** (1.735 to 1.744) | 1.740 | 1.00 | source, own launch |
-| `moe_gate_topk` | port | 0.6575 | 1.064 | fallback | **17.971** (17.915 to 18.024) | 17.971 | 1.00 | source |
-| `rb_axpy` | rocblas | 0.1642 | 0.967 | 1.039 | | | | |
-| `rb_copy` | rocblas | 0.1097 | same code | 1.029 | | | | |
-| `rb_dot` | rocblas | 0.1398 | 1.000 | fallback | **1.028** (1.023 to 1.031) | 1.028 | 1.00 | source |
-| `rb_gemvn` | rocblas | 0.2208 | 1.009 | fallback | **2.187** (2.177 to 2.195) | 2.187 | 1.00 | source, own launch |
-| `rb_gemvt` | rocblas | 0.1076 | 1.185 | fallback | **1.234** (1.231 to 1.236) | 1.234 | 1.00 | source, own launch |
-| `rb_ger` | rocblas | 0.1041 | 1.001 | fallback | **1.087** (1.084 to 1.091) | 1.087 | 1.00 | source, own launch |
-| `rb_nrm2` | rocblas | 0.1233 | same code | fallback | **1.404** (1.398 to 1.408) | 1.404 | 1.00 | source, own launch |
-| `rb_rot` | rocblas | 0.2022 | 1.004 | 1.077 | | | | |
-| `rb_scal` | rocblas | 0.1035 | 0.996 | 1.058 | | | | |
-| `rb_swap` | rocblas | 0.1906 | same code | 1.054 | | | | |
-| `vl_fused_add_rms_norm` | vllm | 0.1403 | 0.999 | fallback | **1.414** (1.406 to 1.419) | 1.414 | 1.00 | source, own launch |
-| `vl_moe_align` | vllm | 0.2715 | same code | fallback | **5.899** (5.880 to 5.912) | 5.899 | 1.00 | source, own launch |
-| `vl_rms_norm` | vllm | 0.1320 | 1.004 | fallback | **1.132** (1.126 to 1.138) | 1.132 | 1.00 | source, own launch |
-| `vl_rotary_embedding` | vllm | 0.1242 | 0.996 | fallback | **1.048** (1.044 to 1.052) | 1.048 | 1.00 | source, own launch |
+| kernel | library | amdclang -O3, shipped source (ms) | strongest amdclang build | its speedup over -O3 shipped | baseline ms | default policy over the baseline | agent session over the baseline (95% CI) | how | total over -O3 shipped |
+|---|---|---|---|---|---|---|---|---|---|
+| `attn_decode` | port | 1.2532 | restructured source + own launch | 7.39 | 0.1666 | fallback |  |  | 7.39 |
+| `fa_attention` | port | 0.2205 | restructured source + -ffast-math + own launch | 3.94 | 0.0545 | fallback |  |  | 3.94 |
+| `fa_attention_causal` | port | 0.2000 | restructured source + -ffast-math + own launch | 2.23 | 0.0883 | fallback |  |  | 2.23 |
+| `fi_fused_add_rmsnorm` | flashinfer | 0.0968 | -O3, source as shipped |  | 0.1008 | fallback |  |  | 1.00 |
+| `fi_gelu_tanh_and_mul` | flashinfer | 0.1073 | restructured source + own launch | 1.09 | 0.0943 | fallback |  |  | 1.09 |
+| `fi_merge_state` | flashinfer | 0.1024 | restructured source + -ffast-math + own launch | 1.05 | 0.1001 | fallback |  |  | 1.05 |
+| `fi_merge_state_in_place` | flashinfer | 0.1009 | -O3, source as shipped |  | 0.0945 | fallback |  |  | 1.00 |
+| `fi_merge_states` | flashinfer | 0.1082 | -O3, source as shipped |  | 0.1021 | 1.054 `coarsen(factor=2)` |  |  | 1.05 |
+| `fi_rmsnorm` | flashinfer | 0.1305 | -ffast-math | 1.04 | 0.1229 | 1.043 `coarsen(factor=2)` |  |  | 1.08 |
+| `fi_rope` | flashinfer | 0.1070 | restructured source + -ffast-math + own launch | 2.23 | 0.0475 | fallback |  |  | 2.23 |
+| `fi_silu_and_mul` | flashinfer | 0.1030 | restructured source + own launch | 1.06 | 0.0969 | fallback |  |  | 1.06 |
+| `kda_step` | port | 0.2056 | restructured source + -fno-slp-vectorize -fno-vectorize + own launch | 1.69 | 0.1187 | fallback |  |  | 1.69 |
+| `mla_decode` | port | 0.4593 | restructured source + -ffast-math + own launch | 1.71 | 0.2652 | fallback | **1.486** (1.485 to 1.487) | source + edit + edit | 2.55 |
+| `mo_active_fwd` | miopen | 0.1123 | -O3, source as shipped |  | 0.1112 | fallback |  |  | 1.00 |
+| `mo_adam` | miopen | 0.3818 | restructured source + -ffast-math + own launch | 1.10 | 0.3365 | fallback |  |  | 1.10 |
+| `mo_bn_infer` | miopen | 0.1037 | restructured source + own launch | 1.22 | 0.0881 | fallback |  |  | 1.22 |
+| `mo_glu_fwd` | miopen | 0.1903 | -ffast-math | 1.09 | 0.1777 | 1.060 `coarsen(factor=4)` |  |  | 1.15 |
+| `mo_prelu_bwd` | miopen | 0.2189 | restructured source + own launch | 1.15 | 0.1937 | fallback |  |  | 1.15 |
+| `mo_reduce_sum` | miopen | 0.1594 | restructured source + -ffast-math + own launch | 1.89 | 0.0841 | fallback |  |  | 1.89 |
+| `mo_rope_fwd` | miopen | 0.1878 | -O3, source as shipped |  | 0.1872 | 1.078 `coarsen(factor=2)` |  |  | 1.08 |
+| `mo_t5_layernorm` | miopen | 0.1131 | restructured source + -ffast-math + own launch | 1.76 | 0.0653 | fallback |  |  | 1.76 |
+| `moe_gate_topk` | port | 0.6575 | restructured source | 18.28 | 0.0362 | fallback |  |  | 18.28 |
+| `rb_axpy` | rocblas | 0.1621 | -O3, source as shipped |  | 0.1551 | fallback |  |  | 1.00 |
+| `rb_copy` | rocblas | 0.1112 | -O3, source as shipped |  | 0.1092 | fallback |  |  | 1.00 |
+| `rb_dot` | rocblas | 0.1394 | restructured source | 1.07 | 0.1384 | fallback |  |  | 1.07 |
+| `rb_gemvn` | rocblas | 0.2273 | restructured source + -ffast-math + own launch | 2.18 | 0.1002 | fallback |  |  | 2.18 |
+| `rb_gemvt` | rocblas | 0.1104 | restructured source + -ffast-math + own launch | 1.24 | 0.0888 | fallback |  |  | 1.24 |
+| `rb_ger` | rocblas | 0.1049 | restructured source + -ffast-math + own launch | 1.11 | 0.0938 | fallback |  |  | 1.11 |
+| `rb_nrm2` | rocblas | 0.1219 | restructured source + own launch | 1.40 | 0.0858 | fallback |  |  | 1.40 |
+| `rb_rot` | rocblas | 0.1826 | -O3, source as shipped |  | 0.2050 | 1.040 `coarsen(factor=8)` |  |  | 1.04 |
+| `rb_scal` | rocblas | 0.1043 | -O3, source as shipped |  | 0.1047 | 1.066 `coarsen(factor=2)` |  |  | 1.07 |
+| `rb_swap` | rocblas | 0.1826 | -O3, source as shipped |  | 0.1939 | 1.044 `coarsen(factor=2)` |  |  | 1.04 |
+| `vl_fused_add_rms_norm` | vllm | 0.1457 | restructured source + own launch | 1.44 | 0.1000 | fallback |  |  | 1.44 |
+| `vl_moe_align` | vllm | 0.2711 | restructured source + own launch | 5.77 | 0.0466 | fallback |  |  | 5.77 |
+| `vl_rms_norm` | vllm | 0.1347 | restructured source + -ffast-math + own launch | 1.13 | 0.1133 | fallback |  |  | 1.13 |
+| `vl_rotary_embedding` | vllm | 0.1277 | restructured source + own launch | 1.05 | 0.1184 | fallback |  |  | 1.05 |
 
-All speedups are over amdclang -O3 on the benchmark source as shipped. "amdclang on the rewritten source" is the part of a session's speedup that amdclang itself delivers once the source is restructured; "machine-level gain" is what agc's own level adds on top (1.00: none). The -ffast-math column is the unmodified source with that flag.
+The baseline is the strongest amdclang build found per kernel (`scripts/strong_baseline.py`): the source as shipped or a restructured source, with or without `-ffast-math`, with its own launch where that is faster; all of it is amdclang's code. The policy and session columns are what agc adds on top of that build (machine IR passes and edits), verified by the full battery and paired timings. The last column is for orientation: the best verified agc state, or else the baseline, over amdclang -O3 on the source as shipped.
 
-34 of 36 kernels faster than amdclang (policy or session); 2 fallbacks; geomean of the best verified result 1.523 with fallbacks at 1.0.
+8 of 36 kernels have a verified agc gain over the strongest amdclang build; 28 fallbacks; geomean of the agc gain 1.022 with fallbacks at 1.0; geomean over -O3 on the shipped source 1.536.
 
 ## Reproduce
 
@@ -200,6 +200,7 @@ make baseline                   # amdclang baselines
 .venv/bin/python scripts/policy.py     # the default policy on every manifest
 .venv/bin/python scripts/generated.py  # every generated variant
 .venv/bin/python scripts/gemm.py       # GEMM against amdclang and hipBLASLt
+.venv/bin/python scripts/strong_baseline.py run  # the strongest amdclang build per LLM kernel (the baseline)
 .venv/bin/python scripts/llmbench.py   # the LLM-kernel benchmark
 .venv/bin/python scripts/report.py     # this file
 ```

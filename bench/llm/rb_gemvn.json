@@ -97,5 +97,29 @@
   "llm",
   "rocblas",
   "contraction"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/rb_gemvn.hip",
+  "flags": [
+   "-ffast-math"
+  ],
+  "defines": {
+   "R": "1",
+   "W": "16",
+   "C": "8"
+  },
+  "launch": {
+   "grid": [
+    "cdiv(M, 64)",
+    1,
+    1
+   ],
+   "block": [
+    64,
+    16,
+    1
+   ],
+   "lds": 0
+  }
+ }
 }

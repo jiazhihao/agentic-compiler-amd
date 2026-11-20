@@ -77,5 +77,8 @@
   "llm",
   "rocblas",
   "reduction"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/rb_dot.hip"
+ }
 }

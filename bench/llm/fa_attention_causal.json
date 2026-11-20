@@ -116,5 +116,24 @@
   "llm",
   "port",
   "attention"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/fa_attention_causal.hip",
+  "flags": [
+   "-ffast-math"
+  ],
+  "launch": {
+   "grid": [
+    "N",
+    1,
+    1
+   ],
+   "block": [
+    256,
+    1,
+    1
+   ],
+   "lds": 0
+  }
+ }
 }

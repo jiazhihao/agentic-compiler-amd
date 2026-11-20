@@ -143,5 +143,23 @@
   "llm",
   "vllm",
   "elementwise"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/vl_rotary_embedding.hip",
+  "defines": {
+   "BLK": "640"
+  },
+  "launch": {
+   "grid": [
+    "N",
+    "cdiv((Hq + Hk) * 16, BLK)",
+    1
+   ],
+   "block": [
+    "BLK",
+    1,
+    1
+   ]
+  }
+ }
 }

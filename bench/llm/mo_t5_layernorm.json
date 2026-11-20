@@ -95,5 +95,28 @@
   "llm",
   "miopen",
   "rowwise"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/mo_t5_layernorm.hip",
+  "flags": [
+   "-ffast-math"
+  ],
+  "defines": {
+   "BLK": "256",
+   "NC": "1"
+  },
+  "launch": {
+   "grid": [
+    "R",
+    1,
+    1
+   ],
+   "block": [
+    256,
+    1,
+    1
+   ],
+   "lds": 0
+  }
+ }
 }

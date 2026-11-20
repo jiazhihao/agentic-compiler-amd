@@ -61,5 +61,10 @@
   "llm",
   "miopen",
   "elementwise"
- ]
+ ],
+ "baseline": {
+  "flags": [
+   "-ffast-math"
+  ]
+ }
 }

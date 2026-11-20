@@ -199,5 +199,27 @@
   "llm",
   "flashinfer",
   "elementwise"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/fi_rope.hip",
+  "flags": [
+   "-ffast-math"
+  ],
+  "defines": {
+   "HG": "4"
+  },
+  "launch": {
+   "grid": [
+    "cdiv(N, 4)",
+    "cdiv(Hq + Hk, 4)",
+    1
+   ],
+   "block": [
+    16,
+    4,
+    1
+   ],
+   "lds": 0
+  }
+ }
 }

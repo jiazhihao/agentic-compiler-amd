@@ -113,7 +113,7 @@ def own_source(s: Session, sid: str) -> dict | None:
     if root.action.get("name") != "source" or root.id == s.base_id:
         return None
     a = root.action
-    return {"state": root.id, "file": a["file"], "launch": a.get("launch_given"),
+    return {"state": root.id, "file": a["file"], "launch": a.get("launch_given") or a.get("launch"),
             "flags": [f for f in a.get("flags", []) if not f.startswith("-D")],
             "defines": dict(f[2:].split("=", 1) for f in a.get("flags", []) if f.startswith("-D"))}
 

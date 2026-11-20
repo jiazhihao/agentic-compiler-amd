@@ -1,0 +1,3349 @@
+{
+ "kernels": {
+  "attn_decode": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "loss",
+     "speedup": 0.9788,
+     "ci95": [
+      0.9779,
+      0.9795
+     ],
+     "ms": 1.27772
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": null,
+     "launch": {
+      "grid": [
+       "Hk * G",
+       8,
+       1
+      ],
+      "block": [
+       1024,
+       1,
+       1
+      ],
+      "lds": 0
+     },
+     "outcome": "win",
+     "speedup": 7.3956,
+     "ci95": [
+      7.3823,
+      7.4052
+     ],
+     "ms": 0.1694,
+     "verified": {
+      "outcome": "win",
+      "speedup": 7.3873,
+      "speedup_ci95": [
+       7.3759,
+       7.3928
+      ],
+      "candidate_ms": 0.16948,
+      "cases": 98,
+      "runs": [
+       {
+        "speedup": 7.3873,
+        "ci95": [
+         7.3759,
+         7.3928
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 7.4059,
+        "ci95": [
+         7.396,
+         7.4142
+        ],
+        "valid": true
+       }
+      ]
+     }
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": {
+      "grid": [
+       "Hk * G",
+       8,
+       1
+      ],
+      "block": [
+       1024,
+       1,
+       1
+      ],
+      "lds": 0
+     },
+     "outcome": "win",
+     "speedup": 7.2295,
+     "ci95": [
+      7.2154,
+      7.2369
+     ],
+     "ms": 0.17278
+    }
+   ],
+   "amdclang_O3_ms": 1.25316,
+   "baseline": {
+    "source": "baselines/attn_decode.hip",
+    "launch": {
+     "grid": [
+      "Hk * G",
+      8,
+      1
+     ],
+     "block": [
+      1024,
+      1,
+      1
+     ],
+     "lds": 0
+    }
+   },
+   "over_shipped_O3": 7.3873,
+   "ci95": [
+    7.3759,
+    7.3928
+   ],
+   "ms": 0.16948
+  },
+  "fa_attention": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "win",
+     "speedup": 1.345,
+     "ci95": [
+      1.3413,
+      1.3489
+     ],
+     "ms": 0.16296
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": null,
+     "launch": {
+      "grid": [
+       "cdiv(NQ, 4)",
+       1,
+       1
+      ],
+      "block": [
+       256,
+       1,
+       1
+      ],
+      "lds": 0
+     },
+     "outcome": "win",
+     "speedup": 3.888,
+     "ci95": [
+      3.8669,
+      3.8977
+     ],
+     "ms": 0.05646
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": {
+      "grid": [
+       "cdiv(NQ, 4)",
+       1,
+       1
+      ],
+      "block": [
+       256,
+       1,
+       1
+      ],
+      "lds": 0
+     },
+     "outcome": "win",
+     "speedup": 3.9528,
+     "ci95": [
+      3.9419,
+      3.9585
+     ],
+     "ms": 0.05548,
+     "verified": {
+      "outcome": "win",
+      "speedup": 3.941,
+      "speedup_ci95": [
+       3.9372,
+       3.9477
+      ],
+      "candidate_ms": 0.0556,
+      "cases": 77,
+      "runs": [
+       {
+        "speedup": 3.9461,
+        "ci95": [
+         3.9392,
+         3.9516
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 3.941,
+        "ci95": [
+         3.9372,
+         3.9477
+        ],
+        "valid": true
+       }
+      ]
+     }
+    }
+   ],
+   "amdclang_O3_ms": 0.22049,
+   "baseline": {
+    "source": "baselines/fa_attention.hip",
+    "flags": [
+     "-ffast-math"
+    ],
+    "launch": {
+     "grid": [
+      "cdiv(NQ, 4)",
+      1,
+      1
+     ],
+     "block": [
+      256,
+      1,
+      1
+     ],
+     "lds": 0
+    }
+   },
+   "over_shipped_O3": 3.941,
+   "ci95": [
+    3.9372,
+    3.9477
+   ],
+   "ms": 0.0556
+  },
+  "fa_attention_causal": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "win",
+     "speedup": 1.4519,
+     "ci95": [
+      1.4422,
+      1.456
+     ],
+     "ms": 0.1387
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": null,
+     "launch": {
+      "grid": [
+       "N",
+       1,
+       1
+      ],
+      "block": [
+       256,
+       1,
+       1
+      ],
+      "lds": 0
+     },
+     "outcome": "win",
+     "speedup": 2.1801,
+     "ci95": [
+      2.1726,
+      2.1858
+     ],
+     "ms": 0.09154
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": {
+      "grid": [
+       "N",
+       1,
+       1
+      ],
+      "block": [
+       256,
+       1,
+       1
+      ],
+      "lds": 0
+     },
+     "outcome": "win",
+     "speedup": 2.2309,
+     "ci95": [
+      2.2234,
+      2.2457
+     ],
+     "ms": 0.09052,
+     "verified": {
+      "outcome": "win",
+      "speedup": 2.2347,
+      "speedup_ci95": [
+       2.2304,
+       2.2403
+      ],
+      "candidate_ms": 0.09008,
+      "cases": 49,
+      "runs": [
+       {
+        "speedup": 2.2347,
+        "ci95": [
+         2.2304,
+         2.2403
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 2.239,
+        "ci95": [
+         2.2337,
+         2.2424
+        ],
+        "valid": true
+       }
+      ]
+     }
+    }
+   ],
+   "amdclang_O3_ms": 0.19998,
+   "baseline": {
+    "source": "baselines/fa_attention_causal.hip",
+    "flags": [
+     "-ffast-math"
+    ],
+    "launch": {
+     "grid": [
+      "N",
+      1,
+      1
+     ],
+     "block": [
+      256,
+      1,
+      1
+     ],
+     "lds": 0
+    }
+   },
+   "over_shipped_O3": 2.2347,
+   "ci95": [
+    2.2304,
+    2.2403
+   ],
+   "ms": 0.09008
+  },
+  "fi_fused_add_rmsnorm": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "parity",
+     "speedup": 0.9987,
+     "ci95": [
+      0.9945,
+      1.0057
+     ],
+     "ms": 0.09526
+    }
+   ],
+   "amdclang_O3_ms": 0.09684,
+   "baseline": null,
+   "over_shipped_O3": 1.0
+  },
+  "fi_gelu_tanh_and_mul": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "parity",
+     "speedup": 1.0041,
+     "ci95": [
+      0.9977,
+      1.0082
+     ],
+     "ms": 0.10722
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": {
+      "BLK": "64",
+      "FAST": "0"
+     },
+     "launch": {
+      "grid": [
+       "cdiv(D4, BLK)",
+       "B",
+       1
+      ],
+      "block": [
+       "BLK",
+       1,
+       1
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.1066,
+     "ci95": [
+      1.0971,
+      1.1118
+     ],
+     "ms": 0.0976,
+     "verified": {
+      "outcome": "win",
+      "speedup": 1.0907,
+      "speedup_ci95": [
+       1.0833,
+       1.0959
+      ],
+      "candidate_ms": 0.09622,
+      "cases": 77,
+      "runs": [
+       {
+        "speedup": 1.1178,
+        "ci95": [
+         1.1125,
+         1.1228
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 1.0907,
+        "ci95": [
+         1.0833,
+         1.0959
+        ],
+        "valid": true
+       }
+      ]
+     }
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": {
+      "BLK": "64",
+      "FAST": "0"
+     },
+     "launch": {
+      "grid": [
+       "cdiv(D4, BLK)",
+       "B",
+       1
+      ],
+      "block": [
+       "BLK",
+       1,
+       1
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.1116,
+     "ci95": [
+      1.0938,
+      1.1201
+     ],
+     "ms": 0.09716
+    }
+   ],
+   "amdclang_O3_ms": 0.1073,
+   "baseline": {
+    "source": "baselines/fi_gelu_tanh_and_mul.hip",
+    "defines": {
+     "BLK": "64",
+     "FAST": "0"
+    },
+    "launch": {
+     "grid": [
+      "cdiv(D4, BLK)",
+      "B",
+      1
+     ],
+     "block": [
+      "BLK",
+      1,
+      1
+     ]
+    }
+   },
+   "over_shipped_O3": 1.0907,
+   "ci95": [
+    1.0833,
+    1.0959
+   ],
+   "ms": 0.09622
+  },
+  "fi_merge_state": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "parity",
+     "speedup": 1.006,
+     "ci95": [
+      0.9975,
+      1.0149
+     ],
+     "ms": 0.1099
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": {
+      "BLK": "64",
+      "RCP": "0"
+     },
+     "launch": {
+      "grid": [
+       "cdiv(P*H*32, BLK)",
+       1,
+       1
+      ],
+      "block": [
+       "BLK",
+       1,
+       1
+      ],
+      "args": [
+       {
+        "dtype": "u32",
+        "value": "P*H"
+       }
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.0583,
+     "ci95": [
+      1.0456,
+      1.0694
+     ],
+     "ms": 0.10138
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": {
+      "BLK": "64",
+      "RCP": "0"
+     },
+     "launch": {
+      "grid": [
+       "cdiv(P*H*32, BLK)",
+       1,
+       1
+      ],
+      "block": [
+       "BLK",
+       1,
+       1
+      ],
+      "args": [
+       {
+        "dtype": "u32",
+        "value": "P*H"
+       }
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.078,
+     "ci95": [
+      1.0692,
+      1.0906
+     ],
+     "ms": 0.10292,
+     "verified": {
+      "outcome": "win",
+      "speedup": 1.0517,
+      "speedup_ci95": [
+       1.0447,
+       1.0572
+      ],
+      "candidate_ms": 0.10168,
+      "cases": 77,
+      "runs": [
+       {
+        "speedup": 1.0517,
+        "ci95": [
+         1.0447,
+         1.0572
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 1.0669,
+        "ci95": [
+         1.0616,
+         1.0723
+        ],
+        "valid": true
+       }
+      ]
+     }
+    }
+   ],
+   "amdclang_O3_ms": 0.10238,
+   "baseline": {
+    "source": "baselines/fi_merge_state.hip",
+    "flags": [
+     "-ffast-math"
+    ],
+    "defines": {
+     "BLK": "64",
+     "RCP": "0"
+    },
+    "launch": {
+     "grid": [
+      "cdiv(P*H*32, BLK)",
+      1,
+      1
+     ],
+     "block": [
+      "BLK",
+      1,
+      1
+     ],
+     "args": [
+      {
+       "dtype": "u32",
+       "value": "P*H"
+      }
+     ]
+    }
+   },
+   "over_shipped_O3": 1.0517,
+   "ci95": [
+    1.0447,
+    1.0572
+   ],
+   "ms": 0.10168
+  },
+  "fi_merge_state_in_place": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "parity",
+     "speedup": 1.0006,
+     "ci95": [
+      0.9941,
+      1.0049
+     ],
+     "ms": 0.10122
+    }
+   ],
+   "amdclang_O3_ms": 0.10086,
+   "baseline": null,
+   "over_shipped_O3": 1.0
+  },
+  "fi_merge_states": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "parity",
+     "speedup": 0.9966,
+     "ci95": [
+      0.9898,
+      1.0057
+     ],
+     "ms": 0.10794
+    }
+   ],
+   "amdclang_O3_ms": 0.10822,
+   "baseline": null,
+   "over_shipped_O3": 1.0
+  },
+  "fi_rmsnorm": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "win",
+     "speedup": 1.0318,
+     "ci95": [
+      1.0281,
+      1.0346
+     ],
+     "ms": 0.12618,
+     "verified": {
+      "outcome": "win",
+      "speedup": 1.0351,
+      "speedup_ci95": [
+       1.0327,
+       1.0384
+      ],
+      "candidate_ms": 0.12664,
+      "cases": 77,
+      "runs": [
+       {
+        "speedup": 1.0351,
+        "ci95": [
+         1.0327,
+         1.0384
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 1.0358,
+        "ci95": [
+         1.0333,
+         1.0381
+        ],
+        "valid": true
+       }
+      ]
+     }
+    }
+   ],
+   "amdclang_O3_ms": 0.13048,
+   "baseline": {
+    "flags": [
+     "-ffast-math"
+    ]
+   },
+   "over_shipped_O3": 1.0351,
+   "ci95": [
+    1.0327,
+    1.0384
+   ],
+   "ms": 0.12664
+  },
+  "fi_rope": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "win",
+     "speedup": 1.9782,
+     "ci95": [
+      1.9669,
+      1.9881
+     ],
+     "ms": 0.05472
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": {
+      "HG": "4"
+     },
+     "launch": {
+      "grid": [
+       "cdiv(N, 4)",
+       "cdiv(Hq + Hk, 4)",
+       1
+      ],
+      "block": [
+       16,
+       4,
+       1
+      ],
+      "lds": 0
+     },
+     "outcome": "win",
+     "speedup": 2.152,
+     "ci95": [
+      2.1438,
+      2.1684
+     ],
+     "ms": 0.0506
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": {
+      "HG": "4"
+     },
+     "launch": {
+      "grid": [
+       "cdiv(N, 4)",
+       "cdiv(Hq + Hk, 4)",
+       1
+      ],
+      "block": [
+       16,
+       4,
+       1
+      ],
+      "lds": 0
+     },
+     "outcome": "win",
+     "speedup": 2.2522,
+     "ci95": [
+      2.2425,
+      2.2626
+     ],
+     "ms": 0.04836,
+     "verified": {
+      "outcome": "win",
+      "speedup": 2.2256,
+      "speedup_ci95": [
+       2.2179,
+       2.2366
+      ],
+      "candidate_ms": 0.04898,
+      "cases": 98,
+      "runs": [
+       {
+        "speedup": 2.2256,
+        "ci95": [
+         2.2179,
+         2.2366
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 2.2358,
+        "ci95": [
+         2.2268,
+         2.2471
+        ],
+        "valid": true
+       }
+      ]
+     }
+    }
+   ],
+   "amdclang_O3_ms": 0.10696,
+   "baseline": {
+    "source": "baselines/fi_rope.hip",
+    "flags": [
+     "-ffast-math"
+    ],
+    "defines": {
+     "HG": "4"
+    },
+    "launch": {
+     "grid": [
+      "cdiv(N, 4)",
+      "cdiv(Hq + Hk, 4)",
+      1
+     ],
+     "block": [
+      16,
+      4,
+      1
+     ],
+     "lds": 0
+    }
+   },
+   "over_shipped_O3": 2.2256,
+   "ci95": [
+    2.2179,
+    2.2366
+   ],
+   "ms": 0.04898
+  },
+  "fi_silu_and_mul": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "parity",
+     "speedup": 1.0062,
+     "ci95": [
+      1.0,
+      1.012
+     ],
+     "ms": 0.10302
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": null,
+     "launch": {
+      "grid": [
+       "B * cdiv(D4, 64)",
+       1,
+       1
+      ],
+      "block": [
+       64,
+       1,
+       1
+      ],
+      "lds": 0,
+      "args": [
+       {
+        "dtype": "u32",
+        "value": "cdiv(D4, 64)"
+       }
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.0679,
+     "ci95": [
+      1.0565,
+      1.0725
+     ],
+     "ms": 0.09744,
+     "verified": {
+      "outcome": "win",
+      "speedup": 1.0603,
+      "speedup_ci95": [
+       1.0537,
+       1.0686
+      ],
+      "candidate_ms": 0.09738,
+      "cases": 77,
+      "runs": [
+       {
+        "speedup": 1.0654,
+        "ci95": [
+         1.06,
+         1.0735
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 1.0603,
+        "ci95": [
+         1.0537,
+         1.0686
+        ],
+        "valid": true
+       }
+      ]
+     }
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": {
+      "grid": [
+       "B * cdiv(D4, 64)",
+       1,
+       1
+      ],
+      "block": [
+       64,
+       1,
+       1
+      ],
+      "lds": 0,
+      "args": [
+       {
+        "dtype": "u32",
+        "value": "cdiv(D4, 64)"
+       }
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.0553,
+     "ci95": [
+      1.046,
+      1.0624
+     ],
+     "ms": 0.09776
+    }
+   ],
+   "amdclang_O3_ms": 0.10298,
+   "baseline": {
+    "source": "baselines/fi_silu_and_mul.hip",
+    "launch": {
+     "grid": [
+      "B * cdiv(D4, 64)",
+      1,
+      1
+     ],
+     "block": [
+      64,
+      1,
+      1
+     ],
+     "lds": 0,
+     "args": [
+      {
+       "dtype": "u32",
+       "value": "cdiv(D4, 64)"
+      }
+     ]
+    }
+   },
+   "over_shipped_O3": 1.0603,
+   "ci95": [
+    1.0537,
+    1.0686
+   ],
+   "ms": 0.09738
+  },
+  "kda_step": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "loss",
+     "speedup": 0.9635,
+     "ci95": [
+      0.9609,
+      0.9666
+     ],
+     "ms": 0.21524
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-fno-slp-vectorize",
+      "-fno-vectorize"
+     ],
+     "defines": {
+      "CW": "4",
+      "UR": "8",
+      "PR": "8"
+     },
+     "launch": {
+      "grid": [
+       "H",
+       1,
+       1
+      ],
+      "block": [
+       256,
+       1,
+       1
+      ],
+      "lds": 0
+     },
+     "outcome": "win",
+     "speedup": 1.7306,
+     "ci95": [
+      1.7218,
+      1.7399
+     ],
+     "ms": 0.11832,
+     "verified": {
+      "outcome": "win",
+      "speedup": 1.6938,
+      "speedup_ci95": [
+       1.6892,
+       1.6985
+      ],
+      "candidate_ms": 0.11712,
+      "cases": 105,
+      "runs": [
+       {
+        "speedup": 1.7267,
+        "ci95": [
+         1.7205,
+         1.7325
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 1.6938,
+        "ci95": [
+         1.6892,
+         1.6985
+        ],
+        "valid": true
+       }
+      ]
+     }
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-fno-slp-vectorize",
+      "-fno-vectorize",
+      "-ffast-math"
+     ],
+     "defines": {
+      "CW": "4",
+      "UR": "8",
+      "PR": "8"
+     },
+     "launch": {
+      "grid": [
+       "H",
+       1,
+       1
+      ],
+      "block": [
+       256,
+       1,
+       1
+      ],
+      "lds": 0
+     },
+     "outcome": "win",
+     "speedup": 1.458,
+     "ci95": [
+      1.4534,
+      1.4631
+     ],
+     "ms": 0.14084
+    }
+   ],
+   "amdclang_O3_ms": 0.20556,
+   "baseline": {
+    "source": "baselines/kda_step.hip",
+    "flags": [
+     "-fno-slp-vectorize",
+     "-fno-vectorize"
+    ],
+    "defines": {
+     "CW": "4",
+     "UR": "8",
+     "PR": "8"
+    },
+    "launch": {
+     "grid": [
+      "H",
+      1,
+      1
+     ],
+     "block": [
+      256,
+      1,
+      1
+     ],
+     "lds": 0
+    }
+   },
+   "over_shipped_O3": 1.6938,
+   "ci95": [
+    1.6892,
+    1.6985
+   ],
+   "ms": 0.11712
+  },
+  "mla_decode": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "win",
+     "speedup": 1.0811,
+     "ci95": [
+      1.0787,
+      1.0826
+     ],
+     "ms": 0.42447
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": null,
+     "launch": {
+      "grid": [
+       "cdiv(H, 2)",
+       "B",
+       1
+      ],
+      "block": [
+       1024,
+       1,
+       1
+      ],
+      "lds": 0
+     },
+     "outcome": "win",
+     "speedup": 1.7,
+     "ci95": [
+      1.6989,
+      1.7035
+     ],
+     "ms": 0.26854
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": {
+      "grid": [
+       "cdiv(H, 2)",
+       "B",
+       1
+      ],
+      "block": [
+       1024,
+       1,
+       1
+      ],
+      "lds": 0
+     },
+     "outcome": "win",
+     "speedup": 1.7104,
+     "ci95": [
+      1.7092,
+      1.7126
+     ],
+     "ms": 0.26726,
+     "verified": {
+      "outcome": "win",
+      "speedup": 1.7103,
+      "speedup_ci95": [
+       1.7091,
+       1.7119
+      ],
+      "candidate_ms": 0.26713,
+      "cases": 98,
+      "runs": [
+       {
+        "speedup": 1.7103,
+        "ci95": [
+         1.7091,
+         1.7119
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 1.7113,
+        "ci95": [
+         1.7102,
+         1.7127
+        ],
+        "valid": true
+       }
+      ]
+     }
+    }
+   ],
+   "amdclang_O3_ms": 0.45931,
+   "baseline": {
+    "source": "baselines/mla_decode.hip",
+    "flags": [
+     "-ffast-math"
+    ],
+    "launch": {
+     "grid": [
+      "cdiv(H, 2)",
+      "B",
+      1
+     ],
+     "block": [
+      1024,
+      1,
+      1
+     ],
+     "lds": 0
+    }
+   },
+   "over_shipped_O3": 1.7103,
+   "ci95": [
+    1.7091,
+    1.7119
+   ],
+   "ms": 0.26713
+  },
+  "mo_active_fwd": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "parity",
+     "speedup": 0.9991,
+     "ci95": [
+      0.9935,
+      1.0035
+     ],
+     "ms": 0.11168
+    }
+   ],
+   "amdclang_O3_ms": 0.11234,
+   "baseline": null,
+   "over_shipped_O3": 1.0
+  },
+  "mo_adam": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "parity",
+     "speedup": 1.0046,
+     "ci95": [
+      0.9974,
+      1.0087
+     ],
+     "ms": 0.3798
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": {
+      "EPT": "1"
+     },
+     "launch": {
+      "grid": [
+       "cdiv(N, EPT * 256)"
+      ],
+      "block": [
+       256
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.1088,
+     "ci95": [
+      1.1009,
+      1.1168
+     ],
+     "ms": 0.34316
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": {
+      "EPT": "1"
+     },
+     "launch": {
+      "grid": [
+       "cdiv(N, EPT * 256)"
+      ],
+      "block": [
+       256
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.1118,
+     "ci95": [
+      1.1055,
+      1.12
+     ],
+     "ms": 0.33934,
+     "verified": {
+      "outcome": "win",
+      "speedup": 1.0992,
+      "speedup_ci95": [
+       1.0962,
+       1.1022
+      ],
+      "candidate_ms": 0.34268,
+      "cases": 49,
+      "runs": [
+       {
+        "speedup": 1.1055,
+        "ci95": [
+         1.0991,
+         1.1091
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 1.0992,
+        "ci95": [
+         1.0962,
+         1.1022
+        ],
+        "valid": true
+       }
+      ]
+     }
+    }
+   ],
+   "amdclang_O3_ms": 0.38183,
+   "baseline": {
+    "source": "baselines/mo_adam.hip",
+    "flags": [
+     "-ffast-math"
+    ],
+    "defines": {
+     "EPT": "1"
+    },
+    "launch": {
+     "grid": [
+      "cdiv(N, EPT * 256)"
+     ],
+     "block": [
+      256
+     ]
+    }
+   },
+   "over_shipped_O3": 1.0992,
+   "ci95": [
+    1.0962,
+    1.1022
+   ],
+   "ms": 0.34268
+  },
+  "mo_bn_infer": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "loss",
+     "speedup": 0.9861,
+     "ci95": [
+      0.981,
+      0.9892
+     ],
+     "ms": 0.1103
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": {
+      "BLK": "64",
+      "NPT": "1"
+     },
+     "launch": {
+      "grid": [
+       "cdiv(C * HW4, BLK)",
+       "cdiv(N, NPT)"
+      ],
+      "block": [
+       "BLK"
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.237,
+     "ci95": [
+      1.2302,
+      1.2415
+     ],
+     "ms": 0.08804,
+     "verified": {
+      "outcome": "win",
+      "speedup": 1.218,
+      "speedup_ci95": [
+       1.212,
+       1.225
+      ],
+      "candidate_ms": 0.08812,
+      "cases": 105,
+      "runs": [
+       {
+        "speedup": 1.218,
+        "ci95": [
+         1.212,
+         1.225
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 1.2202,
+        "ci95": [
+         1.2152,
+         1.2247
+        ],
+        "valid": true
+       }
+      ]
+     }
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": {
+      "BLK": "64",
+      "NPT": "1"
+     },
+     "launch": {
+      "grid": [
+       "cdiv(C * HW4, BLK)",
+       "cdiv(N, NPT)"
+      ],
+      "block": [
+       "BLK"
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.2194,
+     "ci95": [
+      1.2131,
+      1.2261
+     ],
+     "ms": 0.08894
+    }
+   ],
+   "amdclang_O3_ms": 0.10374,
+   "baseline": {
+    "source": "baselines/mo_bn_infer.hip",
+    "defines": {
+     "BLK": "64",
+     "NPT": "1"
+    },
+    "launch": {
+     "grid": [
+      "cdiv(C * HW4, BLK)",
+      "cdiv(N, NPT)"
+     ],
+     "block": [
+      "BLK"
+     ]
+    }
+   },
+   "over_shipped_O3": 1.218,
+   "ci95": [
+    1.212,
+    1.225
+   ],
+   "ms": 0.08812
+  },
+  "mo_glu_fwd": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "win",
+     "speedup": 1.0869,
+     "ci95": [
+      1.0831,
+      1.0904
+     ],
+     "ms": 0.17738,
+     "verified": {
+      "outcome": "win",
+      "speedup": 1.0854,
+      "speedup_ci95": [
+       1.0834,
+       1.088
+      ],
+      "candidate_ms": 0.17534,
+      "cases": 49,
+      "runs": [
+       {
+        "speedup": 1.0874,
+        "ci95": [
+         1.0846,
+         1.0891
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 1.0854,
+        "ci95": [
+         1.0834,
+         1.088
+        ],
+        "valid": true
+       }
+      ]
+     }
+    }
+   ],
+   "amdclang_O3_ms": 0.19028,
+   "baseline": {
+    "flags": [
+     "-ffast-math"
+    ]
+   },
+   "over_shipped_O3": 1.0854,
+   "ci95": [
+    1.0834,
+    1.088
+   ],
+   "ms": 0.17534
+  },
+  "mo_prelu_bwd": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "loss",
+     "speedup": 0.9819,
+     "ci95": [
+      0.9787,
+      0.9841
+     ],
+     "ms": 0.2227
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": {
+      "EPT": "2",
+      "BLK": "128"
+     },
+     "launch": {
+      "grid": [
+       "cdiv(N, EPT * BLK)",
+       1,
+       1
+      ],
+      "block": [
+       "BLK",
+       1,
+       1
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.1415,
+     "ci95": [
+      1.137,
+      1.1443
+     ],
+     "ms": 0.19302,
+     "verified": {
+      "outcome": "win",
+      "speedup": 1.1458,
+      "speedup_ci95": [
+       1.1425,
+       1.1489
+      ],
+      "candidate_ms": 0.1923,
+      "cases": 49,
+      "runs": [
+       {
+        "speedup": 1.1458,
+        "ci95": [
+         1.1425,
+         1.1489
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 1.1501,
+        "ci95": [
+         1.1479,
+         1.1523
+        ],
+        "valid": true
+       }
+      ]
+     }
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": {
+      "EPT": "2",
+      "BLK": "128"
+     },
+     "launch": {
+      "grid": [
+       "cdiv(N, EPT * BLK)",
+       1,
+       1
+      ],
+      "block": [
+       "BLK",
+       1,
+       1
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.107,
+     "ci95": [
+      1.1004,
+      1.1099
+     ],
+     "ms": 0.19896
+    }
+   ],
+   "amdclang_O3_ms": 0.21888,
+   "baseline": {
+    "source": "baselines/mo_prelu_bwd.hip",
+    "defines": {
+     "EPT": "2",
+     "BLK": "128"
+    },
+    "launch": {
+     "grid": [
+      "cdiv(N, EPT * BLK)",
+      1,
+      1
+     ],
+     "block": [
+      "BLK",
+      1,
+      1
+     ]
+    }
+   },
+   "over_shipped_O3": 1.1458,
+   "ci95": [
+    1.1425,
+    1.1489
+   ],
+   "ms": 0.1923
+  },
+  "mo_reduce_sum": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "identical code"
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": {
+      "EPL": "4"
+     },
+     "launch": {
+      "grid": [
+       "cdiv(cdiv(N, 256) * 64, 64)",
+       1,
+       1
+      ],
+      "block": [
+       64,
+       1,
+       1
+      ],
+      "lds": 0
+     },
+     "outcome": "win",
+     "speedup": 1.8997,
+     "ci95": [
+      1.8926,
+      1.9072
+     ],
+     "ms": 0.08432
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": {
+      "EPL": "4"
+     },
+     "launch": {
+      "grid": [
+       "cdiv(cdiv(N, 256) * 64, 64)",
+       1,
+       1
+      ],
+      "block": [
+       64,
+       1,
+       1
+      ],
+      "lds": 0
+     },
+     "outcome": "win",
+     "speedup": 1.8985,
+     "ci95": [
+      1.8947,
+      1.9049
+     ],
+     "ms": 0.08428,
+     "verified": {
+      "outcome": "win",
+      "speedup": 1.8919,
+      "speedup_ci95": [
+       1.8854,
+       1.8956
+      ],
+      "candidate_ms": 0.08456,
+      "cases": 49,
+      "runs": [
+       {
+        "speedup": 1.8905,
+        "ci95": [
+         1.8866,
+         1.8961
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 1.8919,
+        "ci95": [
+         1.8854,
+         1.8956
+        ],
+        "valid": true
+       }
+      ]
+     }
+    }
+   ],
+   "amdclang_O3_ms": 0.1594,
+   "baseline": {
+    "source": "baselines/mo_reduce_sum.hip",
+    "flags": [
+     "-ffast-math"
+    ],
+    "defines": {
+     "EPL": "4"
+    },
+    "launch": {
+     "grid": [
+      "cdiv(cdiv(N, 256) * 64, 64)",
+      1,
+      1
+     ],
+     "block": [
+      64,
+      1,
+      1
+     ],
+     "lds": 0
+    }
+   },
+   "over_shipped_O3": 1.8919,
+   "ci95": [
+    1.8854,
+    1.8956
+   ],
+   "ms": 0.08456
+  },
+  "mo_rope_fwd": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "parity",
+     "speedup": 0.9997,
+     "ci95": [
+      0.9954,
+      1.003
+     ],
+     "ms": 0.1898
+    }
+   ],
+   "amdclang_O3_ms": 0.18782,
+   "baseline": null,
+   "over_shipped_O3": 1.0
+  },
+  "mo_t5_layernorm": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "win",
+     "speedup": 1.0495,
+     "ci95": [
+      1.0453,
+      1.0522
+     ],
+     "ms": 0.11038
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": {
+      "BLK": "256",
+      "NC": "1"
+     },
+     "launch": {
+      "grid": [
+       "R",
+       1,
+       1
+      ],
+      "block": [
+       256,
+       1,
+       1
+      ],
+      "lds": 0
+     },
+     "outcome": "win",
+     "speedup": 1.7682,
+     "ci95": [
+      1.7578,
+      1.7747
+     ],
+     "ms": 0.0671
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": {
+      "BLK": "256",
+      "NC": "1"
+     },
+     "launch": {
+      "grid": [
+       "R",
+       1,
+       1
+      ],
+      "block": [
+       256,
+       1,
+       1
+      ],
+      "lds": 0
+     },
+     "outcome": "win",
+     "speedup": 1.7638,
+     "ci95": [
+      1.7587,
+      1.7694
+     ],
+     "ms": 0.06576,
+     "verified": {
+      "outcome": "win",
+      "speedup": 1.763,
+      "speedup_ci95": [
+       1.755,
+       1.7689
+      ],
+      "candidate_ms": 0.06566,
+      "cases": 77,
+      "runs": [
+       {
+        "speedup": 1.763,
+        "ci95": [
+         1.755,
+         1.7689
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 1.773,
+        "ci95": [
+         1.7662,
+         1.779
+        ],
+        "valid": true
+       }
+      ]
+     }
+    }
+   ],
+   "amdclang_O3_ms": 0.11314,
+   "baseline": {
+    "source": "baselines/mo_t5_layernorm.hip",
+    "flags": [
+     "-ffast-math"
+    ],
+    "defines": {
+     "BLK": "256",
+     "NC": "1"
+    },
+    "launch": {
+     "grid": [
+      "R",
+      1,
+      1
+     ],
+     "block": [
+      256,
+      1,
+      1
+     ],
+     "lds": 0
+    }
+   },
+   "over_shipped_O3": 1.763,
+   "ci95": [
+    1.755,
+    1.7689
+   ],
+   "ms": 0.06566
+  },
+  "moe_gate_topk": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "win",
+     "speedup": 1.0623,
+     "ci95": [
+      1.0611,
+      1.0636
+     ],
+     "ms": 0.62245
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": null,
+     "launch": null,
+     "outcome": "win",
+     "speedup": 18.8386,
+     "ci95": [
+      18.7515,
+      18.9438
+     ],
+     "ms": 0.03498,
+     "verified": {
+      "outcome": "win",
+      "speedup": 18.2766,
+      "speedup_ci95": [
+       18.2463,
+       18.3075
+      ],
+      "candidate_ms": 0.03588,
+      "cases": 49,
+      "runs": [
+       {
+        "speedup": 18.2766,
+        "ci95": [
+         18.2463,
+         18.3075
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 18.857,
+        "ci95": [
+         18.792,
+         18.9299
+        ],
+        "valid": true
+       }
+      ]
+     }
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "win",
+     "speedup": 17.89,
+     "ci95": [
+      17.8447,
+      17.9154
+     ],
+     "ms": 0.03668
+    }
+   ],
+   "amdclang_O3_ms": 0.65755,
+   "baseline": {
+    "source": "baselines/moe_gate_topk.hip"
+   },
+   "over_shipped_O3": 18.2766,
+   "ci95": [
+    18.2463,
+    18.3075
+   ],
+   "ms": 0.03588
+  },
+  "rb_axpy": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "parity",
+     "speedup": 0.9989,
+     "ci95": [
+      0.9965,
+      1.0031
+     ],
+     "ms": 0.16372
+    }
+   ],
+   "amdclang_O3_ms": 0.16208,
+   "baseline": null,
+   "over_shipped_O3": 1.0
+  },
+  "rb_copy": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "identical code"
+    }
+   ],
+   "amdclang_O3_ms": 0.11118,
+   "baseline": null,
+   "over_shipped_O3": 1.0
+  },
+  "rb_dot": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "parity",
+     "speedup": 0.999,
+     "ci95": [
+      0.9951,
+      1.0047
+     ],
+     "ms": 0.14462
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": null,
+     "launch": null,
+     "outcome": "win",
+     "speedup": 1.0693,
+     "ci95": [
+      1.0637,
+      1.0762
+     ],
+     "ms": 0.13464,
+     "verified": {
+      "outcome": "win",
+      "speedup": 1.0731,
+      "speedup_ci95": [
+       1.067,
+       1.0793
+      ],
+      "candidate_ms": 0.13564,
+      "cases": 49,
+      "runs": [
+       {
+        "speedup": 1.0731,
+        "ci95": [
+         1.067,
+         1.0793
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 1.0729,
+        "ci95": [
+         1.0688,
+         1.0769
+        ],
+        "valid": true
+       }
+      ]
+     }
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "win",
+     "speedup": 1.0423,
+     "ci95": [
+      1.0362,
+      1.0477
+     ],
+     "ms": 0.13872
+    }
+   ],
+   "amdclang_O3_ms": 0.13944,
+   "baseline": {
+    "source": "baselines/rb_dot.hip"
+   },
+   "over_shipped_O3": 1.0731,
+   "ci95": [
+    1.067,
+    1.0793
+   ],
+   "ms": 0.13564
+  },
+  "rb_gemvn": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "parity",
+     "speedup": 1.011,
+     "ci95": [
+      1.0083,
+      1.0141
+     ],
+     "ms": 0.2176
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": {
+      "R": "1",
+      "W": "16",
+      "C": "8"
+     },
+     "launch": {
+      "grid": [
+       "cdiv(M, 64)",
+       1,
+       1
+      ],
+      "block": [
+       64,
+       16,
+       1
+      ],
+      "lds": 0
+     },
+     "outcome": "win",
+     "speedup": 2.1765,
+     "ci95": [
+      2.166,
+      2.1816
+     ],
+     "ms": 0.1017
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": {
+      "R": "1",
+      "W": "16",
+      "C": "8"
+     },
+     "launch": {
+      "grid": [
+       "cdiv(M, 64)",
+       1,
+       1
+      ],
+      "block": [
+       64,
+       16,
+       1
+      ],
+      "lds": 0
+     },
+     "outcome": "win",
+     "speedup": 2.1796,
+     "ci95": [
+      2.1724,
+      2.1927
+     ],
+     "ms": 0.1014,
+     "verified": {
+      "outcome": "win",
+      "speedup": 2.1789,
+      "speedup_ci95": [
+       2.1731,
+       2.1852
+      ],
+      "candidate_ms": 0.1015,
+      "cases": 77,
+      "runs": [
+       {
+        "speedup": 2.1789,
+        "ci95": [
+         2.1731,
+         2.1852
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 2.1879,
+        "ci95": [
+         2.1827,
+         2.1927
+        ],
+        "valid": true
+       }
+      ]
+     }
+    }
+   ],
+   "amdclang_O3_ms": 0.22734,
+   "baseline": {
+    "source": "baselines/rb_gemvn.hip",
+    "flags": [
+     "-ffast-math"
+    ],
+    "defines": {
+     "R": "1",
+     "W": "16",
+     "C": "8"
+    },
+    "launch": {
+     "grid": [
+      "cdiv(M, 64)",
+      1,
+      1
+     ],
+     "block": [
+      64,
+      16,
+      1
+     ],
+     "lds": 0
+    }
+   },
+   "over_shipped_O3": 2.1789,
+   "ci95": [
+    2.1731,
+    2.1852
+   ],
+   "ms": 0.1015
+  },
+  "rb_gemvt": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "win",
+     "speedup": 1.1687,
+     "ci95": [
+      1.1639,
+      1.1749
+     ],
+     "ms": 0.095
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": {
+      "NBX": "1024",
+      "UNR": "2",
+      "NC": "4"
+     },
+     "launch": {
+      "grid": [
+       "cdiv(N, 4)",
+       1,
+       1
+      ],
+      "block": [
+       1024,
+       1,
+       1
+      ],
+      "lds": 0
+     },
+     "outcome": "win",
+     "speedup": 1.2367,
+     "ci95": [
+      1.228,
+      1.2419
+     ],
+     "ms": 0.08974
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": {
+      "NBX": "1024",
+      "UNR": "2",
+      "NC": "4"
+     },
+     "launch": {
+      "grid": [
+       "cdiv(N, 4)",
+       1,
+       1
+      ],
+      "block": [
+       1024,
+       1,
+       1
+      ],
+      "lds": 0
+     },
+     "outcome": "win",
+     "speedup": 1.2379,
+     "ci95": [
+      1.2336,
+      1.2426
+     ],
+     "ms": 0.08982,
+     "verified": {
+      "outcome": "win",
+      "speedup": 1.237,
+      "speedup_ci95": [
+       1.2329,
+       1.2413
+      ],
+      "candidate_ms": 0.08984,
+      "cases": 77,
+      "runs": [
+       {
+        "speedup": 1.2394,
+        "ci95": [
+         1.2342,
+         1.2425
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 1.237,
+        "ci95": [
+         1.2329,
+         1.2413
+        ],
+        "valid": true
+       }
+      ]
+     }
+    }
+   ],
+   "amdclang_O3_ms": 0.11044,
+   "baseline": {
+    "source": "baselines/rb_gemvt.hip",
+    "flags": [
+     "-ffast-math"
+    ],
+    "defines": {
+     "NBX": "1024",
+     "UNR": "2",
+     "NC": "4"
+    },
+    "launch": {
+     "grid": [
+      "cdiv(N, 4)",
+      1,
+      1
+     ],
+     "block": [
+      1024,
+      1,
+      1
+     ],
+     "lds": 0
+    }
+   },
+   "over_shipped_O3": 1.237,
+   "ci95": [
+    1.2329,
+    1.2413
+   ],
+   "ms": 0.08984
+  },
+  "rb_ger": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "parity",
+     "speedup": 1.0002,
+     "ci95": [
+      0.995,
+      1.006
+     ],
+     "ms": 0.10436
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": {
+      "EPT": "4",
+      "BLK": "64"
+     },
+     "launch": {
+      "grid": [
+       "cdiv(M, EPT * BLK)",
+       "N",
+       1
+      ],
+      "block": [
+       "BLK",
+       1,
+       1
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.1034,
+     "ci95": [
+      1.0967,
+      1.1084
+     ],
+     "ms": 0.09434
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": {
+      "EPT": "4",
+      "BLK": "64"
+     },
+     "launch": {
+      "grid": [
+       "cdiv(M, EPT * BLK)",
+       "N",
+       1
+      ],
+      "block": [
+       "BLK",
+       1,
+       1
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.1081,
+     "ci95": [
+      1.1025,
+      1.113
+     ],
+     "ms": 0.09462,
+     "verified": {
+      "outcome": "win",
+      "speedup": 1.106,
+      "speedup_ci95": [
+       1.1025,
+       1.1087
+      ],
+      "candidate_ms": 0.09438,
+      "cases": 77,
+      "runs": [
+       {
+        "speedup": 1.106,
+        "ci95": [
+         1.1025,
+         1.1087
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 1.1117,
+        "ci95": [
+         1.1068,
+         1.1145
+        ],
+        "valid": true
+       }
+      ]
+     }
+    }
+   ],
+   "amdclang_O3_ms": 0.10494,
+   "baseline": {
+    "source": "baselines/rb_ger.hip",
+    "flags": [
+     "-ffast-math"
+    ],
+    "defines": {
+     "EPT": "4",
+     "BLK": "64"
+    },
+    "launch": {
+     "grid": [
+      "cdiv(M, EPT * BLK)",
+      "N",
+      1
+     ],
+     "block": [
+      "BLK",
+      1,
+      1
+     ]
+    }
+   },
+   "over_shipped_O3": 1.106,
+   "ci95": [
+    1.1025,
+    1.1087
+   ],
+   "ms": 0.09438
+  },
+  "rb_nrm2": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "identical code"
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": null,
+     "launch": {
+      "grid": [
+       "cdiv(N, 2048)",
+       1,
+       1
+      ],
+      "block": [
+       512,
+       1,
+       1
+      ],
+      "lds": 0
+     },
+     "outcome": "win",
+     "speedup": 1.4282,
+     "ci95": [
+      1.4212,
+      1.4341
+     ],
+     "ms": 0.0871,
+     "verified": {
+      "outcome": "win",
+      "speedup": 1.4027,
+      "speedup_ci95": [
+       1.394,
+       1.4098
+      ],
+      "candidate_ms": 0.08752,
+      "cases": 49,
+      "runs": [
+       {
+        "speedup": 1.4027,
+        "ci95": [
+         1.394,
+         1.4098
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 1.4184,
+        "ci95": [
+         1.4121,
+         1.4236
+        ],
+        "valid": true
+       }
+      ]
+     }
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": {
+      "grid": [
+       "cdiv(N, 2048)",
+       1,
+       1
+      ],
+      "block": [
+       512,
+       1,
+       1
+      ],
+      "lds": 0
+     },
+     "outcome": "win",
+     "speedup": 1.4081,
+     "ci95": [
+      1.3989,
+      1.4192
+     ],
+     "ms": 0.08712
+    }
+   ],
+   "amdclang_O3_ms": 0.12192,
+   "baseline": {
+    "source": "baselines/rb_nrm2.hip",
+    "launch": {
+     "grid": [
+      "cdiv(N, 2048)",
+      1,
+      1
+     ],
+     "block": [
+      512,
+      1,
+      1
+     ],
+     "lds": 0
+    }
+   },
+   "over_shipped_O3": 1.4027,
+   "ci95": [
+    1.394,
+    1.4098
+   ],
+   "ms": 0.08752
+  },
+  "rb_rot": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "parity",
+     "speedup": 1.002,
+     "ci95": [
+      0.9984,
+      1.0048
+     ],
+     "ms": 0.18472
+    }
+   ],
+   "amdclang_O3_ms": 0.1826,
+   "baseline": null,
+   "over_shipped_O3": 1.0
+  },
+  "rb_scal": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "parity",
+     "speedup": 0.9956,
+     "ci95": [
+      0.9887,
+      1.0039
+     ],
+     "ms": 0.10392
+    }
+   ],
+   "amdclang_O3_ms": 0.10428,
+   "baseline": null,
+   "over_shipped_O3": 1.0
+  },
+  "rb_swap": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "identical code"
+    }
+   ],
+   "amdclang_O3_ms": 0.18262,
+   "baseline": null,
+   "over_shipped_O3": 1.0
+  },
+  "vl_fused_add_rms_norm": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "parity",
+     "speedup": 1.0017,
+     "ci95": [
+      1.0,
+      1.0049
+     ],
+     "ms": 0.15038
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": {
+      "BLK": "1024",
+      "KCH": "1"
+     },
+     "launch": {
+      "grid": [
+       "B",
+       1,
+       1
+      ],
+      "block": [
+       "BLK",
+       1,
+       1
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.5154,
+     "ci95": [
+      1.5098,
+      1.5236
+     ],
+     "ms": 0.09868,
+     "verified": {
+      "outcome": "win",
+      "speedup": 1.4364,
+      "speedup_ci95": [
+       1.4327,
+       1.4408
+      ],
+      "candidate_ms": 0.1036,
+      "cases": 77,
+      "runs": [
+       {
+        "speedup": 1.4838,
+        "ci95": [
+         1.479,
+         1.4881
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 1.4364,
+        "ci95": [
+         1.4327,
+         1.4408
+        ],
+        "valid": true
+       }
+      ]
+     }
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": {
+      "BLK": "1024",
+      "KCH": "1"
+     },
+     "launch": {
+      "grid": [
+       "B",
+       1,
+       1
+      ],
+      "block": [
+       "BLK",
+       1,
+       1
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.4329,
+     "ci95": [
+      1.4236,
+      1.436
+     ],
+     "ms": 0.10628
+    }
+   ],
+   "amdclang_O3_ms": 0.14572,
+   "baseline": {
+    "source": "baselines/vl_fused_add_rms_norm.hip",
+    "defines": {
+     "BLK": "1024",
+     "KCH": "1"
+    },
+    "launch": {
+     "grid": [
+      "B",
+      1,
+      1
+     ],
+     "block": [
+      "BLK",
+      1,
+      1
+     ]
+    }
+   },
+   "over_shipped_O3": 1.4364,
+   "ci95": [
+    1.4327,
+    1.4408
+   ],
+   "ms": 0.1036
+  },
+  "vl_moe_align": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "identical code"
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": null,
+     "launch": {
+      "grid": [
+       "1 + cdiv(NT + E * 63, 4096)",
+       1,
+       1
+      ],
+      "block": [
+       1024,
+       1,
+       1
+      ],
+      "lds": "4 * cdiv(E, 64) * 64 + 256"
+     },
+     "outcome": "win",
+     "speedup": 5.8918,
+     "ci95": [
+      5.861,
+      5.9113
+     ],
+     "ms": 0.0458,
+     "verified": {
+      "outcome": "win",
+      "speedup": 5.7675,
+      "speedup_ci95": [
+       5.7376,
+       5.7994
+      ],
+      "candidate_ms": 0.04686,
+      "cases": 77,
+      "runs": [
+       {
+        "speedup": 5.7675,
+        "ci95": [
+         5.7376,
+         5.7994
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 5.9004,
+        "ci95": [
+         5.8711,
+         5.9223
+        ],
+        "valid": true
+       }
+      ]
+     }
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": {
+      "grid": [
+       "1 + cdiv(NT + E * 63, 4096)",
+       1,
+       1
+      ],
+      "block": [
+       1024,
+       1,
+       1
+      ],
+      "lds": "4 * cdiv(E, 64) * 64 + 256"
+     },
+     "outcome": "win",
+     "speedup": 5.8067,
+     "ci95": [
+      5.7914,
+      5.8466
+     ],
+     "ms": 0.04646
+    }
+   ],
+   "amdclang_O3_ms": 0.27111,
+   "baseline": {
+    "source": "baselines/vl_moe_align.hip",
+    "launch": {
+     "grid": [
+      "1 + cdiv(NT + E * 63, 4096)",
+      1,
+      1
+     ],
+     "block": [
+      1024,
+      1,
+      1
+     ],
+     "lds": "4 * cdiv(E, 64) * 64 + 256"
+    }
+   },
+   "over_shipped_O3": 5.7675,
+   "ci95": [
+    5.7376,
+    5.7994
+   ],
+   "ms": 0.04686
+  },
+  "vl_rms_norm": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "parity",
+     "speedup": 0.9983,
+     "ci95": [
+      0.9954,
+      1.0022
+     ],
+     "ms": 0.1313
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": {
+      "BLK": "1024",
+      "KCH": "1"
+     },
+     "launch": {
+      "grid": [
+       "B",
+       1,
+       1
+      ],
+      "block": [
+       "BLK",
+       1,
+       1
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.1282,
+     "ci95": [
+      1.1254,
+      1.1317
+     ],
+     "ms": 0.11794
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": {
+      "BLK": "1024",
+      "KCH": "1"
+     },
+     "launch": {
+      "grid": [
+       "B",
+       1,
+       1
+      ],
+      "block": [
+       "BLK",
+       1,
+       1
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.1525,
+     "ci95": [
+      1.1443,
+      1.161
+     ],
+     "ms": 0.11622,
+     "verified": {
+      "outcome": "win",
+      "speedup": 1.1332,
+      "speedup_ci95": [
+       1.1294,
+       1.137
+      ],
+      "candidate_ms": 0.11812,
+      "cases": 77,
+      "runs": [
+       {
+        "speedup": 1.1332,
+        "ci95": [
+         1.1294,
+         1.137
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 1.1389,
+        "ci95": [
+         1.1334,
+         1.144
+        ],
+        "valid": true
+       }
+      ]
+     }
+    }
+   ],
+   "amdclang_O3_ms": 0.13466,
+   "baseline": {
+    "source": "baselines/vl_rms_norm.hip",
+    "flags": [
+     "-ffast-math"
+    ],
+    "defines": {
+     "BLK": "1024",
+     "KCH": "1"
+    },
+    "launch": {
+     "grid": [
+      "B",
+      1,
+      1
+     ],
+     "block": [
+      "BLK",
+      1,
+      1
+     ]
+    }
+   },
+   "over_shipped_O3": 1.1332,
+   "ci95": [
+    1.1294,
+    1.137
+   ],
+   "ms": 0.11812
+  },
+  "vl_rotary_embedding": {
+   "candidates": [
+    {
+     "what": "shipped source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": null,
+     "outcome": "parity",
+     "speedup": 0.9992,
+     "ci95": [
+      0.9961,
+      1.0053
+     ],
+     "ms": 0.1258
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": {
+      "BLK": "640"
+     },
+     "launch": {
+      "grid": [
+       "N",
+       "cdiv((Hq + Hk) * 16, BLK)",
+       1
+      ],
+      "block": [
+       "BLK",
+       1,
+       1
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.0778,
+     "ci95": [
+      1.0745,
+      1.0805
+     ],
+     "ms": 0.1186,
+     "verified": {
+      "outcome": "win",
+      "speedup": 1.0523,
+      "speedup_ci95": [
+       1.0509,
+       1.0545
+      ],
+      "candidate_ms": 0.11876,
+      "cases": 98,
+      "runs": [
+       {
+        "speedup": 1.0523,
+        "ci95": [
+         1.0509,
+         1.0545
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 1.0617,
+        "ci95": [
+         1.0572,
+         1.0645
+        ],
+        "valid": true
+       }
+      ]
+     }
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": {
+      "BLK": "640"
+     },
+     "launch": {
+      "grid": [
+       "N",
+       "cdiv((Hq + Hk) * 16, BLK)",
+       1
+      ],
+      "block": [
+       "BLK",
+       1,
+       1
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.034,
+     "ci95": [
+      1.0312,
+      1.0424
+     ],
+     "ms": 0.12104
+    }
+   ],
+   "amdclang_O3_ms": 0.1277,
+   "baseline": {
+    "source": "baselines/vl_rotary_embedding.hip",
+    "defines": {
+     "BLK": "640"
+    },
+    "launch": {
+     "grid": [
+      "N",
+      "cdiv((Hq + Hk) * 16, BLK)",
+      1
+     ],
+     "block": [
+      "BLK",
+      1,
+      1
+     ]
+    }
+   },
+   "over_shipped_O3": 1.0523,
+   "ci95": [
+    1.0509,
+    1.0545
+   ],
+   "ms": 0.11876
+  }
+ },
+ "what": "the strongest amdclang build per kernel (see scripts/strong_baseline.py); speedups are over amdclang -O3 on the source as shipped; the baseline is what agc's results are measured against",
+ "protocol": "agc-timing-amd-2",
+ "recorded": "2026-11-20"
+}

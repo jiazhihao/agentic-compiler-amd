@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """The strongest amdclang build per LLM-benchmark kernel: what agc's results are measured against.
 
-    .venv/bin/python scripts/strong_baseline.py seed               candidates from the recorded session recipes (their amdclang-built source)
+    .venv/bin/python scripts/strong_baseline.py seed [KERNEL ...]  candidates from the recorded session recipes (their amdclang-built source)
     .venv/bin/python scripts/strong_baseline.py run [KERNEL ...]   measure the candidates, write the manifests' `baseline` and the record
     .venv/bin/python scripts/strong_baseline.py promote KERNEL     the baseline candidate of the kernel's last agent session, then `run`
 
@@ -61,11 +61,12 @@ def candidate(name: str, text: str, c: dict) -> None:
     put(name, {"source": f"baselines/{name}.hip", **{k: c[k] for k in ("flags", "defines", "launch") if c.get(k)}})
 
 
-def seed(root=".agc") -> None:
-    for d in sorted(p for p in agent.RECIPES.iterdir() if (p / "best.s").exists()):
+def seed(only: list[str], root=".agc") -> None:
+    for d in sorted(p for p in agent.RECIPES.iterdir() if (p / "best.s").exists() and (not only or p.name in only)):
         s = plain(d.name, root)
         best = (d / "best.s").read_text()
-        st = next((x for x in s.store.all_states() if x.ir == best), None)
+        launch = json.loads((d / "recipe.json").read_text())["launch"]
+        st = next((x for x in s.store.all_states() if x.ir == best and s.launch_of(x.id) == launch), None)
         own = runner.own_source(s, st.id) if st else None
         if own is None:
             print(f"{d.name:24s} no source state behind the recipe")
@@ -149,7 +150,7 @@ def promote(name: str, root=".agc") -> bool:
 
 def main(argv) -> int:
     if argv[:1] == ["seed"]:
-        seed()
+        seed(argv[1:])
     elif argv[:1] == ["run"]:
         run(argv[1:])
     elif argv[:1] == ["promote"] and len(argv) == 2:

@@ -21,6 +21,29 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 
 ## Log
 
+### 2026-11-20 — stronger baseline: the strongest amdclang build per kernel (#62)
+- **What changed.** A manifest names a `baseline` (source, flags, defines, launch); the session
+  imports it as state `baseline` and `bench`, the default policy and the harness measure against
+  it. `ref` stays amdclang -O3 on the source as shipped. `scripts/strong_baseline.py` chooses the
+  baseline per kernel among the shipped source and the round-1 restructured source, each with and
+  without `-ffast-math`; every candidate passes the full battery and the chosen one is confirmed
+  by two valid 240-pair timings. Record: `tests/baselines/llm-strong-gfx950.json`.
+- **Baselines.** 26 of 36 kernels have a baseline stronger than -O3 on the shipped source: 24
+  from a restructured source (12 of them also with `-ffast-math`), 2 from `-ffast-math` alone.
+  The largest: `moe_gate_topk` 18.3x, `attn_decode` 7.4x, `vl_moe_align` 5.8x, `fa_attention`
+  3.9x, `fa_attention_causal` 2.2x, `fi_rope` 2.2x, `rb_gemvn` 2.2x.
+- **agc against the stronger baseline.** Round-1 recipes replayed: 23 are parity, identical to
+  the baseline or slower than it (they were amdclang's code) and are dropped; `mla_decode` stays
+  a win, **1.486x** (1.485 to 1.487) from its `mir` edits. Default policy: 7 wins (`coarsen`,
+  1.04x to 1.08x), 29 fallbacks. Together 8 of 36 kernels with a verified agc gain, geomean
+  1.022 with fallbacks at 1.0; the geomean of the best build over -O3 on the shipped source is
+  1.536, most of it amdclang's.
+- **Harness.** A session's own `source` state that beats the baseline is a baseline candidate
+  (outcome `baseline`, not a win); the final state must beat that build too. The prompt targets
+  machine-level gain. `agc replay --update` re-verifies recipes against the current baseline.
+- **Open.** Second round of sessions against the new baselines. The 10 kernels that never had a
+  session have had no source-level search, so their baseline is only -O3 or `-ffast-math`.
+
 ### 2026-11-20 — baseline audit of the LLM benchmark (#29, #34)
 - **Attribution.** For every recorded session recipe the source-rewritten state was timed on its
   own. 22 of 23 recipes are amdclang's compilation of the rewritten source with no machine-level

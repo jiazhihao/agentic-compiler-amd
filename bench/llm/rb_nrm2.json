@@ -65,5 +65,21 @@
   "llm",
   "rocblas",
   "reduction"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/rb_nrm2.hip",
+  "launch": {
+   "grid": [
+    "cdiv(N, 2048)",
+    1,
+    1
+   ],
+   "block": [
+    512,
+    1,
+    1
+   ],
+   "lds": 0
+  }
+ }
 }
