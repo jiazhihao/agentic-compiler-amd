@@ -58,6 +58,18 @@ def test_coarsen_wraps_the_body_and_appends_the_grid_argument():
     assert check.static_check(abi.make_module([k]), encode=False)["ok"]
 
 
+def test_coarsen_ends_each_virtual_workgroup_with_a_barrier_when_lds_is_shared():
+    """Two waves of one workgroup: without the barrier the faster wave starts the next virtual workgroup and
+    overwrites LDS the other still reads (kda_step failed the battery this way)."""
+    def latch(body):
+        k = kernel(body)
+        coarsen.coarsen(k, 2)
+        return [str(i) for i in k.blocks[[b.label for b in k.blocks].index(coarsen.LATCH)].insts]
+    assert "s_barrier" not in latch(AXPY)
+    lds = AXPY.replace("    global_store_dword v[2:3], v4, off\n", "    ds_write_b32 v0, v4\n    global_store_dword v[2:3], v4, off\n")
+    assert latch(lds)[0] == "s_barrier"
+
+
 def test_coarsen_uses_a_multiply_for_other_factors_and_refuses_twice():
     k = kernel(AXPY)
     coarsen.coarsen(k, 3)
