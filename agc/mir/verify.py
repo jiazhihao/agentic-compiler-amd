@@ -39,7 +39,9 @@ def _fit(op, spec, enc: Encoding, isa: Isa, arch: Arch, narrow_addr: bool = Fals
         if op.name is not None:
             return "virtual register in physical code"
         if op.cls == "off":
-            return None if spec.field in ("SADDR", "SOFFSET") else "`off` is only a memory base/offset"
+            # a scratch access may have neither a vector offset nor a scalar base (amdclang's spill code)
+            ok = spec.field in ("SADDR", "SOFFSET") or (spec.field == "ADDR" and enc.enc == "ENC_FLAT_SCRATCH")
+            return None if ok else "`off` is only a memory base/offset"
         if (op.neg or op.abs) and not (("NEG" in fields or "SRC0_NEG" in fields) and spec.is_in):
             return "neg/abs modifier is not available in this encoding"
         cls = {"vcc_lo": "vcc", "exec_lo": "exec"}.get(op.cls, op.cls)

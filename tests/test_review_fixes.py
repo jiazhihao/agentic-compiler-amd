@@ -280,3 +280,13 @@ def test_transforms_refuse_indexed_vector_registers():
     k = Kernel("k", [Block("k", [parse_inst("s_set_gpr_idx_on s16, gpr_idx(DST)"), parse_inst("s_set_gpr_idx_off"), parse_inst("s_endpgm")])], {}, {})
     with pytest.raises(NotApplicable, match="indexed"):
         refuse_indexed(k)
+
+
+def test_scratch_accesses_without_a_base_are_legal():
+    from agc.arch.model import load as load_arch
+    from agc.isa import table
+    from agc.mir.asm import parse_inst
+    from agc.mir.verify import check_inst
+    for text in ("scratch_store_dword off, v0, off", "scratch_load_dwordx2 v[2:3], off, off offset:16"):
+        assert check_inst(parse_inst(text), table(), load_arch()) is None, text
+    assert check_inst(parse_inst("global_load_dword v1, off, off"), table(), load_arch())

@@ -478,7 +478,7 @@ class Session:
                 if not new:
                     raise SessionError("parameter", f"ops[{n}]: {kind} needs `text`")
             count = op.get("count", 1) if kind == "delete" else 1
-            if type(count) is not int or count < 1 or i + count > size:
+            if type(count) is not int or count < 1 or (kind == "delete" and i + count > size):
                 raise SessionError("parameter", f"ops[{n}]: count {count!r} runs past the end of block {label} ({size} instructions)", values=op)
             parsed.append((order[label], i, kind, label, new, count))
         seen = set()

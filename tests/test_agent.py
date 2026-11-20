@@ -68,3 +68,17 @@ def test_verify_reruns_everything_and_record_writes_a_recipe(factor, tmp_path, m
     d = agent.record(s, st["id"], v, {"summary": "coarsen", "friction": ["none"]}, {"seconds": 0})
     recipe = json.loads((d / "recipe.json").read_text())
     assert recipe["launch"]["args"] and recipe["path"] == ["import", "coarsen"] and (d / "best.s").read_text().startswith("\t.amdgcn_target")
+
+
+@needs_toolchain
+def test_edit_inserts_at_the_end_of_a_block_and_deletes_a_run(tmp_path):
+    s = Session.open(KERNELS / "axpy.json", tmp_path, quick=True)
+    k = s._kernel(s.module("ref"))
+    last = k.blocks[-1]
+    st = s.edit("ref", [{"op": "insert", "block": k.blocks[0].label, "index": 0, "text": "s_nop 0\ns_nop 0\ns_nop 0"}])
+    k2 = s._kernel(s.module(st["id"]))
+    st2 = s.edit(st["id"], [{"op": "delete", "block": k2.blocks[0].label, "index": 0, "count": 2}])
+    assert [str(i) for i in s._kernel(s.module(st2["id"])).blocks[0].insts][0] == "s_nop 0"
+    assert len(s._kernel(s.module(st2["id"])).blocks[0].insts) == len(k.blocks[0].insts) + 1
+    with pytest.raises(SessionError, match="runs past"):
+        s.edit("ref", [{"op": "delete", "block": last.label, "index": 0, "count": len(last.insts) + 1}])
