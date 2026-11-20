@@ -40,7 +40,7 @@ def agent(prompt: str, root: Path, log: Path, minutes: int, model: str | None = 
     t0 = time.time()
     out = {"ok": False, "cost_usd": None, "turns": None}
     with log.open("w") as f:
-        p = subprocess.Popen(cmd, cwd=REPO, stdout=f, stderr=subprocess.STDOUT, env={**os.environ, "AGC_ROOT": str(root.resolve())})
+        p = subprocess.Popen(cmd, cwd=REPO, stdin=subprocess.DEVNULL, stdout=f, stderr=subprocess.STDOUT, env={**os.environ, "AGC_ROOT": str(root.resolve())})
         try:
             p.wait(timeout=60 * minutes * 2 + 600)          # the prompt's budget is the agent's; this is the hard stop
         except subprocess.TimeoutExpired:
