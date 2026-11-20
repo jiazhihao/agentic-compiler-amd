@@ -180,7 +180,7 @@ win is reported with its pass.
 - [ ] The default policy on every kernel (the floor), then an agent session per kernel that
       is not yet a win: specialization to the kernel's shapes and launch, custom `mir` edits,
       traces kept.
-- [ ] Customizations that recur promoted to passes or templates (first: `coarsen`, #30).
+- [x] First customization promoted to a pass: `coarsen` (#30). Further ones as sessions find them.
 - **Exit:** per-kernel table (policy and session results against amdclang, fallbacks
   reported as fallbacks) in the report and on #29.
 

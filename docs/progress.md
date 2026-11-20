@@ -21,6 +21,27 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 
 ## Log
 
+### 2026-11-20 — `coarsen` pass (#30), positioning (#29)
+- `agc/mir/coarsen.py`: one launched workgroup runs `factor` consecutive workgroups of the
+  original. The kernel body becomes a loop over virtual workgroup ids; exec, the kernarg
+  pointer and the workitem ids are restored per iteration; the loop stops at the original
+  `grid_x`, which arrives as one appended `u32` argument (reads of `gridDim.x` are redirected
+  to it). Refused: an exit that skips an `s_barrier`, a stack, preloaded arguments, a
+  kernarg pointer that escapes.
+- Transforms can change the launch: `apply` records grid, block and appended arguments with
+  the state, and the worker packs the appended arguments after the manifest's.
+- Measured (paired against amdclang, bit-identical, battery passed): `axpy` 1.10x,
+  `cast_bf16` 1.25x, `gelu` 1.31x (best factor each). Losses: `matvec` 0.52x at factor 2
+  (64 workgroups: the grid is too small to give up parallelism), `transpose` 0.88x, the
+  LDS/barrier row kernels 0.91x to 0.97x. `gemm_tiled` is refused (an exit skips a barrier).
+- Default policy re-recorded with `coarsen(2|4|8)` candidates: 10 wins and 3 fallbacks as
+  before, geomean 1.42 without the MFMA GEMM; `axpy` is now won by `coarsen(8)` (1.105x,
+  bit-identical) instead of a generated kernel. The generated kernels still beat `coarsen`
+  on `gelu` and `cast_bf16` (1.68x and 1.62x).
+- Design and roadmap: agc is a harness for per-kernel agent optimization (D11, principle 6,
+  M10); general passes and the policy are the floor a session starts from.
+- Open: the LLM-kernel benchmark (#29) is being assembled; no result on it yet.
+
 ### 2026-11-19 — Codex review findings (#27)
 - All 20 findings on #14 to #25 addressed (2 were already fixed by later PRs); one regression
   test per finding in `tests/test_review_fixes.py`.
