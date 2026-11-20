@@ -108,7 +108,8 @@ LOADS = """
     ("global_store_dword v[2:3], v1, off\ns_waitcnt vmcnt(1)\nv_add_f32_e32 v6, v4, v5\ns_endpgm", []),         # a store counts as an event
     ("global_store_dword v[2:3], v1, off\ns_waitcnt vmcnt(2)\nv_mov_b32_e32 v6, v4\ns_endpgm", []),
     ("global_store_dword v[2:3], v1, off\ns_waitcnt vmcnt(2)\nv_mov_b32_e32 v6, v5\ns_endpgm", [("waitcnt", "vmcnt")]),
-    ("s_barrier\ns_waitcnt vmcnt(0)\ns_endpgm", [("waitcnt", "vmcnt")]),
+    ("s_barrier\ns_waitcnt vmcnt(0)\ns_endpgm", []),                    # vector loads may be in flight across a barrier
+    ("s_barrier\nv_mov_b32_e32 v6, v5\ns_endpgm", [("waitcnt", "vmcnt")]),   # and they stay pending after it
     ("s_waitcnt vmcnt(0)\ns_barrier\ns_endpgm", []),
 ])
 def test_waitcnt_vector_memory(tail, expect):

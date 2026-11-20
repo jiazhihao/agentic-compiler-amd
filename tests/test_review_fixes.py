@@ -245,3 +245,38 @@ def test_unroll_refuses_a_timestamp_read_instead_of_crashing():
         with pytest.raises(loops.NotApplicable, match="without an address"):
             loops.unroll_loads(k, 4, loop=".Lloop")
         assert loops.find_loops(k) == []                                     # the policy skips it, no exception
+
+
+# ---- checker findings on amdclang's builds of the LLM benchmark (#29) -----------------------------------
+def test_amdclang_forms_from_the_llm_benchmark_are_legal():
+    from agc.arch.model import load as load_arch
+    from agc.isa import table
+    from agc.mir.asm import parse_inst
+    from agc.mir.verify import check_inst
+    isa, arch = table(), load_arch()
+    for text in ("v_readfirstlane_b32 s5, v1", "s_set_gpr_idx_on s16, gpr_idx(DST)", "s_set_gpr_idx_on s17, gpr_idx(SRC0)"):
+        assert check_inst(parse_inst(text), isa, arch) is None, text
+    assert check_inst(parse_inst("v_add_f32 v1, v2, v3"), isa, arch)          # other two-form names still need a suffix
+    assert check_inst(parse_inst("s_set_gpr_idx_on s16, vmcnt(0)"), isa, arch)
+
+
+def test_packed_operand_halves_follow_op_sel():
+    from agc.mir.analysis import classify
+    from agc.mir.asm import parse_inst
+    u = classify(parse_inst("v_pk_fma_f32 v[6:7], s[10:11], v[10:11], v[8:9] op_sel_hi:[0,1,1]")).uses
+    assert ("s", 10) in u and ("s", 11) not in u and {("v", 10), ("v", 11), ("v", 8), ("v", 9)} <= u
+    u = classify(parse_inst("v_pk_add_f32 v[30:31], v[34:35], s[38:39] op_sel_hi:[1,0]")).uses
+    assert ("s", 38) in u and ("s", 39) not in u and ("v", 35) in u
+    u = classify(parse_inst("v_pk_add_f32 v[30:31], v[34:35], s[38:39] op_sel:[0,1] op_sel_hi:[1,1]")).uses
+    assert ("s", 39) in u and ("s", 38) not in u
+    assert {("v", 2), ("v", 3)} <= classify(parse_inst("v_pk_mul_f32 v[0:1], v[2:3], v[4:5]")).uses
+
+
+def test_transforms_refuse_indexed_vector_registers():
+    import pytest
+    from agc.mir.asm import parse_inst
+    from agc.mir.ir import Block, Kernel
+    from agc.mir.loops import NotApplicable, refuse_indexed
+    k = Kernel("k", [Block("k", [parse_inst("s_set_gpr_idx_on s16, gpr_idx(DST)"), parse_inst("s_set_gpr_idx_off"), parse_inst("s_endpgm")])], {}, {})
+    with pytest.raises(NotApplicable, match="indexed"):
+        refuse_indexed(k)

@@ -99,10 +99,22 @@ def main() -> int:
           "| `matvec`: first unroll attempt with `v[5:8]` (agent edit) | rejected by the static check (tuple alignment) |",
           "| `transpose`, `gemm_tiled` | no candidate: no counted load loop, no template; amdclang's build is shipped |",
           f"| MFMA GEMM within 1.5x of hipBLASLt | not reached ({min(ratios):.1f}x at best) |", "",
-          "## Reproduce", "",
+          ]
+    llm = B / "llm-gfx950.json"
+    if llm.exists():
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("llmbench", Path(__file__).with_name("llmbench.py"))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        L += ["## LLM-kernel benchmark (default policy)", "",
+              "Kernels from FlashInfer, vLLM, rocBLAS and MIOpen, and ports of attention, MLA, KDA and MoE kernels "
+              "(`bench/llm/README.md`). This is the default policy only, the floor: no per-kernel agent session has run yet.", "",
+              mod.table(json.loads(llm.read_text())), ""]
+    L += ["## Reproduce", "",
           "```", "make test                       # CPU tests, then GPU tests through the executor",
           "make baseline                   # amdclang baselines", ".venv/bin/python scripts/policy.py     # the default policy on every manifest",
           ".venv/bin/python scripts/generated.py  # every generated variant", ".venv/bin/python scripts/gemm.py       # GEMM against amdclang and hipBLASLt",
+          ".venv/bin/python scripts/llmbench.py   # the LLM-kernel benchmark",
           ".venv/bin/python scripts/report.py     # this file", "```", ""]
     (ROOT / "docs" / "report.md").write_text("\n".join(L))
     print(f"docs/report.md: {len(L)} lines; best-of geomean without MFMA GEMM {gm(no_mfma):.3f}")

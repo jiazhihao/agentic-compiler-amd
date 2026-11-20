@@ -81,6 +81,9 @@ def _fit(op, spec, enc: Encoding, isa: Isa, arch: Arch, narrow_addr: bool = Fals
                 return f"unknown wait counter {op}"
             limit = arch[f"waitcnt.{op.name}"]
             return None if int(op.args[0]) <= limit else f"{op.name} is at most {limit}"
+        if op.name == "gpr_idx":                      # the mode of `s_set_gpr_idx_on`: gpr_idx(SRC0, SRC1, SRC2, DST)
+            ok = spec.type == "OPR_SIMM4" and set(op.args) <= {"SRC0", "SRC1", "SRC2", "DST"}
+            return None if ok else "gpr_idx(...) is not an operand here"
         return None if spec.type in ("OPR_HWREG", "OPR_SENDMSG") else f"{op.name}(...) is not an operand here"
     return "unknown operand"
 

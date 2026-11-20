@@ -175,8 +175,8 @@ win is reported with its pass.
       A/A controls; what did not work.
 
 ### M10 — Per-kernel agent sessions on the LLM-kernel benchmark (#29)
-- [ ] Benchmark of LLM kernels (FlashInfer, vLLM, attention, MLA, KDA, MoE, rocBLAS, MIOpen)
-      with amdclang baselines.
+- [x] Benchmark of LLM kernels (FlashInfer, vLLM, attention, MLA, KDA, MoE, rocBLAS, MIOpen)
+      with amdclang baselines: `bench/llm`, 36 kernels.
 - [ ] The default policy on every kernel (the floor), then an agent session per kernel that
       is not yet a win: specialization to the kernel's shapes and launch, custom `mir` edits,
       traces kept.

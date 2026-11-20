@@ -32,6 +32,13 @@ class NotApplicable(ValueError):
     pass
 
 
+def refuse_indexed(k: Kernel) -> None:
+    """Between `s_set_gpr_idx_on` and `s_set_gpr_idx_off` a vector register operand names the register
+    `index + M0`: the register analyses do not model that, so no transform touches such a kernel."""
+    if any(x.mnemonic.startswith("s_set_gpr_idx") for x in k.insts()):
+        raise NotApplicable("the kernel uses indexed vector registers (s_set_gpr_idx_on)")
+
+
 @dataclass
 class Pointer:
     reg: Reg                       # the register pair holding the address
@@ -235,6 +242,7 @@ def unroll_loads(k: Kernel, factor: int = 4, loop: str | None = None, wide: bool
     N = factor
     if N not in (2, 4, 8, 16):
         raise NotApplicable("factor must be 2, 4, 8 or 16")
+    refuse_indexed(k)
     g = cfg(k, arch=arch)
     if loop is not None:
         idx = next((i for i, b in enumerate(k.blocks) if b.label == loop), None)

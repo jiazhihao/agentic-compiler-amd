@@ -22,7 +22,7 @@ from ..arch.model import Arch, load as load_arch
 from .analysis import cfg, entry_defined
 from .asm import parse_inst, split_at_branches
 from .ir import Block, Imm, Kernel, Reg
-from .loops import NotApplicable
+from .loops import NotApplicable, refuse_indexed
 
 HEAD, LATCH, EXIT, BODY = ".Lagc_wg_head", ".Lagc_wg_latch", ".Lagc_wg_exit", ".Lagc_wg_body"
 _LOAD_WORDS = {"s_load_dword": 1, "s_load_dwordx2": 2, "s_load_dwordx4": 4, "s_load_dwordx8": 8, "s_load_dwordx16": 16}
@@ -55,6 +55,7 @@ def coarsen(k: Kernel, factor: int, arch: Arch | None = None) -> dict:
     arch = arch or load_arch()
     if not isinstance(factor, int) or factor < 2:
         raise NotApplicable("factor must be an integer of at least 2")
+    refuse_indexed(k)
     d = k.descriptor
     if any(b.label in (HEAD, LATCH, EXIT, BODY) for b in k.blocks):
         raise NotApplicable("the kernel is already coarsened")

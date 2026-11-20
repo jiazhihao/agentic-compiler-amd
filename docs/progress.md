@@ -21,6 +21,28 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 
 ## Log
 
+### 2026-11-20 — LLM-kernel benchmark, first policy table (#29)
+- `bench/llm`: 36 kernels, each with a manifest, a NumPy reference and provenance
+  (`README.md`, `LICENSES.md`): 30 extracted from FlashInfer, vLLM, rocBLAS and MIOpen, and 6
+  ports (attention plain and causal, decode attention, MLA decode, KDA step, MoE top-k
+  gating). All pass the battery with amdclang's build. Some upstream kernels were skipped
+  (sampling, KV append, vLLM top-k softmax); several of those skips were judged without
+  reading the kernel bodies. `mla_decode`'s 576/512 split was not checked against FlashMLA.
+- `scripts/llmbench.py` records `tests/baselines/llm-gfx950.json`; the table is in
+  `docs/report.md`. A reference file may define `<function>_scale` for the `cond` magnitude.
+- Default policy, no agent session yet: **10 wins, 26 fallbacks**, geomean 1.015 with
+  fallbacks at 1.0. Every win is `coarsen`, 1.015x to 1.113x (`mo_glu_fwd` 1.11x, `rb_rot`
+  1.08x, `fi_merge_states` 1.07x). All six ports and every vLLM kernel are fallbacks.
+- The benchmark exposed four static-check false positives on amdclang's own code (11
+  kernels could not be run at all): `v_readfirstlane_b32` without a suffix; the
+  `gpr_idx(...)` operand of `s_set_gpr_idx_on`; the unread half of a two-register source of
+  a `v_pk_*` instruction (`op_sel`, `op_sel_hi`); vector memory operations in flight at an
+  `s_barrier`. The barrier rule now requires LDS operations and loads into LDS to be
+  complete; vector loads stay pending across it. Transforms refuse kernels that use indexed
+  vector registers, which the register analyses do not model.
+- Open: the 26 fallbacks, one agent session per kernel. The full GPU test suite was not
+  rerun after the checker changes.
+
 ### 2026-11-20 — `coarsen` pass (#30), positioning (#29)
 - `agc/mir/coarsen.py`: one launched workgroup runs `factor` consecutive workgroups of the
   original. The kernel body becomes a loop over virtual workgroup ids; exec, the kernarg

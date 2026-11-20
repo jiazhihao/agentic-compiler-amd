@@ -17,6 +17,8 @@ _PATH = Path(__file__).parent / "cdna4.json.gz"
 _SUFFIX = re.compile(r"_(e64_dpp|e32|e64|dpp|sdwa)$")
 _E32 = ("ENC_VOP1", "ENC_VOP2", "ENC_VOPC", "VOP1_INST_LITERAL", "VOP2_INST_LITERAL", "VOPC_INST_LITERAL")
 _E64 = ("ENC_VOP3", "VOP3_SDST_ENC")
+# instructions LLVM prints (and accepts) without a suffix although they have both forms: the 32-bit one
+_UNSUFFIXED_E32 = ("v_readfirstlane_b32",)
 LITERAL, DPP, SDWA = 255, 250, 249       # source-field values that announce a second word
 
 
@@ -107,7 +109,10 @@ class Isa:
         elif form == "sdwa":
             encs = [e for e in ins.encodings if "SDWA" in e.enc]
         else:                                        # no suffix: only for instructions with no 32-bit VOP form
-            encs = [] if has_e32 else [e for e in ins.encodings if "SDWA" not in e.enc and not e.enc.endswith("_DPP")]
+            if has_e32:
+                encs = [e for e in ins.encodings if e.enc in _E32] if base in _UNSUFFIXED_E32 else []
+            else:
+                encs = [e for e in ins.encodings if "SDWA" not in e.enc and not e.enc.endswith("_DPP")]
         return (ins, form, tuple(encs)) if encs else None
 
     # ---- operand types ---------------------------------------------------------

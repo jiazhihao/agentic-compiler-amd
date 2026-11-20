@@ -100,6 +100,51 @@ Largest deviation from 1.0: 0.39 %.
 | `transpose`, `gemm_tiled` | no candidate: no counted load loop, no template; amdclang's build is shipped |
 | MFMA GEMM within 1.5x of hipBLASLt | not reached (2.5x at best) |
 
+## LLM-kernel benchmark (default policy)
+
+Kernels from FlashInfer, vLLM, rocBLAS and MIOpen, and ports of attention, MLA, KDA and MoE kernels (`bench/llm/README.md`). This is the default policy only, the floor: no per-kernel agent session has run yet.
+
+| kernel | library | amdclang ms | agc ms | speedup (95% CI) | how | bit-identical |
+|---|---|---|---|---|---|---|
+| `attn_decode` | port | 1.2545 | | fallback (no verified win) | | |
+| `fa_attention` | port | 0.2209 | | fallback (no verified win) | | |
+| `fa_attention_causal` | port | 0.2010 | | fallback (no verified win) | | |
+| `fi_fused_add_rmsnorm` | flashinfer | 0.1045 | 0.1025 | **1.01** (1.01 to 1.03) | `coarsen(factor=4)` | yes |
+| `fi_gelu_tanh_and_mul` | flashinfer | 0.1067 | | fallback (no verified win) | | |
+| `fi_merge_state` | flashinfer | 0.1084 | | fallback (no verified win) | | |
+| `fi_merge_state_in_place` | flashinfer | 0.0998 | | fallback (no verified win) | | |
+| `fi_merge_states` | flashinfer | 0.1089 | 0.1019 | **1.07** (1.06 to 1.08) | `coarsen(factor=2)` | yes |
+| `fi_rmsnorm` | flashinfer | 0.1273 | 0.1251 | **1.02** (1.01 to 1.03) | `coarsen(factor=2)` | yes |
+| `fi_rope` | flashinfer | 0.1069 | | fallback (no verified win) | | |
+| `fi_silu_and_mul` | flashinfer | 0.0988 | | fallback (no verified win) | | |
+| `kda_step` | port | 0.1998 | | fallback (no verified win) | | |
+| `mla_decode` | port | 0.4568 | | fallback (no verified win) | | |
+| `mo_active_fwd` | miopen | 0.1094 | | fallback (no verified win) | | |
+| `mo_adam` | miopen | 0.3764 | | fallback (no verified win) | | |
+| `mo_bn_infer` | miopen | 0.1055 | | fallback (no verified win) | | |
+| `mo_glu_fwd` | miopen | 0.1892 | 0.1696 | **1.11** (1.11 to 1.12) | `coarsen(factor=8)` | yes |
+| `mo_prelu_bwd` | miopen | 0.2189 | | fallback (no verified win) | | |
+| `mo_reduce_sum` | miopen | 0.1566 | | fallback (no verified win) | | |
+| `mo_rope_fwd` | miopen | 0.1873 | 0.1761 | **1.07** (1.06 to 1.08) | `coarsen(factor=2)` | yes |
+| `mo_t5_layernorm` | miopen | 0.1133 | | fallback (no verified win) | | |
+| `moe_gate_topk` | port | 0.6575 | | fallback (no verified win) | | |
+| `rb_axpy` | rocblas | 0.1642 | 0.1578 | **1.04** (1.04 to 1.04) | `coarsen(factor=2)` | yes |
+| `rb_copy` | rocblas | 0.1097 | 0.1071 | **1.03** (1.02 to 1.03) | `coarsen(factor=2)` | yes |
+| `rb_dot` | rocblas | 0.1398 | | fallback (no verified win) | | |
+| `rb_gemvn` | rocblas | 0.2208 | | fallback (no verified win) | | |
+| `rb_gemvt` | rocblas | 0.1076 | | fallback (no verified win) | | |
+| `rb_ger` | rocblas | 0.1041 | | fallback (no verified win) | | |
+| `rb_nrm2` | rocblas | 0.1233 | | fallback (no verified win) | | |
+| `rb_rot` | rocblas | 0.2022 | 0.1870 | **1.08** (1.07 to 1.09) | `coarsen(factor=2)` | yes |
+| `rb_scal` | rocblas | 0.1035 | 0.0979 | **1.06** (1.05 to 1.06) | `coarsen(factor=8)` | yes |
+| `rb_swap` | rocblas | 0.1906 | 0.1804 | **1.05** (1.05 to 1.06) | `coarsen(factor=2)` | yes |
+| `vl_fused_add_rms_norm` | vllm | 0.1403 | | fallback (no verified win) | | |
+| `vl_moe_align` | vllm | 0.2715 | | fallback (no verified win) | | |
+| `vl_rms_norm` | vllm | 0.1320 | | fallback (no verified win) | | |
+| `vl_rotary_embedding` | vllm | 0.1242 | | fallback (no verified win) | | |
+
+10 wins and 26 fallbacks over 36 kernels; geomean 1.015 with fallbacks counted as 1.0. Protocol `agc-timing-amd-2`, recorded 2026-11-20.
+
 ## Reproduce
 
 ```
@@ -108,5 +153,6 @@ make baseline                   # amdclang baselines
 .venv/bin/python scripts/policy.py     # the default policy on every manifest
 .venv/bin/python scripts/generated.py  # every generated variant
 .venv/bin/python scripts/gemm.py       # GEMM against amdclang and hipBLASLt
+.venv/bin/python scripts/llmbench.py   # the LLM-kernel benchmark
 .venv/bin/python scripts/report.py     # this file
 ```
