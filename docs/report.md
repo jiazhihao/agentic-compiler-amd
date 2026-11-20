@@ -165,7 +165,7 @@ One agent session per kernel through the harness (`agc agent`); each number is t
 | `kda_step` | port | 0.1998 | 0.958 | fallback | **1.697** (1.694 to 1.703) | 1.697 | 1.00 | source, own launch |
 | `mla_decode` | port | 0.4568 | 1.081 | fallback | **2.541** (2.539 to 2.543) | 1.703 | 1.49 | source + edit + edit, own launch |
 | `mo_active_fwd` | miopen | 0.1094 | 1.000 | fallback | | | | |
-| `mo_adam` | miopen | 0.3764 | 1.008 | fallback | | | | |
+| `mo_adam` | miopen | 0.3764 | 1.008 | fallback | **1.062** (1.058 to 1.064) |  |  | source + coarsen, own launch |
 | `mo_bn_infer` | miopen | 0.1055 | 0.989 | fallback | **1.161** (1.159 to 1.166) | 1.161 | 1.00 | source, own launch |
 | `mo_glu_fwd` | miopen | 0.1892 | 1.082 | 1.113 | | | | |
 | `mo_prelu_bwd` | miopen | 0.2189 | 0.982 | fallback | **1.117** (1.112 to 1.120) | 1.117 | 1.00 | source, own launch |
@@ -190,7 +190,7 @@ One agent session per kernel through the harness (`agc agent`); each number is t
 
 All speedups are over amdclang -O3 on the benchmark source as shipped. "amdclang on the rewritten source" is the part of a session's speedup that amdclang itself delivers once the source is restructured; "machine-level gain" is what agc's own level adds on top (1.00: none). The -ffast-math column is the unmodified source with that flag.
 
-33 of 36 kernels faster than amdclang (policy or session); 3 fallbacks; geomean of the best verified result 1.521 with fallbacks at 1.0.
+34 of 36 kernels faster than amdclang (policy or session); 2 fallbacks; geomean of the best verified result 1.523 with fallbacks at 1.0.
 
 ## Reproduce
 
