@@ -7,6 +7,8 @@
   agc run    M.json [--edit BODY.s] [--quick]      session: import, optional edit, static check, battery, paired bench
   agc run    M.json --generate [T] [--param k=v]   session: compile the manifest's tair program with a template
   agc optimize M.json                              the default policy: best verified candidate, or the amdclang build
+  agc agent  M.json [--minutes N] [--model M]      one agent session on the kernel, verified and recorded by the harness
+  agc replay [KERNEL ...]                          rebuild and re-measure the recorded session recipes
   agc info                                         device and toolchain facts
 """
 from __future__ import annotations
@@ -120,6 +122,21 @@ def cmd_optimize(args) -> int:
         return 2
 
 
+def cmd_agent(args) -> int:
+    from . import agent
+    r = agent.run(args.manifest, minutes=args.minutes, benches=args.benches, model=args.model, policy=not args.no_policy,
+                  extra=args.extra or "", log=lambda t: print(t, file=sys.stderr))
+    _emit({k: r.get(k) for k in ("kernel", "outcome", "speedup", "ci95", "why", "summary", "friction", "recipe", "agent")})
+    return 0
+
+
+def cmd_replay(args) -> int:
+    from . import agent
+    r = agent.replay(args.kernels or None, log=lambda t: print(t, file=sys.stderr))
+    _emit(r)
+    return 0 if all(v.get("outcome") == "win" for v in r.values()) else 1
+
+
 def cmd_info(args) -> int:
     _emit({**run_job({"kind": "info"}, device=args.device), "toolchain": toolchain.identity()})
     return 0
@@ -142,6 +159,10 @@ def main(argv=None) -> int:
     p.set_defaults(fn=cmd_run)
     p = sub.add_parser("optimize"); p.add_argument("manifest"); p.add_argument("-o", "--output", help="write the chosen code object")
     p.set_defaults(fn=cmd_optimize)
+    p = sub.add_parser("agent"); p.add_argument("manifest"); p.add_argument("--minutes", type=int, default=45)
+    p.add_argument("--benches", type=int, default=30); p.add_argument("--model"); p.add_argument("--no-policy", action="store_true")
+    p.add_argument("--extra", help="text appended to the session prompt"); p.set_defaults(fn=cmd_agent)
+    p = sub.add_parser("replay"); p.add_argument("kernels", nargs="*"); p.set_defaults(fn=cmd_replay)
     p = sub.add_parser("info"); p.set_defaults(fn=cmd_info)
     args = ap.parse_args(argv)
     try:

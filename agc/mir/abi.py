@@ -105,6 +105,16 @@ def make_kernel(name: str, blocks: list[Block], args: list[Arg], *, hidden_args:
     return k
 
 
+def append_arg(k: Kernel, size: int) -> int:
+    """Declare one more by-value argument after everything the kernel takes now (hidden arguments
+    included). Returns its byte offset in the kernarg segment."""
+    off = _align(k.descriptor.get("kernarg_size", 0), 8)
+    k.metadata.setdefault(".args", []).append({".offset": off, ".size": size, ".value_kind": "by_value"})
+    k.descriptor["kernarg_size"] = off + 8
+    k.metadata[".kernarg_segment_size"] = off + 8
+    return off
+
+
 def make_module(kernels: list[Kernel], arch: Arch | None = None) -> Module:
     arch = arch or load_arch()
     return Module(arch.target, 6, kernels, {"amdhsa.target": arch.target, "amdhsa.version": [1, 2]})

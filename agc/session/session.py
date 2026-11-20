@@ -147,7 +147,7 @@ class Session:
 
     def generated(self, sid: str) -> bool:
         """The state descends from a generator's output (not from amdclang's import)."""
-        return any(st.action.get("name") == "generate" for st in self.store.ancestry(sid))
+        return any(st.action.get("name") == "generate" or st.action.get("strict") for st in self.store.ancestry(sid))
 
     def launch_of(self, sid: str) -> dict | None:
         """The launch geometry a generated kernel (or a state derived from one) carries; None: the manifest's."""
@@ -156,9 +156,102 @@ class Session:
                 return st.action["launch"]
         return None
 
+    def _launch(self, parent: str | None, launch) -> dict:
+        """A launch given by the caller, checked and completed from the parent's (or the manifest's)."""
+        m = self.manifest
+        cur = (self.launch_of(parent) if parent else None) or {"grid": list(m.grid), "block": list(m.block), "lds": m.lds}
+        if not isinstance(launch, dict) or set(launch) - {"grid", "block", "lds", "args"}:
+            raise SessionError("parameter", "launch is an object with any of `grid`, `block`, `lds`, `args`", values={"given": launch},
+                               suggestion='for example {"grid": ["cdiv(N, 1024)"], "block": [256]}; args: [{"dtype": "u32", "value": "N"}]')
+        out = {**copy.deepcopy(cur), **copy.deepcopy(launch)}
+        from ..manifest import eval_expr
+        try:
+            for syms in (m.shapes, m.timing_symbols()):
+                for key in ("grid", "block"):
+                    dims = out[key] if isinstance(out[key], list) else [out[key]]
+                    if not 1 <= len(dims) <= 3 or any(eval_expr(d, syms) < 1 for d in dims):
+                        raise SessionError("parameter", f"launch {key} {dims} must be 1 to 3 positive dimensions at {syms}")
+                    out[key] = dims
+                eval_expr(out.get("lds", 0), syms)
+                for a in out.get("args", []):
+                    if not isinstance(a, dict) or set(a) != {"dtype", "value"}:
+                        raise SessionError("parameter", 'each launch argument is {"dtype": ..., "value": expression}', values={"given": a})
+                    eval_expr(a["value"], syms)
+        except ManifestError as e:
+            raise SessionError("parameter", f"launch: {e}", values={"symbols": sorted(m.shapes)}) from None
+        return out
+
+    def source(self, text: str, launch: dict | None = None, note: str = "") -> dict:
+        """A new root state from a rewritten HIP source: compiled with amdclang (same flags as the
+        baseline), imported into machine IR. The kernel must keep the manifest's entry name and
+        parameters; `launch` may change the grid and block and append arguments. The state starts
+        unverified and can be edited like any other."""
+        m = self.manifest
+        d = self.store.root / "src"
+        d.mkdir(parents=True, exist_ok=True)
+        path = d / f"{hashlib.sha256(text.encode()).hexdigest()[:16]}.hip"
+        path.write_text(text)
+        inc = [m.path.parent] + ([Path(m.source).resolve().parent] if m.source else [])
+        try:
+            b = toolchain.hip_build(path, [*toolchain.HIP_FLAGS, *m.hip_flags], mcpu=m.arch, include_dirs=inc)
+            module = emit.import_asm(b.asm)
+        except toolchain.ToolchainError as e:
+            raise SessionError("toolchain", f"amdclang rejected the source: {e}"[:3000]) from None
+        except asm.AsmError as e:
+            raise SessionError("toolchain", f"cannot import amdclang's assembly: {e.message}", location={"line": e.line, "text": e.text}) from None
+        self._kernel(module)
+        action = {"name": "source", "note": note, "file": str(path), "sha": path.stem}
+        if launch is not None:
+            action["launch"] = self._launch(None, launch)
+        return self._put(None, module, action)
+
+    def relaunch(self, parent: str, launch: dict, note: str = "") -> dict:
+        """The same code with another launch (grid, block, LDS size, appended arguments)."""
+        pid = self.resolve(parent)
+        return self._put(pid, copy.deepcopy(self.module(pid)), {"name": "relaunch", "note": note, "launch": self._launch(pid, launch)})
+
+    def adopt(self, text: str, launch: dict | None = None, strict: bool = False, note: str = "") -> dict:
+        """A root state from a whole module's text (what `export` gives): a recorded result rebuilt here."""
+        try:
+            module = asm.parse(text)
+        except asm.AsmError as e:
+            raise SessionError("parse", e.message, location={"line": e.line, "text": e.text}) from None
+        self._kernel(module)
+        action = {"name": "adopt", "note": note, "strict": bool(strict)}
+        if launch is not None:
+            action["launch"] = self._launch(None, launch)
+        return self._put(None, module, action)
+
+    def verify(self, ref: str) -> dict:
+        """Static check, full battery and paired timing of a state, all run again (no cached result is trusted)."""
+        sid = self.resolve(ref)
+        for kind in ("static", "check", "bench"):
+            p = self.store.root / "results" / sid / f"{kind}.json"
+            if p.exists():
+                p.unlink()
+        quick, self.quick = self.quick, False
+        try:
+            st = self.static_check(sid)
+            if not st["ok"]:
+                return {"id": sid, "ok": False, "stage": "static", "errors": st["errors"][:5]}
+            ck = self.check(sid)
+            if not ck["ok"]:
+                return {"id": sid, "ok": False, "stage": "battery", "failures": ck.get("failures"), "error": ck.get("error")}
+            b = self.bench(sid)
+            return {"id": sid, "ok": bool(b.get("ok")), "stage": "bench", "cases": ck.get("cases_total"), **{k: b.get(k) for k in
+                    ("outcome", "speedup", "speedup_ci95", "reference_ms", "candidate_ms", "protocol_version", "error")}}
+        finally:
+            self.quick = quick
+
+    def export(self, ref: str) -> dict:
+        """Everything needed to rebuild a state elsewhere: the module text, the launch, how it was made."""
+        sid = self.resolve(ref)
+        return {"id": sid, "asm": self.store.get(sid).ir, "launch": self.launch_of(sid), "strict": self.generated(sid),
+                "trace": self.trace(sid)}
+
     def _put(self, parent: str | None, module: Module, action: dict) -> dict:
         text = asm.print_module(module)
-        if parent is not None and text == self.store.get(parent).ir:
+        if parent is not None and text == self.store.get(parent).ir and action.get("name") != "relaunch":
             raise SessionError("parameter", "the result is identical to the parent state", suggestion="nothing to do")
         st = self.store.put("mir", text, parent, action)
         self._modules[st.id] = module
@@ -223,7 +316,11 @@ class Session:
     def actions(self, ref: str = "ref") -> dict:
         """What can be done to a state."""
         self.resolve(ref)
-        return {"edits": {"edit_ir": "replace the kernel body with new mir text (instructions and block labels)",
+        return {"levels": {"source": "a rewritten HIP source compiled by amdclang into a new root state (may change the launch)",
+                           "program": "the manifest's tensor program compiled by a generator template (generate)",
+                           "mir": "machine IR: edit, edit_ir, apply"},
+                "launch": "relaunch(ref, launch) or the `launch` argument of source / edit_ir: grid, block, lds, appended args",
+                "edits": {"edit_ir": "replace the kernel body with new mir text (instructions and block labels)",
                           "edit": "replace / insert / delete instructions addressed by block label and index"},
                 "transforms": {n: {"doc": t["doc"], "params": t["params"]} for n, t in sorted(TRANSFORMS.items())},
                 "validate": ["static_check", "check", "bench"], "inspect": ["state", "features", "asm_diff", "trace"]}
@@ -250,7 +347,7 @@ class Session:
         abi.sync_resources(k, self.arch)
         return new
 
-    def edit_ir(self, parent: str, text: str, note: str = "") -> dict:
+    def edit_ir(self, parent: str, text: str, note: str = "", launch: dict | None = None) -> dict:
         """A new state whose kernel body is `text`: instructions and block labels in the amdclang
         dialect (a numbered listing is accepted). Register counts in the descriptor follow the code.
         The state starts unverified."""
@@ -280,7 +377,23 @@ class Session:
             if not any(b.insts for b in blocks):
                 raise SessionError("parse", "the body has no instructions")
             module = self._with_body(self.module(pid), blocks)
-        return self._put(pid, module, {"name": "edit_ir", "note": note})
+        action = {"name": "edit_ir", "note": note}
+        if launch is not None:
+            action["launch"] = self._launch(pid, launch)
+            # arguments the launch appends that the kernel does not declare yet get their kernarg slots
+            from ..dtypes import dtype
+            k = self._kernel(module)
+            if module is self.module(pid):
+                module = copy.deepcopy(module)
+                k = self._kernel(module)
+            explicit = [a for a in k.metadata.get(".args", []) if not a[".value_kind"].startswith("hidden_")]
+            extra = action["launch"].get("args", [])
+            for e in extra[max(0, len(explicit) - len(self.manifest.params)):]:
+                try:
+                    action.setdefault("arg_offsets", []).append(abi.append_arg(k, dtype(e["dtype"]).itemsize))
+                except ValueError as err:
+                    raise SessionError("parameter", str(err)) from None
+        return self._put(pid, module, action)
 
     def edit(self, parent: str, ops: list[dict], note: str = "") -> dict:
         """Structured edits. Each op: {"op": "replace" | "insert" | "delete", "block": label, "index": i,

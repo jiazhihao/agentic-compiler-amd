@@ -25,6 +25,8 @@ server = MCPServer("agc", instructions=(
     "and addressed by id, tag or branch; `ref` is amdclang's build imported into machine IR (CDNA4 assembly). "
     "A manifest may also carry a tensor program: program() shows it and generate(template, params) compiles it "
     "straight into machine IR (no HIP involved). "
+    "Three levels: source(text, launch) compiles a rewritten HIP source into a new state (restructure the kernel, change "
+    "the launch); generate compiles a tensor program; edit / edit_ir / apply work on machine IR. "
     "Loop: state(ref) to read the numbered listing -> edit / edit_ir / apply to make a new state -> static_check "
     "(ISA legality, s_waitcnt, hazards, contract) -> check (battery on the GPU) -> bench (paired against ref; "
     "`win` only if the whole 95% CI is beyond the 1% noise floor). isa(mnemonic) and arch(section) answer questions "
@@ -110,10 +112,51 @@ def edit(parent: str, ops: list, note: str = "") -> dict:
 
 
 @tool
-def edit_ir(parent: str, ir: str, note: str = "") -> dict:
+def edit_ir(parent: str, ir: str, note: str = "", launch: dict | None = None) -> dict:
     """Replace the whole kernel body with `ir` (instructions and `label:` lines, amdclang dialect; a numbered
-    listing is accepted) → a new, unverified state. Register counts in the descriptor follow the code."""
-    return _s().edit_ir(parent, ir, note)
+    listing is accepted) → a new, unverified state. Register counts in the descriptor follow the code.
+    `launch` (optional) changes how the state is launched: {"grid": [...], "block": [...], "lds": bytes,
+    "args": [{"dtype": "u32", "value": "expression over the shape symbols"}]}; appended args get kernarg slots after
+    the existing arguments (their offsets are returned in the state's action as `arg_offsets`)."""
+    return _s().edit_ir(parent, ir, note, launch)
+
+
+@tool
+def source(text: str, launch: dict | None = None, note: str = "") -> dict:
+    """The source level: compile a rewritten HIP source with amdclang (the baseline's flags) and import it as a new
+    root state. Keep the entry name and the manifest's parameters in order; further parameters must be appended and
+    supplied through launch["args"]. `launch` may change grid and block (expressions over the shape symbols, e.g.
+    "cdiv(N, 1024)"). Includes resolve next to the manifest. The state is unverified: static_check, check, bench.
+    Use this to restructure a kernel (several elements per thread, another work split, another block size), then
+    refine the result at the machine level with edit / apply."""
+    return _s().source(text, launch, note)
+
+
+@tool
+def hip_source() -> dict:
+    """The manifest's HIP source text (the baseline) and its path."""
+    m = _s().manifest
+    if m.source is None:
+        return {"error": "the manifest has no HIP source", "kind": "unknown"}
+    return {"path": str(m.source), "text": Path(m.source).read_text()}
+
+
+@tool
+def relaunch(ref: str, launch: dict, note: str = "") -> dict:
+    """The same code with another launch geometry → a new state (grid, block, lds, appended args)."""
+    return _s().relaunch(ref, launch, note)
+
+
+@tool
+def report(best: str, summary: str, tried: list | None = None, friction: list | None = None) -> dict:
+    """End of a session: name the state to ship (`ref` if nothing beat amdclang), summarize what was done, list what
+    was tried with its measured outcome, and list friction: what was missing or awkward in the tools, transforms or
+    IR, and what would have let you go further. The harness re-verifies the named state itself."""
+    s = _s()
+    sid = s.resolve(best)
+    out = {"best": sid, "summary": summary, "tried": tried or [], "friction": friction or []}
+    (s.store.root / "report.json").write_text(json.dumps(out, indent=1))
+    return {"recorded": str(s.store.root / "report.json"), "best": sid}
 
 
 @tool
