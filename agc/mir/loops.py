@@ -144,6 +144,8 @@ def analyze(k: Kernel, bi: int, g: Cfg) -> Loop:
         if info.name == "s_waitcnt":
             waits.append(i)
         elif info.load and (info.vmem or info.smem) and not info.lds_dma:
+            if len(x.operands) < 2:                  # s_memtime, s_memrealtime: a pending result, no address
+                raise NotApplicable(f"`{x}`: an asynchronous result without an address")
             addr = x.operands[1]
             if not isinstance(addr, Reg):
                 raise NotApplicable(f"`{x}`: unsupported address")

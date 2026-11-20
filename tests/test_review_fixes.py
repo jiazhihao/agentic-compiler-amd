@@ -237,3 +237,11 @@ def test_unroll_refuses_arithmetic_that_reads_the_counter_or_a_pointer():
     k = loop_kernel("    global_load_dword v4, v[2:3], off", "    v_add_u32_e32 v8, v2, v4")
     with pytest.raises(loops.NotApplicable, match="reads the counter or a pointer"):
         loops.unroll_loads(k, 4, loop=".Lloop")
+
+
+def test_unroll_refuses_a_timestamp_read_instead_of_crashing():
+    for op in ("s_memtime", "s_memrealtime"):
+        k = loop_kernel(f"    global_load_dword v4, v[2:3], off\n    {op} s[10:11]", "    v_add_f32_e32 v8, v8, v4")
+        with pytest.raises(loops.NotApplicable, match="without an address"):
+            loops.unroll_loads(k, 4, loop=".Lloop")
+        assert loops.find_loops(k) == []                                     # the policy skips it, no exception
