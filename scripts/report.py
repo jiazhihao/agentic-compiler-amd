@@ -110,6 +110,14 @@ def main() -> int:
               "Kernels from FlashInfer, vLLM, rocBLAS and MIOpen, and ports of attention, MLA, KDA and MoE kernels "
               "(`bench/llm/README.md`). This is the default policy only, the floor: no per-kernel agent session has run yet.", "",
               mod.table(json.loads(llm.read_text())), ""]
+        spec = importlib.util.spec_from_file_location("sessions", Path(__file__).with_name("sessions.py"))
+        ses = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(ses)
+        if ses.recipes():
+            L += ["## LLM-kernel benchmark (agent sessions)", "",
+                  "One agent session per kernel through the harness (`agc agent`); each number is the harness's own "
+                  "verification of the recorded recipe (static check, full battery, the lower of two 240-pair timings). "
+                  "Kernels without a session result are still open.", "", ses.table(), ""]
     L += ["## Reproduce", "",
           "```", "make test                       # CPU tests, then GPU tests through the executor",
           "make baseline                   # amdclang baselines", ".venv/bin/python scripts/policy.py     # the default policy on every manifest",

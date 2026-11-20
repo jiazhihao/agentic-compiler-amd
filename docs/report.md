@@ -145,6 +145,51 @@ Kernels from FlashInfer, vLLM, rocBLAS and MIOpen, and ports of attention, MLA, 
 
 10 wins and 26 fallbacks over 36 kernels; geomean 1.015 with fallbacks counted as 1.0. Protocol `agc-timing-amd-2`, recorded 2026-11-20.
 
+## LLM-kernel benchmark (agent sessions)
+
+One agent session per kernel through the harness (`agc agent`); each number is the harness's own verification of the recorded recipe (static check, full battery, the lower of two 240-pair timings). Kernels without a session result are still open.
+
+| kernel | library | amdclang ms | default policy | agent session (95% CI) | how |
+|---|---|---|---|---|---|
+| `attn_decode` | port | 1.2545 | fallback | **7.399** (7.393 to 7.407) | source, own launch |
+| `fa_attention` | port | 0.2209 | fallback | **3.863** (3.856 to 3.871) | source, own launch |
+| `fa_attention_causal` | port | 0.2010 | fallback | **2.193** (2.190 to 2.197) | source, own launch |
+| `fi_fused_add_rmsnorm` | flashinfer | 0.1045 | 1.015 | | |
+| `fi_gelu_tanh_and_mul` | flashinfer | 0.1067 | fallback | | |
+| `fi_merge_state` | flashinfer | 0.1084 | fallback | | |
+| `fi_merge_state_in_place` | flashinfer | 0.0998 | fallback | | |
+| `fi_merge_states` | flashinfer | 0.1089 | 1.071 | | |
+| `fi_rmsnorm` | flashinfer | 0.1273 | 1.019 | | |
+| `fi_rope` | flashinfer | 0.1069 | fallback | **2.115** (2.103 to 2.126) | source + edit, own launch |
+| `fi_silu_and_mul` | flashinfer | 0.0988 | fallback | **1.043** (1.036 to 1.050) | source, own launch |
+| `kda_step` | port | 0.1998 | fallback | | |
+| `mla_decode` | port | 0.4568 | fallback | **2.541** (2.539 to 2.543) | source + edit + edit, own launch |
+| `mo_active_fwd` | miopen | 0.1094 | fallback | | |
+| `mo_adam` | miopen | 0.3764 | fallback | | |
+| `mo_bn_infer` | miopen | 0.1055 | fallback | | |
+| `mo_glu_fwd` | miopen | 0.1892 | 1.113 | | |
+| `mo_prelu_bwd` | miopen | 0.2189 | fallback | | |
+| `mo_reduce_sum` | miopen | 0.1566 | fallback | **1.861** (1.853 to 1.866) | source, own launch |
+| `mo_rope_fwd` | miopen | 0.1873 | 1.066 | | |
+| `mo_t5_layernorm` | miopen | 0.1133 | fallback | | |
+| `moe_gate_topk` | port | 0.6575 | fallback | **17.971** (17.915 to 18.024) | source |
+| `rb_axpy` | rocblas | 0.1642 | 1.039 | | |
+| `rb_copy` | rocblas | 0.1097 | 1.029 | | |
+| `rb_dot` | rocblas | 0.1398 | fallback | | |
+| `rb_gemvn` | rocblas | 0.2208 | fallback | **2.187** (2.177 to 2.195) | source, own launch |
+| `rb_gemvt` | rocblas | 0.1076 | fallback | | |
+| `rb_ger` | rocblas | 0.1041 | fallback | | |
+| `rb_nrm2` | rocblas | 0.1233 | fallback | **1.404** (1.398 to 1.408) | source, own launch |
+| `rb_rot` | rocblas | 0.2022 | 1.077 | | |
+| `rb_scal` | rocblas | 0.1035 | 1.058 | | |
+| `rb_swap` | rocblas | 0.1906 | 1.054 | | |
+| `vl_fused_add_rms_norm` | vllm | 0.1403 | fallback | | |
+| `vl_moe_align` | vllm | 0.2715 | fallback | **5.899** (5.880 to 5.912) | source, own launch |
+| `vl_rms_norm` | vllm | 0.1320 | fallback | | |
+| `vl_rotary_embedding` | vllm | 0.1242 | fallback | | |
+
+21 of 36 kernels faster than amdclang (policy or session); 15 fallbacks; geomean of the best verified result 1.427 with fallbacks at 1.0.
+
 ## Reproduce
 
 ```

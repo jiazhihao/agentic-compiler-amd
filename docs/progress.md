@@ -21,6 +21,34 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 
 ## Log
 
+### 2026-11-20 — the per-kernel harness and the first agent sessions (#34, #35 to #60)
+- `agc.agent` (`agc agent MANIFEST`, `agc replay`): a headless Claude Code session per kernel
+  with the agc MCP tools as its only way to act. The harness reruns the static check and the
+  full battery on the state the agent names and times it with 240 pairs until two timings are
+  valid (CI narrower than 4 % of the speedup); a win needs both, the lower one is recorded.
+  Recipes (module text, launch, rewritten source) in `bench/llm/sessions/`.
+- New in the session: the source level (`source(text, launch, defines, flags)`), `relaunch`,
+  launch and appended arguments on `edit_ir`, `adopt`, `verify`, `compare`, `probe`
+  (diagnostic timing of an unverified state), `battery`, `find`, `liveness`, block views and an
+  outline for large kernels, spill warnings, `pairs` on `bench`, memory traffic and headroom.
+- Verified session results so far (lower of two 240-pair timings): `moe_gate_topk` 17.97x,
+  `attn_decode` 7.40x, `vl_moe_align` 5.90x, `fa_attention` 3.86x, `mla_decode` 2.54x,
+  `fa_attention_causal` 2.19x, `rb_gemvn` 2.19x, `fi_rope` 2.12x, `mo_reduce_sum` 1.86x,
+  `rb_nrm2` 1.40x, `fi_silu_and_mul` 1.04x. All but the last two are above the 1.5x target.
+  None is bit-identical with amdclang unless its issue says so; all meet the manifest tolerance.
+- Memory floor: amdclang's copy kernel takes 20 us + bytes / 5.95 TB/s from 2^24 to 2^28 floats,
+  and no restructuring of the copy beat it (wider per-lane accesses 0.75x to 1.01x, several
+  chunks per wave 0.83x to 0.97x). `bench` reports a kernel's time over this model (headroom).
+  About half of the benchmark sits at headroom 0.9 to 1.3: for those 1.5x is not reachable by
+  moving the same bytes, and the sessions converge at 1.03x to 1.10x.
+- Fixed on the way: `coarsen` gave wrong results when two waves of a workgroup share LDS
+  (`kda_step` failed the battery; a barrier now ends each virtual workgroup, #30); the static
+  check rejected amdclang's scratch spill code and a `vcc_lo` destination of `v_readlane`;
+  harness verification rejected a real win on one disturbed timing.
+- Open: sessions for the remaining kernels; no scratch tensor or second launch for reductions
+  across workgroups; `unroll_loads` refuses exec-masked loops; the undefined-read warning does
+  not follow per-lane masks. The full GPU test suite was not rerun on this branch.
+
 ### 2026-11-20 — LLM-kernel benchmark, first policy table (#29)
 - `bench/llm`: 36 kernels, each with a manifest, a NumPy reference and provenance
   (`README.md`, `LICENSES.md`): 30 extracted from FlashInfer, vLLM, rocBLAS and MIOpen, and 6
