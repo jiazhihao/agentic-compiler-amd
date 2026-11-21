@@ -1,0 +1,121 @@
+{
+ "kernel": "fi_rope",
+ "launch": {
+  "grid": [
+   "cdiv(N, 4)",
+   "cdiv(Hq + Hk, 4)",
+   1
+  ],
+  "block": [
+   16,
+   4,
+   1
+  ],
+  "lds": 0
+ },
+ "strict": false,
+ "path": [
+  "source",
+  "edit"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 2.1154,
+  "speedup_ci95": [
+   2.1028,
+   2.1258
+  ],
+  "reference_ms": 0.11136,
+  "candidate_ms": 0.0527,
+  "cases": 98,
+  "protocol_version": "agc-timing-amd-2",
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 2.1154,
+    "ci95": [
+     2.1028,
+     2.1258
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 2.2,
+    "ci95": [
+     2.1941,
+     2.2106
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "2.13x over amdclang (240 pairs, CI 2.125 to 2.139; 0.108 ms -> 0.051 ms), verified on the full battery (98 cases). Source-level restructure plus a one-instruction machine edit: one wave (block 16x4) handles 4 positions x 4 heads; powf/sincosf are computed once per (position, lane) and reused for 4 heads instead of once per head, and because elements e and e+64 share the angle (rotary_dim == 128) each lane loads both halves once and writes both outputs, so the input is read once instead of twice; all 8 x4 loads are issued before the stores. Case: the baseline was arithmetic-bound (reference headroom 2.27, 1186 VALU per thread for 16 bytes) and also read q/k twice; the result sits at headroom 1.06 of the copy model, i.e. now memory-bound. Caveats: outputs meet the manifest tolerance (same formulas, FMA contraction may differ), not guaranteed bit-identical; the rotary_dim != 128 fallback path (baseline's per-vector rule) is compiled in but is not exercised by the battery, which always passes 128.",
+ "tried": [
+  {
+   "what": "source: sincos once per (pos, lane), paired halves read once, 8 heads per workgroup, block 16x4, 16 x4 loads before stores",
+   "state": "a9d3449b650245d7",
+   "outcome": "win (60 pairs), occupancy 5 waves/SIMD (96 VGPRs)",
+   "speedup": 2.088
+  },
+  {
+   "what": "same source with 4 heads per workgroup (HG=4): amdclang output failed static_check (undefined read of v55)",
+   "state": "8d444021566c1e66",
+   "outcome": "refused by static_check, not timed",
+   "speedup": null
+  },
+  {
+   "what": "HG=4 plus edit: v_mov_b32 v55, 0 before the v_mad_u64_u32 whose addend high half was never written",
+   "state": "d2cff034e937d07f",
+   "outcome": "win; 2.113 at 60 pairs, 2.133 at 240 pairs (CI 2.125-2.139)",
+   "speedup": 2.133
+  },
+  {
+   "what": "relaunch of HG=4 state with block 16x16 (16 positions, 4 waves per workgroup)",
+   "state": "7b8aada66b4c8e63",
+   "outcome": "win, indistinguishable from block 16x4 (CI 2.087-2.160)",
+   "speedup": 2.133
+  },
+  {
+   "what": "relaunch of HG=4 state with block 16x2 (half wave)",
+   "state": "e0a89633cc7d08a4",
+   "outcome": "created, not checked or timed (dropped: other geometry variants were all within noise at headroom 1.06-1.09)",
+   "speedup": null
+  },
+  {
+   "what": "coarsen on ref (earlier session, factors unknown from the listing)",
+   "state": "22c4bea9fb43af44 / 57021f6c2e4d3dd3 / b017e8bdbecaff57",
+   "outcome": "loss",
+   "speedup": 0.98
+  }
+ ],
+ "friction": [
+  "static_check error on amdclang's own output (state 8d444021566c1e66, .Lft21[162] `v_mad_u64_u32 v[8:9], s[0:1], s13, v8, v[54:55]`: 'reads v55, which is never written'). The high half of the addend only feeds the result's high half v9, which is discarded (only v8 is copied out, v[8:9] is overwritten at [167]). It is amdclang's idiom for a 64x32 multiply's upper partial product. The same pattern is only a warning when the register is written on some path (a9d3449b650245d7: v37, v21, v45). A dead-result-half analysis, or an automatic 'define with 0' fixup pass, would avoid the hand edit.",
+  "source() requires the full text on every call even when only `defines` and the launch change; a `source(parent=<state>, defines=..., launch=...)` form that reuses the stored text (the sha was identical: 9fcd23113d6987b8) would make sweeps cheap.",
+  "No battery case varies rotary_dim (fixed at 128 in the manifest), so the general-rotary_dim fallback path of a restructured kernel cannot be verified; nor is the in-place case (q == q_rope) that the source comment allows.",
+  "list_states does not show the coarsen factor of earlier states; the action params had to be guessed."
+ ],
+ "lessons": [
+  "fi_rope: baseline spends ~1186 VALU instructions per thread (4 powf + 4 sincosf) to move 16 bytes, reference headroom 2.27. Computing the per-position trig once and reusing it for several heads in the same wave gave 2.13x and brought headroom to 1.06. When a kernel recomputes a wave-invariant-per-row expensive function for every output row/head, group the heads into one workgroup at source level first.",
+  "Heads per workgroup 4 vs 8 (trig amortized over 4 or 8 heads, 8 or 16 x4 loads in flight): 2.11x vs 2.09x at 60 pairs, i.e. equal; once at headroom ~1.08 the amortization factor no longer matters. HG=8 needed 96 VGPRs (occupancy 5 waves/SIMD, limiter vgpr) with no measurable penalty versus 56 VGPRs.",
+  "Block 16x4 (one wave per workgroup) vs 16x16 (4 waves): 2.133 vs 2.133, no difference for a loop-free memory-bound body.",
+  "RoPE non-interleaved with rotary_dim == head_dim: elements e and e + rd/2 share the angle, so one lane can load both halves once and write both outputs (32 bytes per lane read, 32 written) instead of the baseline's two loads per 16-byte store; loads-before-stores is also safe for the in-place case.",
+  "amdclang emits v_mad_u64_u32 with an addend pair whose high half is never written when only the low 32 bits of the result are used; static_check rejects it as an error. Fix: insert `v_mov_b32_e32 vN, 0` before it (one instruction, no timing effect)."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 1.5152364000000003,
+  "turns": 28,
+  "final": "`fi_rope` is now **2.13x** faster than amdclang's build (0.108 ms \u2192 0.051 ms, 240 pairs, CI 2.125\u20132.139). The shipped state is `d2cff034e937d07f`; it passes the static check and the full 98-case battery, and the report is recorded.\n\n- **Which case this was:** the baseline was arithmetic-bound, not memory-bound (reference headroom 2.27). Each thread ran about 1,186 arithmetic instructions (4 `powf` + 4 `sincosf`) to move 16 bytes, and it read each input twice.\n- **What changed (source level):**\n  - One wave now handles 4 positions \u00d7 4 heads, so the trig is computed once per position and lane and reused across those heads.\n  - Elements `e` and `e+64` share an angle when `rotary_dim == 128`, so each lane loads both halves once and writes both outputs.\n  - All loads are issued before the stores.\n- **Machine edit:** amdclang's output for this variant failed the static check on a read of a never-written register (`v55`). I added one `v_mov_b32_e32 v55, 0`; the affected result half is discarded, so it changes nothing else.\n- **Where it stands:** headroom is now 1.06 against the copy model, so the kernel is memory-bound. Eight heads per workgroup (2.09x) and a 16\u00d716 block (2.13x) were indistinguishable from the shipped state, so I stopped there after about five timed candidates.\n\nCaveats:\n- Outputs meet the manifest tolerance but are not guaranteed bit-identical to the baseline.\n- The fallback path for `rotary_dim != 128` is compiled in but never exercised, because the battery always passes 128.\n- The in-place case (`q == q_rope`) is also not covered by the battery.\n\nFriction logged in the report: the static-check error on amdclang's own multiply idiom, and `source()` needing the full text resent for a defines-only sweep.",
+  "seconds": 186,
+  "log": ".agc/sessions/fi_rope-a5eb3742db/agent/20261120-182435.jsonl"
+ },
+ "recorded": "2026-11-20",
+ "attribution": {
+  "levels": [
+   "mir",
+   "source"
+  ],
+  "amdclang_on_rewritten_source": 2.1493,
+  "machine_level_gain": 0.984
+ }
+}

@@ -65,6 +65,18 @@ class Info:
         return self.ins.name if self.ins else self.inst.mnemonic
 
 
+def _packed_halves(inst: Inst, src: int, us):
+    """The registers of a two-register source of a packed (`v_pk_*`) instruction that are read: `op_sel`
+    picks the half that feeds the low lane (default: the low one), `op_sel_hi` the high lane's (default: the high one)."""
+    picked = set()
+    for mod, default in (("op_sel", 0), ("op_sel_hi", 1)):
+        text = next((v for k, v in inst.mods if k == mod), None)
+        vals = [int(x) for x in text.strip("[]").split(",")] if text else []
+        picked.add(vals[src] if src < len(vals) else default)
+    lo, hi = sorted(us)
+    return [u for u, half in ((lo, 0), (hi, 1)) if half in picked]
+
+
 def classify(inst: Inst, isa: Isa | None = None, arch: Arch | None = None) -> Info:
     isa, arch = isa or table(), arch or load_arch()
     r = isa.resolve(inst.mnemonic)
@@ -89,15 +101,20 @@ def classify(inst: Inst, isa: Isa | None = None, arch: Arch | None = None) -> In
         info.wait_states = int(inst.operands[0].value) + 1
     is_mem = ins.group in ("VMEM", "SMEM")
     info.store = is_mem and ("store" in name or "write" in name)
-    info.load = is_mem and not info.store and ("load" in name or "read" in name or "ATOMIC" in ins.subgroups)
+    info.load = is_mem and not info.store and ("load" in name or "read" in name or "ATOMIC" in ins.subgroups
+                                               or name in ("s_memtime", "s_memrealtime"))   # asynchronous SGPR results
 
     enc, specs, why = select(inst, isa, arch)
     uses, defs, xu, xd = set(), set(), [], []
+    src = 0
     if why is None:
         for op, spec in zip(inst.operands, specs):
             if not isinstance(op, Reg):
                 continue
             us = units(op)
+            if spec.is_in and op.count == 2 and enc.enc == "ENC_VOP3P" and name.startswith("v_pk_"):
+                us = _packed_halves(inst, src, us)
+            src += spec.is_in
             if spec.is_in:
                 uses.update(us)
                 xu.append((spec.field, op))
@@ -113,8 +130,8 @@ def classify(inst: Inst, isa: Isa | None = None, arch: Arch | None = None) -> In
         if info.lds_dma:
             uses.add(("m0", 0))
             defs.add(("lds", 0))
-        if info.ds and info.load:
-            uses.add(("lds", 0))
+        if info.ds and (info.load or info.store):
+            uses.add(("lds", 0))            # a DS read or write races with a direct-to-LDS load still in flight
     else:                               # not a legal instruction: every register it names is read and written
         for op in inst.operands:
             if isinstance(op, Reg):

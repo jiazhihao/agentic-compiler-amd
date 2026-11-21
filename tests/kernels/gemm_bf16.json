@@ -1,0 +1,21 @@
+{
+ "name": "gemm_bf16",
+ "source": "gemm_bf16.hip",
+ "entry": "gemm_bf16",
+ "shapes": {"M": 200, "N": 136, "K": 256},
+ "bench_shapes": {"M": 2048, "N": 2048, "K": 2048},
+ "dynamic": ["M", "N"],
+ "params": [
+  {"name": "A", "kind": "tensor", "dtype": "bf16", "shape": ["M", "K"]},
+  {"name": "B", "kind": "tensor", "dtype": "bf16", "shape": ["N", "K"]},
+  {"name": "C", "kind": "tensor", "dtype": "f32", "shape": ["M", "N"], "role": "out"},
+  {"name": "M", "kind": "scalar", "dtype": "i32", "value": "M"},
+  {"name": "N", "kind": "scalar", "dtype": "i32", "value": "N"},
+  {"name": "K", "kind": "scalar", "dtype": "i32", "value": "K"}
+ ],
+ "launch": {"grid": ["cdiv(N, 16)", "cdiv(M, 16)"], "block": [16, 16]},
+ "program": {"file": "gemm_bf16.tair"},
+ "reference": {"kind": "einsum", "expr": "mk,nk->mn", "inputs": ["A", "B"], "output": "C"},
+ "tolerance": {"C": {"cond": 2e-5}},
+ "tags": ["contraction", "gemm", "mfma"]
+}

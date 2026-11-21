@@ -1,0 +1,495 @@
+{
+ "what": "amdclang on the unmodified benchmark sources with other flags, paired against -O3 (120 pairs); a flag is listed only when its build passes the battery",
+ "recorded": "2026-11-20",
+ "protocol": "agc-timing-amd-2",
+ "kernels": {
+  "attn_decode": {
+   "-ffast-math": [
+    "loss",
+    0.9795,
+    [
+     0.9783,
+     0.9803
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": [
+    "parity",
+    1.0038,
+    [
+     1.0024,
+     1.0046
+    ]
+   ]
+  },
+  "fa_attention": {
+   "-ffast-math": [
+    "win",
+    1.3452,
+    [
+     1.3418,
+     1.3494
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": [
+    "parity",
+    0.996,
+    [
+     0.9942,
+     0.9982
+    ]
+   ]
+  },
+  "fa_attention_causal": {
+   "-ffast-math": [
+    "win",
+    1.4446,
+    [
+     1.4412,
+     1.4468
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": [
+    "parity",
+    0.9975,
+    [
+     0.9944,
+     0.9989
+    ]
+   ]
+  },
+  "fi_fused_add_rmsnorm": {
+   "-ffast-math": [
+    "parity",
+    1.0056,
+    [
+     0.9948,
+     1.0129
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": "identical code"
+  },
+  "fi_gelu_tanh_and_mul": {
+   "-ffast-math": [
+    "parity",
+    1.0044,
+    [
+     0.9984,
+     1.0124
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": "identical code"
+  },
+  "fi_merge_state": {
+   "-ffast-math": [
+    "parity",
+    0.9979,
+    [
+     0.9875,
+     1.0102
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": "identical code"
+  },
+  "fi_merge_state_in_place": {
+   "-ffast-math": [
+    "parity",
+    1.0017,
+    [
+     0.996,
+     1.0047
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": "identical code"
+  },
+  "fi_merge_states": {
+   "-ffast-math": [
+    "parity",
+    0.9945,
+    [
+     0.9909,
+     1.0036
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": [
+    "parity",
+    1.0045,
+    [
+     0.9974,
+     1.0096
+    ]
+   ]
+  },
+  "fi_rmsnorm": {
+   "-ffast-math": [
+    "win",
+    1.032,
+    [
+     1.0277,
+     1.0368
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": "identical code"
+  },
+  "fi_rope": {
+   "-ffast-math": [
+    "win",
+    1.9805,
+    [
+     1.9759,
+     1.9869
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": "identical code"
+  },
+  "fi_silu_and_mul": {
+   "-ffast-math": [
+    "parity",
+    1.0062,
+    [
+     1.0004,
+     1.0119
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": "identical code"
+  },
+  "kda_step": {
+   "-ffast-math": [
+    "loss",
+    0.9581,
+    [
+     0.9553,
+     0.9613
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": [
+    "parity",
+    1.0008,
+    [
+     0.9977,
+     1.0036
+    ]
+   ]
+  },
+  "mla_decode": {
+   "-ffast-math": [
+    "win",
+    1.0809,
+    [
+     1.078,
+     1.0823
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": [
+    "parity",
+    1.0001,
+    [
+     0.9992,
+     1.0011
+    ]
+   ]
+  },
+  "mo_active_fwd": {
+   "-ffast-math": [
+    "parity",
+    1.0,
+    [
+     0.996,
+     1.0059
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": "identical code"
+  },
+  "mo_adam": {
+   "-ffast-math": [
+    "parity",
+    1.0079,
+    [
+     1.004,
+     1.0134
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": "identical code"
+  },
+  "mo_bn_infer": {
+   "-ffast-math": [
+    "parity",
+    0.9894,
+    [
+     0.983,
+     0.9953
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": "identical code"
+  },
+  "mo_glu_fwd": {
+   "-ffast-math": [
+    "win",
+    1.082,
+    [
+     1.0778,
+     1.0859
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": "identical code"
+  },
+  "mo_prelu_bwd": {
+   "-ffast-math": [
+    "loss",
+    0.9823,
+    [
+     0.9786,
+     0.9864
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": "identical code"
+  },
+  "mo_reduce_sum": {
+   "-ffast-math": "identical code",
+   "-funroll-loops": "identical code",
+   "-O2": [
+    "parity",
+    0.9899,
+    [
+     0.9866,
+     0.9927
+    ]
+   ]
+  },
+  "mo_rope_fwd": {
+   "-ffast-math": [
+    "parity",
+    0.9984,
+    [
+     0.996,
+     1.0016
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": "identical code"
+  },
+  "mo_t5_layernorm": {
+   "-ffast-math": [
+    "win",
+    1.0495,
+    [
+     1.0441,
+     1.0526
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": "identical code"
+  },
+  "moe_gate_topk": {
+   "-ffast-math": [
+    "win",
+    1.0638,
+    [
+     1.0624,
+     1.0643
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": "identical code"
+  },
+  "rb_axpy": {
+   "-ffast-math": [
+    "parity",
+    0.9671,
+    [
+     0.9283,
+     1.0202
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": "identical code"
+  },
+  "rb_copy": {
+   "-ffast-math": "identical code",
+   "-funroll-loops": "identical code",
+   "-O2": "identical code"
+  },
+  "rb_dot": {
+   "-ffast-math": [
+    "parity",
+    1.0004,
+    [
+     0.9955,
+     1.0043
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": [
+    "parity",
+    1.0025,
+    [
+     0.9969,
+     1.0083
+    ]
+   ]
+  },
+  "rb_gemvn": {
+   "-ffast-math": [
+    "parity",
+    1.0088,
+    [
+     1.0059,
+     1.014
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": [
+    "parity",
+    1.0045,
+    [
+     1.0017,
+     1.0078
+    ]
+   ]
+  },
+  "rb_gemvt": {
+   "-ffast-math": [
+    "win",
+    1.185,
+    [
+     1.1772,
+     1.1888
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": [
+    "parity",
+    0.9991,
+    [
+     0.9937,
+     1.0031
+    ]
+   ]
+  },
+  "rb_ger": {
+   "-ffast-math": [
+    "parity",
+    1.0006,
+    [
+     0.9968,
+     1.0065
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": "identical code"
+  },
+  "rb_nrm2": {
+   "-ffast-math": "identical code",
+   "-funroll-loops": "identical code",
+   "-O2": "identical code"
+  },
+  "rb_rot": {
+   "-ffast-math": [
+    "parity",
+    1.0035,
+    [
+     0.9948,
+     1.008
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": "identical code"
+  },
+  "rb_scal": {
+   "-ffast-math": [
+    "parity",
+    0.9956,
+    [
+     0.9901,
+     1.0029
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": "identical code"
+  },
+  "rb_swap": {
+   "-ffast-math": "identical code",
+   "-funroll-loops": "identical code",
+   "-O2": "identical code"
+  },
+  "vl_fused_add_rms_norm": {
+   "-ffast-math": [
+    "parity",
+    0.9986,
+    [
+     0.9957,
+     1.0007
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": [
+    "parity",
+    0.9898,
+    [
+     0.9868,
+     0.9934
+    ]
+   ]
+  },
+  "vl_moe_align": {
+   "-ffast-math": "identical code",
+   "-funroll-loops": "identical code",
+   "-O2": [
+    "parity",
+    1.002,
+    [
+     0.999,
+     1.0044
+    ]
+   ]
+  },
+  "vl_rms_norm": {
+   "-ffast-math": [
+    "parity",
+    1.0038,
+    [
+     0.9942,
+     1.015
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": [
+    "parity",
+    0.9988,
+    [
+     0.9928,
+     1.0048
+    ]
+   ]
+  },
+  "vl_rotary_embedding": {
+   "-ffast-math": [
+    "parity",
+    0.9956,
+    [
+     0.9897,
+     1.0014
+    ]
+   ],
+   "-funroll-loops": "identical code",
+   "-O2": "identical code"
+  }
+ }
+}

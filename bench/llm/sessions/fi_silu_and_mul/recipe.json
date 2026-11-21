@@ -1,0 +1,80 @@
+{
+ "kernel": "fi_silu_and_mul",
+ "launch": {
+  "grid": [
+   "B * cdiv(D4, 64)",
+   1,
+   1
+  ],
+  "block": [
+   64,
+   1,
+   1
+  ],
+  "lds": 0,
+  "args": [
+   {
+    "dtype": "u32",
+    "value": "cdiv(D4, 64)"
+   }
+  ]
+ },
+ "strict": false,
+ "path": [
+  "source"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 1.0434,
+  "speedup_ci95": [
+   1.0364,
+   1.0495
+  ],
+  "reference_ms": 0.09876,
+  "candidate_ms": 0.0952,
+  "cases": 77,
+  "protocol_version": "agc-timing-amd-2",
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 1.0434,
+    "ci95": [
+     1.0364,
+     1.0495
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 1.0494,
+    "ci95": [
+     1.0417,
+     1.0571
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "Loop-free source rewrite: one vec4 (16 bytes) per thread, block 64, grid B*cdiv(D4, 64) with one appended u32 argument, exp2 and rcp in place of expf and the division (within the 1e-4 tolerance, not bit-identical). Chosen by the harness among the session's loop-free variants with 240-pair timings.",
+ "tried": [],
+ "friction": [
+  "Every loop-free variant (block 64 / 256 / 1024, 1D or 2D grid, with or without exp2 range handling) lands at 1.03 to 1.04 and they are indistinguishable from each other: compare(63c114e56052d519, 1a1dde47d134cbdb) gives parity with CI 0.988 to 1.014. Run-to-run spread of the reference itself (0.098 to 0.104 ms across benches in this session) is as large as the effect being measured, so ranking candidates at this level is not possible with 60 pairs.",
+  "bench reports 3.8 to 4.0 TB/s against a 4.7 TB/s read+write ceiling, which suggests about 15% headroom, but nothing I could express reaches it. Whether that ceiling is attainable for a 2-read-stream + 1-write-stream kernel, or was measured on a different stream mix, is not stated; knowing how the ceiling was measured would say whether to keep trying.",
+  "Several elements per lane loses consistently on this kernel (a5b53ea1e03987d3 0.96, 01be6d5fa6923d5b 0.96, coarsen d3aa1f2109b8bca7 0.99) although the notes report 1.5x for gelu and cast_bf16. I have no tool to see why (per-wave timing, cache or TLB behaviour, how workgroups are scheduled over rows); a profile or counter view would turn this from guessing into diagnosis.",
+  "static_check on a5b53ea1e03987d3 warns that global_store_dwordx4 in .LBB0_5 reads v6/v7 'not written on every path'. They are written on both arms of an exec-masked if/else (s_and_saveexec / s_andn2_saveexec), so each active lane has them defined; the undefined-read analysis does not follow per-lane exec masks. It is only a warning, but it is a false positive for the standard amdclang if/else lowering.",
+  "The cheap-math states are not IEEE-equivalent at infinities: x * rcp(1 + exp2(-x*log2e)) gives NaN for x = -inf where the baseline's x / (1 + expf(-x)) gives -0. The battery passes 77/77, so either it has no infinite inputs or they are not compared; info() does not list the input distributions, so I could not tell which. Worth stating in the contract whether non-finite inputs are in scope.",
+  "__builtin_amdgcn_exp2f works and lowers to a bare v_exp_f32 (no range handling), which replaces the manual edit_ir trim used earlier for febc3c8bf7a909a9; the skill only mentions __builtin_exp2f 'plus range handling'."
+ ],
+ "lessons": [],
+ "session": {
+  "sessions": 2,
+  "seconds": 314
+ },
+ "recorded": "2026-11-20",
+ "attribution": {
+  "levels": [
+   "source"
+  ],
+  "amdclang_on_rewritten_source": 1.0434,
+  "machine_level_gain": 1.0
+ }
+}

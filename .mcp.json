@@ -1,0 +1,5 @@
+{
+ "mcpServers": {
+  "agc": {"command": ".venv/bin/python", "args": ["-m", "agc.mcp.server"]}
+ }
+}

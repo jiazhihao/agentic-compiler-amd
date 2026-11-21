@@ -42,6 +42,9 @@ v_bitop3_b16 v11, v14, 3, v11 bitop3:0xc8
 global_load_dword v14, v[10:11], off
 global_load_dword v1, v[2:3], off offset:4095
 global_load_dwordx4 a[0:3], v[2:3], off
+global_load_dwordx4 v[6:9], v[2:3], off
+global_load_dwordx3 v[4:6], v[2:3], off
+s_load_dwordx8 s[12:19], s[2:3], 0x0
 global_store_dword v0, v1, s[0:1]
 global_load_lds_dwordx4 v[2:3], off
 ds_read2_b32 v[38:39], v12 offset0:160 offset1:176
@@ -82,6 +85,12 @@ ILLEGAL = {
     "global_load_dword v1, v[2:3], off offset:4096": "outside -4096..4095",
     "v_add_f32_e32 v0, v1, v2 clamp": "clamp",
     "v_add_u32_e32 v0, v1": "takes 3 operands",
+    "global_load_dwordx4 v[5:8], v[2:3], off": "multiple of 2",
+    "global_load_dword v1, v[3:4], off": "multiple of 2",
+    "v_mfma_f32_32x32x16_bf16 a[1:16], v[0:3], v[4:7], a[1:16]": "multiple of 2",
+    "s_load_dwordx2 s[13:14], s[6:7], 0x0": "multiple of 2",
+    "s_load_dwordx4 s[14:17], s[6:7], 0x0": "multiple of 4",
+    "s_mov_b64 s[5:6], 0": "multiple of 2",
 }
 
 

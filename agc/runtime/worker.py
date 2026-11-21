@@ -7,6 +7,7 @@ Jobs:
   check   run a code object on battery cases and compare with the reference
   bench   time a code object under the timing protocol (and verify the timed outputs)
   paired  time two code objects alternately; speedup of `candidate` over `reference`
+  run     run one case and return the raw outputs (hardware probes)
 """
 from __future__ import annotations
 
@@ -22,7 +23,8 @@ from pathlib import Path
 import numpy as np
 
 from ..arch.model import load as load_arch
-from ..manifest import Manifest
+from ..dtypes import dtype
+from ..manifest import Manifest, eval_expr
 from . import hip, reference, toolchain
 from .compare import compare_outputs
 from .executor import RESULT_MARK
@@ -49,12 +51,21 @@ def find_kernel(meta: dict, entry: str) -> dict:
                    f"(kernels: {[k['.name'] for k in kernels]})")
 
 
-def pack_args(kmeta: dict, m: Manifest, resolved, pointers: dict[str, int]) -> bytes:
-    """The explicit kernel arguments at the offsets the code object's metadata declares."""
+def pack_args(kmeta: dict, m: Manifest, resolved, pointers: dict[str, int], extra: list | None = None) -> bytes:
+    """The explicit kernel arguments at the offsets the code object's metadata declares. `extra`:
+    the arguments a launch-changing transformation appended after the manifest's
+    (`[{"dtype", "value": expression over the shape symbols}]`)."""
+    extra = extra or []
     explicit = [a for a in kmeta.get(".args", []) if not a[".value_kind"].startswith("hidden_")]
-    if len(explicit) != len(m.params):
-        raise JobError("abi", f"the kernel takes {len(explicit)} arguments, the manifest declares {len(m.params)}")
+    if len(explicit) != len(m.params) + len(extra):
+        raise JobError("abi", f"the kernel takes {len(explicit)} arguments, the manifest declares {len(m.params)}"
+                       + (f" and the launch adds {len(extra)}" if extra else ""))
     buf = bytearray(max((a[".offset"] + a[".size"] for a in explicit), default=0))
+    for a, e in zip(explicit[len(m.params):], extra):
+        dt = dtype(e["dtype"])
+        if a[".value_kind"] != "by_value" or a[".size"] != dt.itemsize:
+            raise JobError("abi", f"launch argument {e}: the kernel takes {a['.size']} bytes by {a['.value_kind']}")
+        buf[a[".offset"]:a[".offset"] + a[".size"]] = np.asarray(eval_expr(e["value"], resolved.symbols)).astype(dt.storage).tobytes()
     for a, p in zip(explicit, m.params):
         if p.kind == "tensor":
             if a[".value_kind"] != "global_buffer" or a[".size"] != 8:
@@ -72,8 +83,9 @@ def pack_args(kmeta: dict, m: Manifest, resolved, pointers: dict[str, int]) -> b
 class Loaded:
     """A code object's kernel on the device."""
 
-    def __init__(self, dev: hip.Device, image: bytes, entry: str):
+    def __init__(self, dev: hip.Device, image: bytes, entry: str, launch: dict | None = None):
         self.dev = dev
+        self.launch = launch          # a generated kernel's own geometry: {"grid": [...], "block": [...], "lds": n}
         self.kmeta = find_kernel(toolchain.metadata(image), entry)
         self.module = dev.load(image)
         self.kernel = self.module.kernel(self.kmeta[".name"])
@@ -99,14 +111,29 @@ class Bound:
             if p.role != "in":
                 self.pristine[p.name] = dev.upload(host)
         self.pointers = {k: b.ptr for k, b in self.live.items()}
+        self._prepared: dict = {}
 
     def reset(self):
         for name, src in self.pristine.items():
             self.dev.copy(self.live[name], src)
 
+    def prepared(self, k: Loaded):
+        """The launch of `k` on these buffers as a ready-to-submit callable (built once per kernel)."""
+        if id(k) not in self._prepared:
+            grid, block, lds = self.resolved.grid, self.resolved.block, self.resolved.lds
+            if k.launch:
+                sym = self.resolved.symbols
+                dims = lambda v: tuple(eval_expr(e, sym) for e in v) + (1,) * (3 - len(v))
+                grid, block, lds = dims(k.launch["grid"]), dims(k.launch["block"]), eval_expr(k.launch.get("lds", 0), sym)
+                if min(grid) <= 0 or min(block) <= 0:
+                    raise JobError("launch", f"launch dims must be positive: grid={grid} block={block}")
+            extra = k.launch.get("args") if k.launch else None
+            self._prepared[id(k)] = k.kernel.prepare(grid, block, pack_args(k.kmeta, self.m, self.resolved, self.pointers, extra),
+                                                     stream=self.dev.stream, lds_bytes=lds)
+        return self._prepared[id(k)]
+
     def launch(self, k: Loaded):
-        k.kernel.launch(self.resolved.grid, self.resolved.block, pack_args(k.kmeta, self.m, self.resolved, self.pointers),
-                        stream=self.dev.stream, lds_bytes=self.resolved.lds)
+        self.prepared(k)()
 
     def outputs(self) -> dict[str, np.ndarray]:
         return {p.name: self.dev.download(self.live[p.name], p.dtype.storage, self.resolved.tensors[p.name])
@@ -150,7 +177,7 @@ def job_info(job) -> dict:
 def job_check(job) -> dict:
     m = _manifest(job)
     dev = hip.Device(0)
-    cand = Loaded(dev, _image(job), m.entry)
+    cand = Loaded(dev, _image(job), m.entry, job.get("launch"))
     oracle = Loaded(dev, _image(job, "oracle_hsaco"), m.entry) if job.get("oracle_hsaco") else None
     reports, ok = [], True
     for cd in job["cases"]:
@@ -179,6 +206,44 @@ def job_check(job) -> dict:
             "failures": [r for r in reports if not r["ok"]], "resources": cand.resources()}
 
 
+def job_run(job) -> dict:
+    """Run one case and return the raw outputs (for probes that discover what the hardware does:
+    operand layouts, instruction semantics). Outputs are limited to 4 MiB."""
+    m = _manifest(job)
+    dev = hip.Device(0)
+    k = Loaded(dev, _image(job), m.entry, job.get("launch"))
+    case = Case.from_dict(job["case"])
+    resolved = m.resolve(case.symbols)
+    inputs = generate_inputs(m, resolved, case)
+    bound = Bound(dev, m, resolved, inputs)
+    try:
+        bound.launch(k)
+        dev.synchronize()
+        outs = bound.outputs()
+    finally:
+        bound.free()
+    if sum(a.nbytes for a in outs.values()) > 4 << 20:
+        raise JobError("job", "outputs larger than 4 MiB")
+    enc = lambda a: {"dtype": a.dtype.str if a.dtype.kind != "V" else str(a.dtype), "shape": list(a.shape),
+                     "data": base64.b64encode(a.tobytes()).decode()}
+    return {"ok": True, "outputs": {n: enc(a.view(m.param(n).dtype.bits_view())) for n, a in outs.items()},
+            "inputs": {n: enc(a.view(m.param(n).dtype.bits_view())) for n, a in inputs.items()}}
+
+
+def job_external(job) -> dict:
+    """Run a baseline program (a vendor-library benchmark) on this job's device, under the same lock
+    as every other measurement. The program prints one JSON object."""
+    import subprocess
+    try:
+        p = subprocess.run([str(a) for a in job["argv"]], capture_output=True, text=True, timeout=job.get("timeout", 300))
+    except (OSError, subprocess.TimeoutExpired) as e:
+        raise JobError("external", f"cannot run {job['argv'][0]}: {e}") from None
+    line = next((l for l in reversed(p.stdout.splitlines()) if l.startswith("{")), None)
+    if line is None:
+        raise JobError("external", f"no result from {job['argv'][0]} (exit {p.returncode}): {(p.stderr or p.stdout)[-500:]}")
+    return json.loads(line)
+
+
 class _Timer:
     def __init__(self, dev: hip.Device, arch, cache: str):
         self.dev, self.cache = dev, cache
@@ -189,6 +254,7 @@ class _Timer:
         self.wall_ms: list[float] = []      # host wall-clock around the same launch: a sanity bound on the event time
 
     def time(self, bound: Bound, k: Loaded) -> float:
+        submit = bound.prepared(k)                # arguments packed and converted before anything is timed
         bound.reset()
         if self.flush is not None:
             self._tick += 1
@@ -196,7 +262,7 @@ class _Timer:
         self.dev.synchronize()
         t0 = time.perf_counter()
         self.start.record(self.dev.stream)
-        bound.launch(k)
+        submit()
         self.stop.record(self.dev.stream)
         self.stop.synchronize()
         self.wall_ms.append((time.perf_counter() - t0) * 1e3)
@@ -224,7 +290,7 @@ def _verify(m, case, bound, expected, scale) -> dict:
 
 def job_bench(job) -> dict:
     m, proto, dev, case, resolved, inputs, bound, timer = _bench_setup(job)
-    k = Loaded(dev, _image(job), m.entry)
+    k = Loaded(dev, _image(job), m.entry, job.get("launch"))
     oracle = Loaded(dev, _image(job, "oracle_hsaco"), m.entry) if job.get("oracle_hsaco") else None
     expected, scale = _expected(m, resolved, inputs, bound, oracle)
     for _ in range(proto.warmup):
@@ -241,8 +307,8 @@ def job_bench(job) -> dict:
 
 def job_paired(job) -> dict:
     m, proto, dev, case, resolved, inputs, bound, timer = _bench_setup(job)
-    ks = {"reference": Loaded(dev, _image(job, "reference_hsaco"), m.entry),
-          "candidate": Loaded(dev, _image(job, "candidate_hsaco"), m.entry)}
+    ks = {"reference": Loaded(dev, _image(job, "reference_hsaco"), m.entry, job.get("reference_launch")),
+          "candidate": Loaded(dev, _image(job, "candidate_hsaco"), m.entry, job.get("candidate_launch"))}
     expected, scale = _expected(m, resolved, inputs, bound, ks["reference"])
     out = {"protocol": proto.to_dict(), "case": case.label, "resources": {w: k.resources() for w, k in ks.items()}}
     for i in range(proto.warmup):
@@ -264,7 +330,7 @@ def job_paired(job) -> dict:
     return {**out, "ok": True, **paired_summary(samples["reference"], samples["candidate"], proto.noise_floor)}
 
 
-JOBS = {"info": job_info, "check": job_check, "bench": job_bench, "paired": job_paired}
+JOBS = {"info": job_info, "check": job_check, "bench": job_bench, "paired": job_paired, "run": job_run, "external": job_external}
 
 
 def main() -> int:

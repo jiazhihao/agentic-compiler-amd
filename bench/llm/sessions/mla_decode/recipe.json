@@ -1,0 +1,138 @@
+{
+ "kernel": "mla_decode",
+ "launch": {
+  "grid": [
+   "cdiv(H, 2)",
+   "B",
+   1
+  ],
+  "block": [
+   1024,
+   1,
+   1
+  ],
+  "lds": 0
+ },
+ "strict": false,
+ "path": [
+  "source",
+  "edit",
+  "edit"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 2.5413,
+  "speedup_ci95": [
+   2.5395,
+   2.5427
+  ],
+  "reference_ms": 0.45606,
+  "candidate_ms": 0.17956,
+  "cases": 98,
+  "protocol_version": "agc-timing-amd-2",
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 2.543,
+    "ci95": [
+     2.5414,
+     2.5445
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 2.5413,
+    "ci95": [
+     2.5395,
+     2.5427
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "State af5aa1a6d0cb004b is 2.54x faster than amdclang's build (0.1799 ms vs 0.4578 ms, 240 pairs, CI 2.541 to 2.546; static check ok, battery 98/98). Reference headroom is 19.4, so the baseline is not bound by the memory system as a whole; it behaved as bound by vector-load throughput per compute unit (each head's workgroup re-reads the whole 4.7 MB KV cache twice, 4.8 GB of cache traffic in total). The winning state launches grid (cdiv(H,2), B) x block 1024: one workgroup computes TWO heads over a 1024-key tile, so every key and value load (global_load_dwordx4, 16 resp. 8 in flight) is shared by both heads; the query rows come in through s_load_dwordx16 into SGPRs and are used as scalar operands of v_fmac (hand-written score loop, no vector load for q), max/sum use a two-level LDS reduction, the partial output lives in LDS, and the value loop is hand-written with 4 v_pk_fma per key. Results meet the manifest tolerance but are not bit-identical (fused multiply-add, 1024-key tiles, grouped value summation).",
+ "tried": [
+  {
+   "what": "source: 8 heads per workgroup (grid H/8 x B, block 1024), shared key/value x4 loads, out used as running storage",
+   "state": "eaba9bb7542bac6b",
+   "outcome": "loss: only 64 CUs busy, q vector-loaded per lane (8 q loads per key load), 351 VGPR spills",
+   "speedup": 0.186
+  },
+  {
+   "what": "source: 1 head per workgroup, block 1024, 1024-key tile, 16 x4 loads in flight, two-level LDS reductions (attn_decode recipe)",
+   "state": "44a132a3b2b02f37",
+   "outcome": "win",
+   "speedup": 1.125
+  },
+  {
+   "what": "source: 2 heads per workgroup, KB=16, restrict, o in LDS (q still vector-loaded, 105 spills)",
+   "state": "621179d647f96ef4",
+   "outcome": "loss",
+   "speedup": 0.706
+  },
+  {
+   "what": "source: 1 head per workgroup with o in LDS (no global store in the loop) to get scalar q loads",
+   "state": "e2ec649d62ecd821",
+   "outcome": "not timed: amdclang still emitted global_load_dwordx4 with a uniform SGPR base for q; used as base for the next edit",
+   "speedup": null
+  },
+  {
+   "what": "machine IR on e2ec: score loop rewritten, q through 4 s_load_dwordx16 + 64 v_fmac with scalar operand (16 instead of 32 vector loads per batch)",
+   "state": "f94240e75d6c6121",
+   "outcome": "win",
+   "speedup": 1.346
+  },
+  {
+   "what": "source HB=2/KB=4/VB=8 (ed88cc3c67eef89f, base only) + machine IR: 2-head score loop, 16 key loads shared, rotating s_load_dwordx16 sets, 128 v_fmac",
+   "state": "0927584b8b77c316",
+   "outcome": "win (2.476 at 60 pairs, 2.475 at 240)",
+   "speedup": 2.475
+  },
+  {
+   "what": "machine IR on 0927: hand value loop (running address, ds_read_b64 p pairs, 4 v_pk_fma per key; 77 instead of 183 instructions per iteration)",
+   "state": "af5aa1a6d0cb004b",
+   "outcome": "win; 1.027x over its parent (compare, 240 pairs)",
+   "speedup": 2.543
+  },
+  {
+   "what": "source: 4 heads per workgroup x 2 column-half workgroups (grid H/4 x B x 2)",
+   "state": "843a8e01e3ae06a2",
+   "outcome": "not timed: compiled with 43 scratch spill pairs and vector q loads; needed another hand score loop for 4 heads, out of budget",
+   "speedup": null
+  }
+ ],
+ "friction": [
+  "amdclang would not use scalar loads for the wave-uniform q rows in any of my sources (44a132a3, 621179d6, e2ec649d, ed88cc3c, 843a8e01: `global_load_dwordx4 v, v54(=0), s[36:37]`), although it did in the attn_decode recipe; neither __restrict nor removing all global stores from the loop changed it, and I could not see why (no access to the LLVM IR or to -debug output of the uniform/noclobber annotation). A source-level way to force `s_load_dwordxN` (builtin or attribute), or a machine-IR transform 'uniform vector load -> scalar load + scalar operands', would have replaced two hand-written 150-line loops.",
+  "amdclang caps at 128 VGPRs and spills (scratch) as soon as several heads share loads (eaba9bb7: 351 spills, 621179d6: 105, 843a8e01: 43 pairs); the spill code is legal now but is extra memory traffic on a load-bound kernel. No way from `source` to see which loop spills without reading the whole listing.",
+  "Reading a 1500-instruction listing through state() to find free registers and loop-carried values is the main cost of a hand edit; a liveness query (registers live-in/live-out of a block, free VGPR/SGPR ranges inside a loop) would make loop replacement cheap and safe.",
+  "Text generation for regular unrolled bodies (128 v_fmac lines with rotating SGPR sets) had to be typed out by hand in the edit; a small macro/repeat facility in edit text (e.g. a loop over n with register arithmetic) would remove the risk of typos.",
+  "`traffic`/`headroom` assume each tensor byte is touched once; this kernel reads kv_cache 2 x heads times (4.8 GB at bench shapes vs 20 MB assumed), so headroom 19 hides that the baseline is at about 10 TB/s of cache traffic and bound by per-CU load throughput.",
+  "No per-phase timing: whether the score phase, value phase or the barriers dominate had to be inferred from full verified variants.",
+  "Splitting the keys of a head over workgroups (the split that would use all 256 CUs with 4+ heads per workgroup) cannot be expressed: no scratch tensor / second pass to combine partial softmax results."
+ ],
+ "lessons": [
+  "mla_decode (reference headroom 19.4): time is set by vector-load work per CU, not by the memory system and not by ALU. One 1024-thread workgroup per CU moved its loads at a fixed pace: 1 head per workgroup with 144 key + 144 q + 128 value x4 wave-loads per tile took 406 us (512 workgroups = 2 rounds on 256 CUs); removing the 144 q vector loads (q via s_load_dwordx16 + scalar operands) gave 340 us (1.35x over ref).",
+  "Sharing loads between outputs is the big lever when every output re-reads the same data: 2 heads per workgroup (256 workgroups = one per CU, each key/value x4 load used for both heads) took 184 us = 2.48x over ref, 1.85x over the 1-head state; the second head's arithmetic cost only about 8 %. Pick heads-per-workgroup so that workgroups == CUs (256): 8 heads per workgroup (64 workgroups) was 0.19x.",
+  "A wave-uniform vector load (global_load with an SGPR base and zero index) costs like any other vector load on this machine; amdclang emitted it for q in all five sources here. Replacing it by s_load_dwordx16 into SGPRs and `v_fmac_f32_e64 acc, sN, vK` passes static_check (48 free SGPRs = 3 rotating x16 sets, s_waitcnt lgkmcnt(0) before each reuse) and was worth 1.20x by itself.",
+  "Cutting ALU instructions in a load-bound loop pays little: the hand value loop with 77 instead of 183 instructions per iteration (v_pk_fma with op_sel broadcast of the LDS p pair) gave 1.027x (compare, 240 pairs).",
+  "Stores to a global output inside the main loop and >128 live VGPRs both produce bad code from amdclang (vector reloads, scratch spills); keeping running outputs in LDS (float4 per thread, 160 KB LDS available per workgroup) and compiling the hot loop with a small batch (KB=4) as a placeholder, then replacing that loop at the machine level, gave a spill-free state (0927584b: 0 spills).",
+  "Battery shapes (H=3, S=300) with heads grouped per workgroup need a clamped head index for reads (min(h0+h, H-1)) and guarded stores; this passed 98/98 with fused multiply-adds and regrouped sums within rtol 1e-4."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 5.99372,
+  "turns": 51,
+  "final": "Shipped state `af5aa1a6d0cb004b`: **2.54x** over amdclang (0.180 ms vs 0.458 ms, 240 pairs, CI 2.541\u20132.546). It passes the static check and the full battery (98/98), and the report is recorded.\n\n**Which case this is:** reference headroom is 19.4, so the baseline is not bound by the memory system as a whole. It behaved as bound by how fast one compute unit can issue vector loads: every head's workgroup re-reads the whole KV cache twice (about 4.8 GB of cache traffic, where the traffic model assumes 20 MB).\n\n**What the winning state does differently:**\n- **Launch:** grid `(cdiv(H,2), B)` with 1024-thread blocks, so there are 256 workgroups, one per compute unit.\n- **Two heads per workgroup:** each key and value load is used for both heads, over 1024-key tiles.\n- **Query through scalar loads:** the score loop is hand-written so the query rows arrive in scalar registers instead of vector loads.\n- **Reductions and output:** max and sum use a two-level shared-memory reduction, and the partial output stays in shared memory until the end.\n- **Value loop:** hand-written with far fewer instructions per key.\n\nResults meet the manifest tolerance but are not bit-identical to the baseline (fused multiply-adds, larger tiles, regrouped sums).\n\n| Step | State | Speedup over amdclang |\n|---|---|---|\n| 8 heads per workgroup, compiler code | `eaba9bb7` | 0.19x (loss) |\n| 1 head per workgroup, block 1024, wide loads | `44a132a3` | 1.12x |\n| 2 heads per workgroup, compiler code | `621179d6` | 0.71x (loss) |\n| 1 head, query through scalar loads (hand score loop) | `f94240e7` | 1.35x |\n| 2 heads sharing loads (hand score loop) | `0927584b` | 2.48x |\n| Hand value loop on top | `af5aa1a6` | 2.54x |\n\n**Not finished:** a variant with 4 heads per workgroup and the output columns split over 2 workgroups (`843a8e01`) compiled with register spills and vector query loads. It needed another hand-written score loop and I ran out of budget, so it was never timed. That, not three sub-1% ideas, is why I",
+  "seconds": 665,
+  "log": ".agc/sessions/mla_decode-de1ad0bfaf/agent/20261120-163946.jsonl"
+ },
+ "recorded": "2026-11-20",
+ "attribution": {
+  "levels": [
+   "mir",
+   "source"
+  ],
+  "amdclang_on_rewritten_source": 1.7026,
+  "machine_level_gain": 1.493
+ }
+}

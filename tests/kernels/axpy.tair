@@ -1,0 +1,3 @@
+tair axpy(x: f32[N], y: f32[N], a: f32) -> (y_out: f32[N]) {
+  y_out = a * x + y
+}

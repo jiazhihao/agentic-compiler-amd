@@ -1,0 +1,113 @@
+{
+ "kernel": "moe_gate_topk",
+ "launch": null,
+ "strict": false,
+ "path": [
+  "source"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 17.9713,
+  "speedup_ci95": [
+   17.9153,
+   18.0239
+  ],
+  "reference_ms": 0.65638,
+  "candidate_ms": 0.03656,
+  "cases": 49,
+  "protocol_version": "agc-timing-amd-2",
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 18.8053,
+    "ci95": [
+     18.7434,
+     18.8735
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 17.9713,
+    "ci95": [
+     17.9153,
+     18.0239
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "State 91909ac594942d89 (source level, same launch: block 256, grid cdiv(T,256)) is 18.2x faster than amdclang's build (0.0362 ms vs 0.6585 ms, 240 pairs, CI 18.15..18.24), static check and full battery (49/49) pass. The baseline reads each token's row 10 times (max, sum, 8 argmax passes) one dword per wait; the new kernel reads it once with two dwordx4 loads per 8 experts, keeps max and sum online (sum rescaled by exp2((m_old-m_new)*log2e) when the max rises, v_exp_f32 instead of libm expf, within the 1e-4 tolerance) and keeps a sorted top-8 of (order-preserving int key, ~index) by sorting each chunk of 8 with a 19-comparator network and bitonic-merging it into the running top-8; ties resolve to the lower index exactly through the 64-bit composite compare. The reference was not memory-bound (reference_headroom 20.6); the shipped state is at headroom 1.13 of the copy model (launch 20 us + one read of 67 MB), so what remains is within about 13 % of the memory floor. k != 8 falls back to the original algorithm inside the kernel (not exercised by the manifest, where k is fixed to 8).",
+ "tried": [
+  {
+   "what": "single pass per thread, branchless 8-stage insertion with swap-if-greater per stage (bubble)",
+   "state": "b6fb81e078c78113",
+   "outcome": "battery failure (small_int: indices wrong on ties; a displaced older element must shift past equal keys, not be compared strictly)",
+   "speedup": null
+  },
+  {
+   "what": "single pass per thread, tie-correct shift insertion tk[j]=min(tk[j-1],max(tk[j],v)) on int keys + index cndmasks, 4 elems/iter, online max/sum with exp2",
+   "state": "9bdc67ac37561d26",
+   "outcome": "win",
+   "speedup": 13.97
+  },
+  {
+   "what": "same code, block 64 / grid cdiv(T,64)",
+   "state": "83786a05021e457d",
+   "outcome": "win, parity with block 256 (0.04716 vs 0.04696 ms)",
+   "speedup": 13.98
+  },
+  {
+   "what": "apply unroll_loads on 9bdc67ac",
+   "state": "9bdc67ac37561d26",
+   "outcome": "refused: kernel uses indexed vector registers (s_set_gpr_idx_on, from the k!=8 fallback's picked[] array)",
+   "speedup": null
+  },
+  {
+   "what": "8 elems/iter with the next chunk's loads issued before processing the current one (software pipelining)",
+   "state": "3f8a405af713d8b0",
+   "outcome": "win, parity with the unpipelined version (0.04682 ms): not latency-bound",
+   "speedup": 14.05
+  },
+  {
+   "what": "chunk of 8 sorted by a 19-comparator network on 64-bit (key,~idx) composites, bitonic merge into the sorted top-8 (8 max + 12 comparators)",
+   "state": "7fc3a13cfe961a1e",
+   "outcome": "win (0.0402 ms); clang emits two 64-bit compares (gt and lt) per comparator, 66 VGPRs -> 7 waves/SIMD",
+   "speedup": 16.43
+  },
+  {
+   "what": "same network with key and ~index as separate 32-bit values: one v_cmp_gt_i64 and four cndmasks per comparator",
+   "state": "91909ac594942d89",
+   "outcome": "win (0.0362 ms, 240 pairs), 63 VGPRs, headroom 1.13",
+   "speedup": 18.21
+  }
+ ],
+ "friction": [
+  "unroll_loads refuses a whole kernel when any block uses s_set_gpr_idx_on (state 9bdc67ac37561d26), although the indexed registers were only in a cold fallback path (k != 8), not in the loop to be unrolled; a per-loop applicability test would help.",
+  "No way to tell the harness that a scalar parameter is a constant of the manifest (k has value 8): I kept a full copy of the original algorithm for k != 8, which costs code size, registers and blocks unroll_loads. A manifest flag 'k is fixed' or a battery case with another k would settle whether the fallback is needed.",
+  "The battery reports only the first failing case; for the tie bug (b6fb81e078c78113) the name small_int was enough, but the list of input distributions is not visible in info(): knowing up front that there is a tie-heavy integer distribution (and whether -inf / -0.0 / NaN occur) would have saved a round and decided whether the order-preserving int key (+0.0, xor) is needed at all.",
+  "clang turns a compare-exchange written with one condition on i64 (c ? a : b / c ? b : a) into smax + smin, i.e. two v_cmp_*_i64 per comparator (state 7fc3a13cfe961a1e, 57 extra compares in the loop); I had to split the values into 32-bit halves at the source level to get one compare. A machine-level peephole transform 'merge complementary compares' (cmp_lt a,b + cndmask x,y -> reuse cmp_gt mask with swapped operands) would do this on any state; by hand it was ~120 edit ops in a 318-instruction loop.",
+  "state() returns the whole 1169-instruction listing (cold paths included); a per-block or per-loop view (state(ref, block='.LBB0_31')) would make reading the hot loop much cheaper.",
+  "One row per wave with cross-lane (DPP) top-k is not expressible at the source level; I estimated it would not beat the per-thread network here (65536 waves x ~300 instructions vs 1024 waves x ~9.5k), so it was not tried."
+ ],
+ "lessons": [
+  "moe_gate_topk: reference_headroom 20.6 came from an algorithm that re-reads each row 10 times with one dword load and one wait per element; a single-pass rewrite at the source level gave 14x to 18x. When headroom is large and the source has repeated passes over the same data, change the algorithm first; nothing at the machine level was needed.",
+  "Once single-pass, the kernel was compute-bound, not latency-bound: issuing the next chunk's loads before processing the current one (8 dwords in flight) was parity (0.04682 vs 0.04696 ms), block 64 vs 256 was parity (0.04716 vs 0.04696 ms). Only fewer VALU instructions per element paid: 47 -> 40 -> ~33 instructions per element gave 0.0470 -> 0.0402 -> 0.0362 ms.",
+  "Branchless top-k per lane: per-element insertion into a sorted top-8 costs about 38 instructions per element (8 compares, 15 min/max, 15 cndmask); sorting chunks of 8 with a 19-comparator network and bitonic-merging with the running top-8 (8 max + 12 comparators) is about 4.9 comparators per element and was 1.17x faster end to end; with one compare per comparator another 1.11x.",
+  "Exact tie-breaking (lower index first) for free: compare (order-preserving int key of the float, ~index) as one signed 64-bit value with v_cmp_gt_i64; keys are then all distinct and any sorting network is correct. Order-preserving key: b = bits(x + 0.0f); key = b ^ ((b >> 31) & 0x7fffffff) (clang emits ashr + v_bitop3).",
+  "clang canonicalizes c ? a : b and c ? b : a on i64 to smax/smin and emits two 64-bit compares; keeping the two 32-bit halves as separate variables and building the i64 only inside the comparison gives one v_cmp_gt_i64 + four v_cndmask, and here also dropped the kernel from 66 to 63 VGPRs (7 -> 8 waves per SIMD).",
+  "Bubble-style insertion (swap if greater at every stage) is wrong on ties: the displaced older element must shift down past equal keys. tk[j] = min(tk[j-1], max(tk[j], v)) with the index selects driven by v > tk[j] and v > tk[j-1] (original v) is correct.",
+  "Online softmax denominator in one pass: when the running max rises from m to m', multiply the sum by exp2((m - m') * log2e) (one extra exp per chunk of 8), then add exp2((x - m') * log2e); with __builtin_amdgcn_exp2f this is a bare v_exp_f32 and stayed within rtol 1e-4 on all 49 battery cases (max rel err about 6e-7 in the failing run's weights report).",
+  "Divergence rules out data-dependent skipping in one-thread-per-row kernels: an 'only insert if greater than the current 8th best' branch is taken by some lane of the wave at almost every element (64 lanes x 8/e probability), so branchless networks are the right form."
+ ],
+ "session": {
+  "resumed": true
+ },
+ "recorded": "2026-11-20",
+ "attribution": {
+  "levels": [
+   "source"
+  ],
+  "amdclang_on_rewritten_source": 17.9713,
+  "machine_level_gain": 1.0
+ }
+}

@@ -1,0 +1,75 @@
+{
+ "name": "rb_rot",
+ "source": "rb_rot.hip",
+ "entry": "rb_rot",
+ "shapes": {
+  "N": 10001
+ },
+ "bench_shapes": {
+  "N": 67108864
+ },
+ "dynamic": [
+  "N"
+ ],
+ "params": [
+  {
+   "name": "n",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "N"
+  },
+  {
+   "name": "x",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "inout"
+  },
+  {
+   "name": "y",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "inout"
+  },
+  {
+   "name": "c",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 0.8
+  },
+  {
+   "name": "s",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 0.6
+  }
+ ],
+ "launch": {
+  "grid": [
+   "cdiv(N, 512)"
+  ],
+  "block": [
+   512
+  ]
+ },
+ "tolerance": {
+  "*": {
+   "cond": 4e-07
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "rb_rot"
+ },
+ "tags": [
+  "llm",
+  "rocblas",
+  "elementwise"
+ ]
+}

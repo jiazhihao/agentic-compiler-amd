@@ -27,32 +27,49 @@ def _b64(image: bytes) -> str:
 
 def _job(m: Manifest, kind: str, **fields) -> dict:
     job = {"kind": kind, "manifest": m.to_dict(), "manifest_path": str(m.path), **fields}
-    if m.reference.kind == "none" and kind in ("check", "bench"):
+    if m.reference.kind == "none" and kind in ("check", "bench") and m.source is not None:
         job["oracle_hsaco"] = _b64(reference_build(m).hsaco)
     return job
 
 
-def check(m: Manifest, hsaco: bytes, *, quick: bool = False, root: Path | None = None, **run) -> dict:
+def check(m: Manifest, hsaco: bytes, *, quick: bool = False, root: Path | None = None, launch: dict | None = None,
+          **run) -> dict:
     """The battery: every case must match the reference within the manifest's tolerances."""
     root = root or default_root()
     cases = build_battery(m, hidden_secret(root), quick=quick)
-    r = run_job(_job(m, "check", hsaco=_b64(hsaco), cases=[c.to_dict() for c in cases]), root=root,
+    r = run_job(_job(m, "check", hsaco=_b64(hsaco), cases=[c.to_dict() for c in cases], launch=launch), root=root,
                 timeout=run.pop("timeout", 1800.0), **run)
     r["cases"] = public_view(cases[:r.get("cases_run", 0)])
     return r
 
 
 def bench(m: Manifest, hsaco: bytes, *, protocol: TimingProtocol | None = None, symbols: dict | None = None,
-          root: Path | None = None, **run) -> dict:
+          root: Path | None = None, launch: dict | None = None, **run) -> dict:
     """Time one code object (and verify what was timed)."""
     return run_job(_job(m, "bench", hsaco=_b64(hsaco), protocol=(protocol or TimingProtocol()).to_dict(),
-                        symbols=symbols), root=root or default_root(), **run)
+                        symbols=symbols, launch=launch), root=root or default_root(), **run)
 
 
 def paired(m: Manifest, reference: bytes, candidate: bytes, *, protocol: TimingProtocol | None = None,
-           symbols: dict | None = None, root: Path | None = None, **run) -> dict:
+           symbols: dict | None = None, root: Path | None = None, reference_launch: dict | None = None,
+           candidate_launch: dict | None = None, **run) -> dict:
     """Speedup of `candidate` over `reference`, launched alternately in one process. `outcome` is
     `win` or `loss` only when the 95 % CI of the speedup excludes 1."""
     return run_job(_job(m, "paired", reference_hsaco=_b64(reference), candidate_hsaco=_b64(candidate),
-                        protocol=(protocol or TimingProtocol()).to_dict(), symbols=symbols),
+                        protocol=(protocol or TimingProtocol()).to_dict(), symbols=symbols,
+                        reference_launch=reference_launch, candidate_launch=candidate_launch),
                    root=root or default_root(), **run)
+
+
+def run(m: Manifest, hsaco: bytes, *, distribution: str = "normal", seed: int = 0, symbols: dict | None = None,
+        launch: dict | None = None, root: Path | None = None, **job_args) -> dict:
+    """Run one public case and return inputs and outputs as arrays in their storage dtypes (a probe)."""
+    import numpy as np
+    r = run_job(_job(m, "run", hsaco=_b64(hsaco), launch=launch,
+                     case={"distribution": distribution, "seed": seed, "symbols": symbols or m.shapes}),
+                root=root or default_root(), **job_args)
+    if r.get("ok"):
+        for group in ("inputs", "outputs"):
+            r[group] = {n: np.frombuffer(base64.b64decode(a["data"]), dtype=np.dtype(a["dtype"])).reshape(a["shape"])
+                        .view(m.param(n).dtype.storage) for n, a in r[group].items()}
+    return r

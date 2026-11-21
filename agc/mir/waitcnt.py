@@ -1,6 +1,6 @@
 """The waitcnt checker: no instruction may touch a register (or LDS contents) that a memory
-operation is still going to write, and no barrier may be reached with memory operations
-outstanding.
+operation is still going to write, and no barrier may be reached with LDS operations (or a load
+into LDS) outstanding. Vector memory operations may be in flight across a barrier.
 
 Counters on gfx950: `vmcnt` counts vector memory operations (loads and stores, in order);
 `lgkmcnt` counts LDS operations (in order) and scalar loads, which can return out of order, so
@@ -90,19 +90,30 @@ def step(state: State, info: Info, limits: dict, report=None) -> None:
                 state.ooo[c] = False
         return
     touched = info.uses | info.defs
+    ev0 = event(info)
     for c in COUNTERS:
         hit = [u for u in state.pending[c] if u in touched]
         for u in sorted(hit):
             n = state.pending[c].pop(u)
+            # a vector load into a register an earlier vector load still writes is fine: results arrive in
+            # order, the later one lands last (amdclang does this when the first value is dead on this path)
+            if c == "vmcnt" and ev0 and ev0[0] == "vmcnt" and u in info.defs and u not in info.uses:
+                continue
             if report:
                 verb = "reads" if u in info.uses else "overwrites"
                 report(c, u, n, f"{verb} {_fmt(u)} before the memory operation that writes it has completed: "
                                 f"needs `s_waitcnt {c}({n})` first")
     if name == "s_barrier":
-        for c in COUNTERS:
-            if state.out[c] > 0 and report:
-                report(c, None, 0, f"barrier with memory operations outstanding: needs `s_waitcnt {c}(0)` first")
-            state.pending[c], state.out[c], state.ooo[c] = {}, 0, False
+        # what the waves of a workgroup share across a barrier is LDS: its operations must have completed.
+        # Vector memory operations may stay in flight (amdclang leaves them so); their destinations stay pending.
+        c = "lgkmcnt"
+        if state.out[c] > 0 and report:
+            report(c, None, 0, f"barrier with LDS or scalar memory operations outstanding: needs `s_waitcnt {c}(0)` first")
+        state.pending[c], state.out[c], state.ooo[c] = {}, 0, False
+        if ("lds", 0) in state.pending["vmcnt"]:      # a direct-to-LDS load still in flight
+            n = state.pending["vmcnt"].pop(("lds", 0))
+            if report:
+                report("vmcnt", ("lds", 0), n, f"barrier with a load into LDS outstanding: needs `s_waitcnt vmcnt({n})` first")
         return
     ev = event(info)
     if ev:

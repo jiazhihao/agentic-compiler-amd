@@ -1,0 +1,64 @@
+{
+ "name": "rb_copy",
+ "source": "rb_copy.hip",
+ "entry": "rb_copy",
+ "shapes": {
+  "N": 10001
+ },
+ "bench_shapes": {
+  "N": 67108864
+ },
+ "dynamic": [
+  "N"
+ ],
+ "params": [
+  {
+   "name": "n",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "N"
+  },
+  {
+   "name": "x",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "y",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "out"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "cdiv(N, 512)"
+  ],
+  "block": [
+   256
+  ]
+ },
+ "tolerance": {
+  "y": {
+   "rtol": 0.0,
+   "atol": 0.0
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "rb_copy"
+ },
+ "tags": [
+  "llm",
+  "rocblas",
+  "elementwise"
+ ]
+}

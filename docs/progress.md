@@ -6,19 +6,321 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 
 | Milestone | Issue | State |
 |---|---|---|
-| M0 Bootstrap | #2 | PR #14 open |
-| M1 Measure: runtime, battery, timing | #3 | PR #16 open |
-| M2 Corpus and amdclang baselines | #4 | PR #17 open |
-| M3 Own the assembly: ISA table and `mir` | #5 | PR #18 open |
-| M4 Static safety | #6 | PR open |
-| M5 The agent loop on assembly | #9 | open |
-| M6 Tensor programs in, binaries out | #10 | open |
-| M7 GEMM on MFMA | #11 | open |
-| M8 Backend passes for imported code | #8 | open |
-| M9 Campaigns and report | #13 | open |
-| Stretch: machine-model calibration, attention | #7, #12 | not scheduled |
+| M0 Bootstrap | #2 | merged (#14) |
+| M1 Measure: runtime, battery, timing | #3 | merged (#16) |
+| M2 Corpus and amdclang baselines | #4 | merged (#17) |
+| M3 Own the assembly: ISA table and `mir` | #5 | merged (#18) |
+| M4 Static safety | #6 | merged (#19) |
+| M5 The agent loop on assembly | #9 | PR #21 open |
+| M6 Tensor programs in, binaries out | #10 | PR #22 open |
+| M7 GEMM on MFMA | #11 | PR #24 open |
+| M8 Backend passes for imported code | #8 | PR #25 open |
+| M9 Campaigns and report | #13 | PR #26 open |
+| Codex review fixes | #27 | PR open |
+| Stretch: machine-model calibration, attention, LDS GEMM | #7, #12, #23 | not scheduled |
 
 ## Log
+
+### 2026-11-20 — baseline audit of the LLM benchmark (#29, #34)
+- **Attribution.** For every recorded session recipe the source-rewritten state was timed on its
+  own. 22 of 23 recipes are amdclang's compilation of the rewritten source with no machine-level
+  work; their speedups are source restructurings that amdclang delivers by itself. Only
+  `mla_decode` has a machine-level part: 1.70x from the rewritten source, 2.54x after the `mir`
+  edits (1.49x from agc's own level). Recipes and the session table now carry
+  `amdclang on the rewritten source` and `machine-level gain`; the harness measures both when
+  it records a recipe.
+- **Flags** (`tests/baselines/llm-flags-gfx950.json`, unmodified sources, 120 pairs against
+  `-O3`): `-ffast-math` gives `fi_rope` 1.98x, `fa_attention_causal` 1.44x, `fa_attention`
+  1.35x, `rb_gemvt` 1.19x, `mo_glu_fwd` 1.08x, `mla_decode` 1.08x, `moe_gate_topk` 1.06x,
+  `mo_t5_layernorm` 1.05x, `fi_rmsnorm` 1.03x; it loses 2 % to 4 % on `attn_decode`, `kda_step`,
+  `mo_prelu_bwd`. `-funroll-loops` produces identical code everywhere; `-O2` is identical or
+  parity. So `fi_rope`'s 2.1x session and `rb_gemvt`'s 1.23x are almost entirely fast-math.
+- **Ports.** `attn_decode`, `fa_attention*`, `mla_decode`, `kda_step` and `moe_gate_topk` are
+  simplified ports written for this benchmark; the optimized upstream kernels (FlashInfer's
+  decode attention, vLLM's top-k template) were not extracted. Their baselines are weaker than
+  what the libraries ship, and the largest session speedups (18x, 7.4x, 3.9x) are on them.
+- **Measurement.** Timings are paired, verified at the bench shapes before and after, A/A
+  controls within 1 %. The bench shapes give 0.1 ms kernels of which about 20 us is launch.
+- **What stands as compiler-level results**: the default policy's `coarsen` wins (1.02x to
+  1.11x on 10 kernels, bit-identical `mir` transformations of amdclang's code) and
+  `mla_decode`'s 1.49x. Everything else in the session table is what a better source gives
+  amdclang.
+- Session prompt changed: the machine-level gain is the reported contribution, and the budget
+  after the source structure settles goes to the machine IR.
+
+### 2026-11-20 — the per-kernel harness and the first agent sessions (#34, #35 to #60)
+- `agc.agent` (`agc agent MANIFEST`, `agc replay`): a headless Claude Code session per kernel
+  with the agc MCP tools as its only way to act. The harness reruns the static check and the
+  full battery on the state the agent names and times it with 240 pairs until two timings are
+  valid (CI narrower than 4 % of the speedup); a win needs both, the lower one is recorded.
+  Recipes (module text, launch, rewritten source) in `bench/llm/sessions/`.
+- New in the session: the source level (`source(text, launch, defines, flags)`), `relaunch`,
+  launch and appended arguments on `edit_ir`, `adopt`, `verify`, `compare`, `probe`
+  (diagnostic timing of an unverified state), `battery`, `find`, `liveness`, block views and an
+  outline for large kernels, spill warnings, `pairs` on `bench`, memory traffic and headroom.
+- Verified session results so far (lower of two 240-pair timings): `moe_gate_topk` 17.97x,
+  `attn_decode` 7.40x, `vl_moe_align` 5.90x, `fa_attention` 3.86x, `mla_decode` 2.54x,
+  `fa_attention_causal` 2.19x, `rb_gemvn` 2.19x, `fi_rope` 2.12x, `mo_reduce_sum` 1.86x,
+  `rb_nrm2` 1.40x, `fi_silu_and_mul` 1.04x. All but the last two are above the 1.5x target.
+  None is bit-identical with amdclang unless its issue says so; all meet the manifest tolerance.
+- Memory floor: amdclang's copy kernel takes 20 us + bytes / 5.95 TB/s from 2^24 to 2^28 floats,
+  and no restructuring of the copy beat it (wider per-lane accesses 0.75x to 1.01x, several
+  chunks per wave 0.83x to 0.97x). `bench` reports a kernel's time over this model (headroom).
+  About half of the benchmark sits at headroom 0.9 to 1.3: for those 1.5x is not reachable by
+  moving the same bytes, and the sessions converge at 1.03x to 1.10x.
+- Fixed on the way: `coarsen` gave wrong results when two waves of a workgroup share LDS
+  (`kda_step` failed the battery; a barrier now ends each virtual workgroup, #30); the static
+  check rejected amdclang's scratch spill code and a `vcc_lo` destination of `v_readlane`;
+  harness verification rejected a real win on one disturbed timing.
+- Open: sessions for the remaining kernels; no scratch tensor or second launch for reductions
+  across workgroups; `unroll_loads` refuses exec-masked loops; the undefined-read warning does
+  not follow per-lane masks. The full GPU test suite was not rerun on this branch.
+
+### 2026-11-20 — LLM-kernel benchmark, first policy table (#29)
+- `bench/llm`: 36 kernels, each with a manifest, a NumPy reference and provenance
+  (`README.md`, `LICENSES.md`): 30 extracted from FlashInfer, vLLM, rocBLAS and MIOpen, and 6
+  ports (attention plain and causal, decode attention, MLA decode, KDA step, MoE top-k
+  gating). All pass the battery with amdclang's build. Some upstream kernels were skipped
+  (sampling, KV append, vLLM top-k softmax); several of those skips were judged without
+  reading the kernel bodies. `mla_decode`'s 576/512 split was not checked against FlashMLA.
+- `scripts/llmbench.py` records `tests/baselines/llm-gfx950.json`; the table is in
+  `docs/report.md`. A reference file may define `<function>_scale` for the `cond` magnitude.
+- Default policy, no agent session yet: **10 wins, 26 fallbacks**, geomean 1.015 with
+  fallbacks at 1.0. Every win is `coarsen`, 1.015x to 1.113x (`mo_glu_fwd` 1.11x, `rb_rot`
+  1.08x, `fi_merge_states` 1.07x). All six ports and every vLLM kernel are fallbacks.
+- The benchmark exposed four static-check false positives on amdclang's own code (11
+  kernels could not be run at all): `v_readfirstlane_b32` without a suffix; the
+  `gpr_idx(...)` operand of `s_set_gpr_idx_on`; the unread half of a two-register source of
+  a `v_pk_*` instruction (`op_sel`, `op_sel_hi`); vector memory operations in flight at an
+  `s_barrier`. The barrier rule now requires LDS operations and loads into LDS to be
+  complete; vector loads stay pending across it. Transforms refuse kernels that use indexed
+  vector registers, which the register analyses do not model.
+- Open: the 26 fallbacks, one agent session per kernel. The full GPU test suite was not
+  rerun after the checker changes.
+
+### 2026-11-20 — `coarsen` pass (#30), positioning (#29)
+- `agc/mir/coarsen.py`: one launched workgroup runs `factor` consecutive workgroups of the
+  original. The kernel body becomes a loop over virtual workgroup ids; exec, the kernarg
+  pointer and the workitem ids are restored per iteration; the loop stops at the original
+  `grid_x`, which arrives as one appended `u32` argument (reads of `gridDim.x` are redirected
+  to it). Refused: an exit that skips an `s_barrier`, a stack, preloaded arguments, a
+  kernarg pointer that escapes.
+- Transforms can change the launch: `apply` records grid, block and appended arguments with
+  the state, and the worker packs the appended arguments after the manifest's.
+- Measured (paired against amdclang, bit-identical, battery passed): `axpy` 1.10x,
+  `cast_bf16` 1.25x, `gelu` 1.31x (best factor each). Losses: `matvec` 0.52x at factor 2
+  (64 workgroups: the grid is too small to give up parallelism), `transpose` 0.88x, the
+  LDS/barrier row kernels 0.91x to 0.97x. `gemm_tiled` is refused (an exit skips a barrier).
+- Default policy re-recorded with `coarsen(2|4|8)` candidates: 10 wins and 3 fallbacks as
+  before, geomean 1.42 without the MFMA GEMM; `axpy` is now won by `coarsen(8)` (1.105x,
+  bit-identical) instead of a generated kernel. The generated kernels still beat `coarsen`
+  on `gelu` and `cast_bf16` (1.68x and 1.62x).
+- Design and roadmap: agc is a harness for per-kernel agent optimization (D11, principle 6,
+  M10); general passes and the policy are the floor a session starts from.
+- Open: the LLM-kernel benchmark (#29) is being assembled; no result on it yet.
+
+### 2026-11-19 — Codex review findings (#27)
+- All 20 findings on #14 to #25 addressed (2 were already fixed by later PRs); one regression
+  test per finding in `tests/test_review_fixes.py`.
+- Timing (P1): the launch is prepared before the start event, so the timed interval holds only
+  the submission call and the kernel. Protocol is now `agc-timing-amd-2`; every record was
+  re-measured (`baseline`, `generated`, `gemm`, `policy`, `wins`, `report` scripts). Absolute
+  times of short kernels dropped (AXPY 0.183 to 0.164 ms) and ratios moved away from parity, as
+  the review predicted: policy geomean without the MFMA GEMM 1.39 to 1.42; best of policy and
+  agent 1.43 to 1.46; MFMA GEMM 2.5x to 2.7x hipBLASLt's time (was 2.8x to 3.2x). The numbers in
+  the entries below are under `agc-timing-amd-1`; `docs/report.md` has the current ones.
+- Session identity (P1): covers the contents of the HIP source and its includes, file-backed
+  reference and tensor programs, and the protocol; a change opens a new session, so no cached
+  verdict or timing survives a change of oracle or baseline.
+- HIP builds: outputs built in a private directory and published atomically; `-cuid` fixed, so
+  two builds of one source are now byte-identical (clang hashed the output path into a symbol).
+- Baselines carry toolchain and protocol per kernel.
+- Cross-check: alignment padding is computed from offsets, not guessed from `s_nop`s; an entry
+  label that differs from the kernel name is printed.
+- Waitcnt: `s_memtime` / `s_memrealtime` are pending scalar results; a DS write while a
+  direct-to-LDS load is in flight is a finding.
+- Session `edit`: at one address the replacement or deletion applies before the insertion.
+- Generators: an in-place rowwise tensor advances its address once; `cast_f32(cast_bf16(x))`
+  restores the float; a tair reference returns the manifest's output names; GEMM refuses a K
+  that depends on a dynamic symbol.
+- `unroll_loads`: elements of a loaded tuple are renamed; loops with two loads into one
+  register, or arithmetic that reads the counter or a pointer, are refused.
+
+### 2026-11-19 — M9: campaigns and report (#13)
+- Agent session on `row_argmax` (the policy's fallback) through MCP: a bulk loop for the
+  all-lanes-active iterations, written without waits or nops; `static_check` listed what was
+  missing, `apply fix_waits` and `apply fix_hazards` placed it; battery 77/77; 1.34
+  (1.32 to 1.35), bit-identical. Body and trace in `tests/mir/wins/`, replayed by a GPU test.
+- `transpose` and `gemm_tiled` stay fallbacks: an edit cannot change the launch geometry, and
+  neither has a counted load loop; they need templates (a 2-D layout template, an f32 GEMM).
+- `.claude/skills/agc-notes`: what paid, what did not, machine facts and the rules that bit,
+  from the sessions of M5 to M9.
+- `docs/report.md`, generated by `scripts/report.py` from the records: per-kernel policy and
+  agent results, GEMM against hipBLASLt, A/A controls, what did not work, how to reproduce.
+- Summary: policy alone 10 wins / 3 fallbacks over 13 kernels, geomean 1.39 without the MFMA
+  GEMM; with the agent sessions' best per kernel 1.43. MFMA GEMM: 380x amdclang, 2.8x behind
+  hipBLASLt (target 1.5x not met; follow-up #23).
+- Open (all in the roadmap's stretch table): LDS GEMM (#23), attention (#12), FP8, machine-model
+  calibration (#7), trace retrieval and recipe promotion, the interpreter, the profiler.
+
+### 2026-11-19 — M8: backend passes for imported code, default policy (#8)
+- `agc/mir/loops.py`: recognition of single-block counted loops (counter, induction pointers
+  with constant or loop-invariant strides, loads, vector arithmetic) and `unroll_loads`: N
+  iterations' loads in flight per wait (contiguous `dword` streams become `dwordx4` /
+  `s_load_dwordxN`, others get offsets, strided streams advance between loads), the arithmetic
+  repeated in the original order, the original loop kept for the remainder. Bit-identical by
+  construction. A session transform with `factor`, `loop` and `wide` as knobs; `explain` gives
+  the reason when a loop does not qualify.
+- `agc/session/policy.py` + `agc optimize`: the default policy. Candidates are the import with
+  `unroll_loads` at 4 / 8 / 16 and the tensor program with every parameter of its template; each
+  goes through static checks, the full battery and a paired timing; the best verified win is
+  kept, otherwise the amdclang build, reported as a fallback.
+- The policy on every manifest (`scripts/policy.py` → `tests/baselines/policy-gfx950.json`):
+
+| Kernel | Path | Chosen | Speedup vs amdclang (95 % CI) | Bit-identical |
+|---|---|---|---|---|
+| `axpy` | generate | elementwise(elements_per_lane=4) | 1.048 (1.044 to 1.055) | no |
+| `cast_bf16` | generate | elementwise(elements_per_lane=4) | 1.508 (1.493 to 1.516) | no |
+| `gelu` | generate | elementwise(elements_per_lane=2) | 1.573 (1.555 to 1.580) | no |
+| `gemm_bf16` | generate | gemm_mfma(tiles=2, unroll=2) | 164.099 (161.733 to 165.260) | no |
+| `gemm_naive` | import+pass | unroll_loads(factor=16) | 2.200 (2.198 to 2.202) | yes |
+| `gemm_tiled` | amdclang | the amdclang build (no verified win) | fallback (1.0) | yes |
+| `layernorm` | generate | rowwise(unroll=4) | 1.490 (1.485 to 1.494) | no |
+| `matvec` | import+pass | unroll_loads(factor=16) | 2.738 (2.731 to 2.750) | yes |
+| `rmsnorm` | generate | rowwise(unroll=4) | 1.446 (1.440 to 1.452) | no |
+| `row_argmax` | amdclang | the amdclang build (no verified win) | fallback (1.0) | yes |
+| `row_sum` | generate | rowwise(unroll=4) | 1.222 (1.214 to 1.228) | no |
+| `softmax` | generate | rowwise(unroll=4) | 1.314 (1.310 to 1.319) | no |
+| `temperature_softmax` | generate | rowwise(unroll=4) | 0.3297 ms, no baseline | no |
+| `transpose` | amdclang | the amdclang build (no verified win) | fallback (1.0) | yes |
+
+  10 wins and 3 fallbacks over 13 kernels with a baseline. Geomean 1.389 without the MFMA
+  GEMM (fallbacks counted as 1.0), 2.006 with it. The policy is never slower than amdclang:
+  with no verified win it ships amdclang's build.
+- The pass reproduces the M5 hand edits without help: `matvec` 2.74 (hand: 2.70), `gemm_naive`
+  2.20 (hand: 2.18). On the HIP bf16 GEMM loop (`ushort` loads, not widened) it measures 0.99 and
+  0.97 and is not chosen.
+- Fallbacks: `transpose` (no loop, no template), `gemm_tiled` (LDS loop with barriers: not a
+  counted load loop; no f32 GEMM template), `row_argmax` (masked loop; no index reduction in
+  the rowwise template).
+- Open: `bulk_unmasked` for masked loops; widening of 16-bit streams; an f32 GEMM template.
+
+### 2026-11-19 — M7: GEMM on MFMA (#11)
+- MFMA layouts measured on the device: a probe kernel written in `mir` (one MFMA on operands
+  loaded lane by lane) matches the layout model on the whole battery, for
+  `v_mfma_f32_32x32x16_bf16` and `v_mfma_f32_16x16x32_bf16`. The layouts are in
+  `gfx950.yaml` (`mfma.layouts`, source `measured`).
+- tair `einsum`; corpus kernel `gemm_bf16`: `C[M,N] = A[M,K] @ B[N,K]^T`, bf16 in, f32 out (the
+  linear-layer form: both operands contiguous along K), with a HIP version for amdclang.
+- `agc/gen/gemm.py` (`gemm_mfma`): each lane loads its 8 bf16 of A and of B with one `dwordx4`
+  load, directly in MFMA operand layout; a wave computes `tiles x tiles` output tiles of
+  32 x 32 in AccVGPRs (`tiles` + `tiles` loads feed `tiles^2` MFMAs); `unroll` K-steps per wait;
+  edges clamped for loads and masked for stores. No LDS, no barrier.
+- `agc/runtime/baselines.py` + `native/hipblaslt_bench.cpp`: hipBLASLt timed with the same
+  sampling, through the executor (`external` job). Worker job `run` returns raw outputs (probes).
+- Results (`scripts/gemm.py` → `tests/baselines/gemm-gfx950.json`); all 6 variants pass the
+  battery 77/77:
+
+| Shape | M x N x K | amdclang ms | agc ms | hipBLASLt ms | vs amdclang (95 % CI) | agc / hipBLASLt time | agc TFLOPS | Best variant |
+|---|---|---|---|---|---|---|---|---|
+| square | 4096 x 4096 x 4096 | 119.72 | 0.3064 | 0.1107 | 391x (389 to 392) | 2.77x | 448 | tiles 4, unroll 2 |
+| wide | 2048 x 8192 x 4096 | 119.58 | 0.3140 | 0.1096 | 381x (379 to 386) | 2.86x | 438 | tiles 4, unroll 2 |
+| tall | 8192 x 2048 x 4096 | 119.65 | 0.3171 | 0.1068 | 378x (376 to 380) | 2.97x | 434 | tiles 4, unroll 2 |
+| small | 2048 x 2048 x 2048 | 14.99 | 0.0928 | 0.0290 | 161x (160 to 162) | 3.20x | 185 | tiles 2, unroll 2 |
+
+- amdclang emits no MFMA for the HIP kernel, hence the two orders of magnitude. The meaningful
+  bar is hipBLASLt, and agc is 2.8x to 3.2x behind it.
+- Gap analysis (square shape, by variant: tiles 1 unroll 1: 1.054 ms; tiles 1 unroll 2: 0.961 ms; tiles 2 unroll 1: 0.547 ms; tiles 2 unroll 2: 0.538 ms; tiles 4 unroll 1: 0.310 ms; tiles 4 unroll 2: 0.306 ms): the kernel is bound by operand-load throughput.
+  The load traffic is 7 to 8 TB/s whatever the variant; halving the bytes loaded per output
+  (64x64 → 128x128 outputs per wave) gives 1.7x; twice as many loads per wait gives nothing.
+  128x128 per wave is the limit of the 256 AccVGPRs, at 1 wave per SIMD. The next factor of two
+  needs operands shared between the waves of a workgroup through LDS (follow-up #23).
+- The M7 target (within 1.5x of hipBLASLt on one shape) is not met; the exit criterion
+  (verified at three shapes, CI-separated win over amdclang, gap reported and analysed) is.
+- Found on the way: the hipBLASLt harness passed the operands in the wrong order, which only
+  failed (illegal address) for non-square shapes; fixed before recording.
+- Open: only the `A @ B^T` form with K a multiple of 16; no f16 / FP8; no LDS.
+
+### 2026-11-19 — M6: tensor programs in, binaries out (#10)
+- `agc/tair`: tensor programs (elementwise maps and reductions over the last axis), text form,
+  NumPy interpreter; a manifest's `program` (the input) and/or `reference` (the oracle). The
+  interpreter and the corpus's Python references are two independent definitions and agree.
+- `agc/gen/builder.py`: kernels built with virtual registers; linear-scan allocation (tuple
+  alignment, intervals extended across loops). `agc/mir/passes.py`: `fix_waits` and
+  `fix_hazards` insert exactly what the checkers ask for, at the latest point; also session
+  transforms.
+- `agc/gen/expr.py`: tair expressions to per-lane instructions (FMA fusion, constants pooled in
+  SGPRs, `exp` / `tanh` / division through `v_exp_f32` / `v_rcp_f32` under the manifest's
+  tolerance). Templates: `elementwise` (several elements per lane, wide loads and stores,
+  element computations interleaved) and `rowwise` (one wave per row, reductions combined with
+  DPP and `v_readlane`: no LDS, no barrier; 4 elements per lane per 256-column chunk; `unroll`
+  chunks per wait).
+- Session `program()` / `generate(template, params)`, MCP tools, `agc run --generate`. A
+  generated kernel carries its own launch geometry; the runtime applies it per code object.
+- Results (`scripts/generated.py` → `tests/baselines/generated-gfx950.json`): 7 tensor programs,
+  21 variants, every one on the full battery, paired against amdclang's build of the HIP version:
+
+| Program | Template | Battery | amdclang ms | agc ms | Speedup (95 % CI) | By parameter |
+|---|---|---|---|---|---|---|
+| `axpy` | elementwise | 49/49 | 0.180 | 0.170 | 1.056 (1.049 to 1.061) | 1: 0.97, 2: 1.03, 4: 1.06 |
+| `cast_bf16` | elementwise | 49/49 | 0.159 | 0.106 | 1.498 (1.492 to 1.506) | 1: 0.97, 2: 1.47, 4: 1.50 |
+| `gelu` | elementwise | 49/49 | 0.190 | 0.120 | 1.584 (1.572 to 1.589) | 1: 1.09, 2: 1.56, 4: 1.58 |
+| `layernorm` | rowwise | 77/77 | 0.472 | 0.320 | 1.474 (1.465 to 1.478) | 1: 1.29, 2: 1.40, 4: 1.47 |
+| `rmsnorm` | rowwise | 77/77 | 0.380 | 0.261 | 1.454 (1.450 to 1.463) | 1: 1.26, 2: 1.39, 4: 1.45 |
+| `row_sum` | rowwise | 77/77 | 0.188 | 0.153 | 1.228 (1.219 to 1.234) | 1: 1.20, 2: 1.21, 4: 1.23 |
+| `softmax` | rowwise | 77/77 | 0.433 | 0.328 | 1.325 (1.322 to 1.329) | 1: 1.22, 2: 1.29, 4: 1.32 |
+
+  Geomean 1.363 over amdclang (best and default parameters coincide).
+  `axpy` is memory-bound, as expected; the 1-element-per-lane elementwise variants are 3 %
+  slower than amdclang (reported as losses).
+- These kernels are not bit-identical to amdclang's: reductions are summed per lane and then
+  across lanes, and `exp`, `tanh` and division use the hardware's approximate instructions. They
+  meet the manifests' tolerances on every battery case; that is the contract.
+- A manifest with no kernel source (`tests/tensor/temperature_softmax.json`) compiles end to
+  end: 77/77 battery cases, 0.33 ms at 32768 x 4096 (no baseline to pair with).
+- Bug found by the battery's shape variants: a constant was materialized after the entry
+  block's branch, so one path read an unset SGPR. It passed on some devices by luck (the
+  register held the right value from an earlier kernel). Fixes: constants are placed at the
+  entry; generated code that reads a register undefined on any path is refused (`strict`
+  static check for generated states; imported code can only warn, since amdclang does this).
+- Open: `row_argmax` (index reductions), `transpose`, `matvec` and GEMM have no template yet
+  (GEMM is M7); 16-bit and 8-bit inputs; the elementwise tail handles one element at a time.
+
+### 2026-11-19 — M5: the agent loop on assembly (#9)
+- `agc/store`: content-addressed immutable states, results attached per state, tags, branches
+  (fork / checkpoint / rollback), notes, trace export.
+- `agc/session`: `open` (amdclang build imported as `ref`), `state` (numbered listing),
+  `features`, `actions`, `edit` (addressed ops with `expect`), `edit_ir` (whole body), `apply`
+  (transform registry, empty until M8), `static_check`, `check`, `bench` (paired against `ref`),
+  `asm_diff`, `trace`, `best`, tags and branches. Refusals are structured (`kind`, `location`,
+  `values`, `suggestion`). A state that fails the static checks gets no GPU job; a state that
+  fails the battery is never timed.
+- `agc/mcp/server.py` (22 tools, including `isa` and `arch` lookups), `.mcp.json`,
+  `scripts/agc_mcp.py` (shell client), the `agc` skill, CLI `agc run`.
+- Agent sessions through MCP (Claude driving the tools), paired against amdclang -O3 at the
+  bench shapes, full battery:
+
+| Kernel | Edit | Battery | Speedup (95 % CI) | Outcome |
+|---|---|---|---|---|
+| `matvec` | dot-product loop unrolled x4: `dwordx4` vector + scalar loads, one wait | 77/77 | 2.287 (2.227 to 2.312) | win |
+| `matvec` | unrolled x8 | 77/77 | 2.536 (2.526 to 2.544) | win |
+| `matvec` | unrolled x16 (`s_load_dwordx16`) | 77/77 | 2.697 (2.690 to 2.709) | win |
+| `gemm_naive` | k loop unrolled x4: A row as `dwordx4`, 4 strided B loads per wait | 105/105 | 2.122 (2.119 to 2.129) | win |
+| `gemm_naive` | unrolled x8 | 105/105 | 2.181 (2.177 to 2.184) | win |
+| `row_sum` | bulk loop for the all-lanes-active iterations, 4 loads per wait via load offsets | 77/77 | 1.278 (1.263 to 1.290) | win |
+| `axpy` | all arguments in one `s_load_dwordx8`, one wait fewer | 49/49 | 0.9995 (0.993 to 1.004) | parity |
+| `matvec` | first x4 attempt with `v[5:8]` | not run | refused by `static_check` (assembler: tuple must start on an even register) | rejected |
+
+  Every win keeps the floating-point operations in the original order, so results are
+  bit-identical to amdclang's. Bodies and traces: `tests/mir/wins/`; a GPU test replays them.
+- What the loop showed: amdclang issues one load per loop iteration and waits for it
+  (`s_waitcnt vmcnt(0)` in every iteration), so these loops run at memory latency, not
+  bandwidth. More loads in flight per wait is the whole win; reordering or removing scalar
+  loads on straight-line code is parity. This fixes the M8 pass list (roadmap updated).
+- Verifier gap found by the second judge (`llvm-mc`): register tuples must start at an even
+  VGPR/AGPR and at a multiple of min(size, 4) for SGPRs. Now in `gfx950.yaml` and the verifier.
+- Open: `apply` has no transforms yet; sessions are per manifest and toolchain identity; the
+  MCP server holds one session at a time.
 
 ### 2026-11-19 — M4: static safety (#6)
 - `agc/mir/analysis.py`: instruction classification and def/use from the ISA table (explicit

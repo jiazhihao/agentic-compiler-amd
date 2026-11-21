@@ -27,7 +27,8 @@ _INT = re.compile(r"-?(0x[0-9a-fA-F]+|\d+)$")
 _FLOAT = re.compile(r"-?\d+\.\d*(e[+-]?\d+)?$")
 _CALL = re.compile(r"([A-Za-z_]\w*)\((.*)\)$")
 _MOD = re.compile(r"([A-Za-z_]\w*):(\S.*)$")
-FLAG_MODS = frozenset({"nt", "glc", "gds", "clamp", "sc0", "sc1", "slc", "lds", "idxen", "offen", "tfe", "dlc", "acc_cd"})
+FLAG_MODS = frozenset({"nt", "glc", "gds", "clamp", "sc0", "sc1", "slc", "lds", "idxen", "offen", "tfe", "dlc", "acc_cd",
+                       "row_mirror", "row_half_mirror"})
 
 
 def _split(s: str, sep: str) -> list[str]:
@@ -276,7 +277,7 @@ S_CODE_END = 0xBF800000        # the padding word amdclang emits after the last 
 def print_kernel_body(k: Kernel) -> str:
     out = []
     for j, b in enumerate(k.blocks):
-        if j:
+        if j or b.label != k.name:                      # the first block's own label, if any, is an alias of the entry
             if b.align:
                 out.append(f"\t.p2align\t{b.align}")
             out.append(f"{b.label}:")

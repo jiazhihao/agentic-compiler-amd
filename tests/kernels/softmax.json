@@ -68,5 +68,8 @@
  },
  "tags": [
   "rowwise"
- ]
+ ],
+ "program": {
+  "file": "softmax.tair"
+ }
 }

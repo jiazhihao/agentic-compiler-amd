@@ -1,0 +1,70 @@
+{
+ "name": "fi_gelu_tanh_and_mul",
+ "source": "fi_gelu_tanh_and_mul.hip",
+ "entry": "fi_gelu_tanh_and_mul",
+ "shapes": {
+  "B": 37,
+  "D4": 300
+ },
+ "bench_shapes": {
+  "B": 4096,
+  "D4": 2048
+ },
+ "dynamic": [
+  "B",
+  "D4"
+ ],
+ "params": [
+  {
+   "name": "out",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "B",
+    "4 * D4"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "input",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "B",
+    "2 * 4 * D4"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "d",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "4 * D4"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "B"
+  ],
+  "block": [
+   "min(D4, 256)"
+  ]
+ },
+ "tolerance": {
+  "out": {
+   "rtol": 0.0001,
+   "atol": 1e-06,
+   "cond": 4e-07
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "fi_gelu_tanh_and_mul"
+ },
+ "tags": [
+  "llm",
+  "flashinfer",
+  "rowwise"
+ ]
+}

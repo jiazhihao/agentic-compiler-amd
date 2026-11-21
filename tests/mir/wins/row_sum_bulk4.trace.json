@@ -1,0 +1,63 @@
+[
+ {
+  "id": "445f34cf1600632a",
+  "parent": null,
+  "level": "mir",
+  "action": {
+   "name": "import",
+   "source": "amdclang",
+   "flags": [
+    "-O3"
+   ],
+   "toolchain": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)"
+  },
+  "meta": {},
+  "created": 1795120763.4004686,
+  "notes": [],
+  "static": {
+   "ok": true,
+   "errors": 0,
+   "warnings": 0
+  }
+ },
+ {
+  "id": "3efba0674c6a1f08",
+  "parent": "445f34cf1600632a",
+  "level": "mir",
+  "action": {
+   "name": "edit_ir",
+   "note": "bulk loop for the iterations in which every lane is active (cols >> 8 of them): 4 strided loads per wait using the 13-bit load offset, adds in the original order; the masked per-lane loop handles the rest behind a guard"
+  },
+  "meta": {},
+  "created": 1795120763.406091,
+  "notes": [
+   {
+    "t": 1795120766.95493,
+    "text": "The strided per-lane loop waits on every load and recomputes the exit mask each iteration. For the cols>>8 iterations in which all lanes are active no mask is needed: 4 loads per wait via the 13-bit load offset (0, 1024, 2048, 3072), adds in the original order. 1.28x; at 3.7 TB/s this is close to the bandwidth seen in AXPY (4.7 TB/s)."
+   }
+  ],
+  "static": {
+   "ok": true,
+   "errors": 0,
+   "warnings": 0
+  },
+  "check": {
+   "ok": true,
+   "cases_run": 77,
+   "cases_total": 77
+  },
+  "bench": {
+   "ok": true,
+   "outcome": "win",
+   "speedup": 1.2815,
+   "speedup_ci95": [
+    1.2693,
+    1.2963
+   ],
+   "against": "445f34cf1600632a",
+   "protocol_version": "agc-timing-amd-2",
+   "candidate_ms": 0.14072,
+   "reference_ms": 0.18056
+  }
+ }
+]

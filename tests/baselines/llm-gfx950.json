@@ -1,0 +1,2047 @@
+{
+ "kernels": {
+  "attn_decode": {
+   "library": "port",
+   "amdclang_ms": 1.25454,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_11: the exit test is not `s_cmp_eq_u32 counter, 0`; .LBB0_45: the exit test is not `s_cmp_eq_u32 counter, 0`; .LBB0_49: the back edge is not `s_cbranch_scc0` on a counter compare"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: coarsen: a path reaches the end of the program without passing every s_barrier"
+    }
+   ]
+  },
+  "fa_attention": {
+   "library": "port",
+   "amdclang_ms": 0.2209,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_11: the exit test is not `s_cmp_eq_u32 counter, 0`; .LBB0_41: the exit test is not `s_cmp_eq_u32 counter, 0`; .LBB0_45: the back edge is not `s_cbranch_scc0` on a counter compare"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: coarsen: a path reaches the end of the program without passing every s_barrier"
+    }
+   ]
+  },
+  "fa_attention_causal": {
+   "library": "port",
+   "amdclang_ms": 0.20098,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_11: the exit test is not `s_cmp_eq_u32 counter, 0`; .LBB0_41: the exit test is not `s_cmp_eq_u32 counter, 0`; .LBB0_45: the back edge is not `s_cbranch_scc0` on a counter compare"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: coarsen: a path reaches the end of the program without passing every s_barrier"
+    }
+   ]
+  },
+  "fi_fused_add_rmsnorm": {
+   "library": "flashinfer",
+   "amdclang_ms": 0.1045,
+   "fallback": false,
+   "chosen": {
+    "path": "import+pass",
+    "how": "coarsen(factor=4)",
+    "bit_identical": true,
+    "speedup": 1.0147,
+    "ci95": [
+     1.0112,
+     1.0251
+    ],
+    "ms": 0.10252,
+    "amdclang_ms": 0.1045
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.952,
+     "ci95": [
+      0.9421,
+      0.969
+     ],
+     "ms": 0.10684,
+     "amdclang_ms": 0.10188
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.0147,
+     "ci95": [
+      1.0112,
+      1.0251
+     ],
+     "ms": 0.10252,
+     "amdclang_ms": 0.1045
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9185,
+     "ci95": [
+      0.9118,
+      0.9348
+     ],
+     "ms": 0.1079,
+     "amdclang_ms": 0.09916
+    }
+   ]
+  },
+  "fi_gelu_tanh_and_mul": {
+   "library": "flashinfer",
+   "amdclang_ms": 0.1067,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9718,
+     "ci95": [
+      0.96,
+      0.9775
+     ],
+     "ms": 0.11002,
+     "amdclang_ms": 0.1067
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 0.9932,
+     "ci95": [
+      0.9847,
+      1.0019
+     ],
+     "ms": 0.10738,
+     "amdclang_ms": 0.10644
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 1.0102,
+     "ci95": [
+      0.9992,
+      1.0171
+     ],
+     "ms": 0.10496,
+     "amdclang_ms": 0.10616
+    }
+   ]
+  },
+  "fi_merge_state": {
+   "library": "flashinfer",
+   "amdclang_ms": 0.1084,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 0.9798,
+     "ci95": [
+      0.9679,
+      0.9919
+     ],
+     "ms": 0.11088,
+     "amdclang_ms": 0.1084
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.967,
+     "ci95": [
+      0.9562,
+      0.9767
+     ],
+     "ms": 0.1105,
+     "amdclang_ms": 0.10762
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 0.9709,
+     "ci95": [
+      0.9627,
+      0.9911
+     ],
+     "ms": 0.1115,
+     "amdclang_ms": 0.1097
+    }
+   ]
+  },
+  "fi_merge_state_in_place": {
+   "library": "flashinfer",
+   "amdclang_ms": 0.09976,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.969,
+     "ci95": [
+      0.9627,
+      0.9773
+     ],
+     "ms": 0.10268,
+     "amdclang_ms": 0.09976
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9413,
+     "ci95": [
+      0.9376,
+      0.9612
+     ],
+     "ms": 0.1073,
+     "amdclang_ms": 0.10168
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9312,
+     "ci95": [
+      0.9215,
+      0.9345
+     ],
+     "ms": 0.11134,
+     "amdclang_ms": 0.10346
+    }
+   ]
+  },
+  "fi_merge_states": {
+   "library": "flashinfer",
+   "amdclang_ms": 0.10888,
+   "fallback": false,
+   "chosen": {
+    "path": "import+pass",
+    "how": "coarsen(factor=2)",
+    "bit_identical": true,
+    "speedup": 1.071,
+    "ci95": [
+     1.0613,
+     1.08
+    ],
+    "ms": 0.10188,
+    "amdclang_ms": 0.10888
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_12: the counter is not decremented by one before the test"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.071,
+     "ci95": [
+      1.0613,
+      1.08
+     ],
+     "ms": 0.10188,
+     "amdclang_ms": 0.10888
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.0279,
+     "ci95": [
+      1.0185,
+      1.0405
+     ],
+     "ms": 0.10472,
+     "amdclang_ms": 0.10794
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 0.9891,
+     "ci95": [
+      0.9802,
+      0.9985
+     ],
+     "ms": 0.10394,
+     "amdclang_ms": 0.10268
+    }
+   ]
+  },
+  "fi_rmsnorm": {
+   "library": "flashinfer",
+   "amdclang_ms": 0.12734,
+   "fallback": false,
+   "chosen": {
+    "path": "import+pass",
+    "how": "coarsen(factor=2)",
+    "bit_identical": true,
+    "speedup": 1.0193,
+    "ci95": [
+     1.0116,
+     1.0271
+    ],
+    "ms": 0.12514,
+    "amdclang_ms": 0.12734
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.0193,
+     "ci95": [
+      1.0116,
+      1.0271
+     ],
+     "ms": 0.12514,
+     "amdclang_ms": 0.12734
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9642,
+     "ci95": [
+      0.9587,
+      0.9686
+     ],
+     "ms": 0.13206,
+     "amdclang_ms": 0.12738
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9614,
+     "ci95": [
+      0.9537,
+      0.9678
+     ],
+     "ms": 0.13298,
+     "amdclang_ms": 0.12746
+    }
+   ]
+  },
+  "fi_rope": {
+   "library": "flashinfer",
+   "amdclang_ms": 0.10694,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9784,
+     "ci95": [
+      0.9758,
+      0.9809
+     ],
+     "ms": 0.10944,
+     "amdclang_ms": 0.10694
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9343,
+     "ci95": [
+      0.93,
+      0.9371
+     ],
+     "ms": 0.11426,
+     "amdclang_ms": 0.10668
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.8772,
+     "ci95": [
+      0.874,
+      0.8797
+     ],
+     "ms": 0.1221,
+     "amdclang_ms": 0.10698
+    }
+   ]
+  },
+  "fi_silu_and_mul": {
+   "library": "flashinfer",
+   "amdclang_ms": 0.09882,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_3: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_7: the back edge is not `s_cbranch_scc0` on a counter compare"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9785,
+     "ci95": [
+      0.9702,
+      0.9868
+     ],
+     "ms": 0.10048,
+     "amdclang_ms": 0.09882
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9765,
+     "ci95": [
+      0.9708,
+      0.9828
+     ],
+     "ms": 0.10118,
+     "amdclang_ms": 0.09888
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 0.9911,
+     "ci95": [
+      0.9869,
+      1.0058
+     ],
+     "ms": 0.10004,
+     "amdclang_ms": 0.09978
+    }
+   ]
+  },
+  "kda_step": {
+   "library": "port",
+   "amdclang_ms": 0.19976,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_4: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_13: the exit test is not `s_cmp_eq_u32 counter, 0`; .LBB0_17: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_21: the exit test is not `s_cmp_eq_u32 counter,"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "verification: state bd2e866f9403829d fails the battery; it is not timed"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "verification: state b757594cfd9c0a72 fails the battery; it is not timed"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "verification: state ac387a5e4bc50366 fails the battery; it is not timed"
+    }
+   ]
+  },
+  "mla_decode": {
+   "library": "port",
+   "amdclang_ms": 0.45676,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_8: the exit test is not `s_cmp_eq_u32 counter, 0`; .LBB0_46: the exit test is not `s_cmp_eq_u32 counter, 0`; .LBB0_50: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_53: the back edge is not `s_cbranch_scc0` on a counter comp"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: coarsen: a path reaches the end of the program without passing every s_barrier"
+    }
+   ]
+  },
+  "mo_active_fwd": {
+   "library": "miopen",
+   "amdclang_ms": 0.10942,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.95,
+     "ci95": [
+      0.9438,
+      0.9567
+     ],
+     "ms": 0.1152,
+     "amdclang_ms": 0.10942
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9333,
+     "ci95": [
+      0.9229,
+      0.9378
+     ],
+     "ms": 0.11744,
+     "amdclang_ms": 0.10964
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.947,
+     "ci95": [
+      0.9429,
+      0.9595
+     ],
+     "ms": 0.11632,
+     "amdclang_ms": 0.11058
+    }
+   ]
+  },
+  "mo_adam": {
+   "library": "miopen",
+   "amdclang_ms": 0.37641,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: coarsen: `s_add_u32 s8, s0, 0x70`: the kernarg pointer is used other than as the base of a scalar load"
+    }
+   ]
+  },
+  "mo_bn_infer": {
+   "library": "miopen",
+   "amdclang_ms": 0.10552,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_2: the back edge is not `s_cbranch_scc0` on a counter compare"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9365,
+     "ci95": [
+      0.9309,
+      0.9431
+     ],
+     "ms": 0.11246,
+     "amdclang_ms": 0.10552
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.8521,
+     "ci95": [
+      0.8434,
+      0.8607
+     ],
+     "ms": 0.12454,
+     "amdclang_ms": 0.10644
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.5183,
+     "ci95": [
+      0.5156,
+      0.5205
+     ],
+     "ms": 0.21048,
+     "amdclang_ms": 0.10914
+    }
+   ]
+  },
+  "mo_glu_fwd": {
+   "library": "miopen",
+   "amdclang_ms": 0.18924,
+   "fallback": false,
+   "chosen": {
+    "path": "import+pass",
+    "how": "coarsen(factor=8)",
+    "bit_identical": true,
+    "speedup": 1.1125,
+    "ci95": [
+     1.1083,
+     1.1198
+    ],
+    "ms": 0.16962,
+    "amdclang_ms": 0.18924
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.1083,
+     "ci95": [
+      1.1046,
+      1.1167
+     ],
+     "ms": 0.17234,
+     "amdclang_ms": 0.19124
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.1116,
+     "ci95": [
+      1.1008,
+      1.1209
+     ],
+     "ms": 0.1707,
+     "amdclang_ms": 0.19008
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.1125,
+     "ci95": [
+      1.1083,
+      1.1198
+     ],
+     "ms": 0.16962,
+     "amdclang_ms": 0.18924
+    }
+   ]
+  },
+  "mo_prelu_bwd": {
+   "library": "miopen",
+   "amdclang_ms": 0.21886,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.8581,
+     "ci95": [
+      0.8559,
+      0.8639
+     ],
+     "ms": 0.25466,
+     "amdclang_ms": 0.21886
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.8446,
+     "ci95": [
+      0.8416,
+      0.8489
+     ],
+     "ms": 0.26166,
+     "amdclang_ms": 0.2207
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.7863,
+     "ci95": [
+      0.7833,
+      0.7921
+     ],
+     "ms": 0.28088,
+     "amdclang_ms": 0.22078
+    }
+   ]
+  },
+  "mo_reduce_sum": {
+   "library": "miopen",
+   "amdclang_ms": 0.15664,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9759,
+     "ci95": [
+      0.9715,
+      0.9797
+     ],
+     "ms": 0.16044,
+     "amdclang_ms": 0.15664
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9748,
+     "ci95": [
+      0.9719,
+      0.9771
+     ],
+     "ms": 0.16588,
+     "amdclang_ms": 0.16174
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9399,
+     "ci95": [
+      0.9364,
+      0.9421
+     ],
+     "ms": 0.1702,
+     "amdclang_ms": 0.16002
+    }
+   ]
+  },
+  "mo_rope_fwd": {
+   "library": "miopen",
+   "amdclang_ms": 0.1873,
+   "fallback": false,
+   "chosen": {
+    "path": "import+pass",
+    "how": "coarsen(factor=2)",
+    "bit_identical": true,
+    "speedup": 1.0656,
+    "ci95": [
+     1.061,
+     1.0774
+    ],
+    "ms": 0.1761,
+    "amdclang_ms": 0.1873
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.0656,
+     "ci95": [
+      1.061,
+      1.0774
+     ],
+     "ms": 0.1761,
+     "amdclang_ms": 0.1873
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.0349,
+     "ci95": [
+      1.0298,
+      1.0382
+     ],
+     "ms": 0.1817,
+     "amdclang_ms": 0.1881
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.033,
+     "ci95": [
+      1.0288,
+      1.0368
+     ],
+     "ms": 0.17906,
+     "amdclang_ms": 0.18492
+    }
+   ]
+  },
+  "mo_t5_layernorm": {
+   "library": "miopen",
+   "amdclang_ms": 0.1133,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_2: the back edge is not `s_cbranch_scc0` on a counter compare"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9799,
+     "ci95": [
+      0.9746,
+      0.9827
+     ],
+     "ms": 0.1158,
+     "amdclang_ms": 0.1133
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9713,
+     "ci95": [
+      0.9669,
+      0.9791
+     ],
+     "ms": 0.11914,
+     "amdclang_ms": 0.11578
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9641,
+     "ci95": [
+      0.9577,
+      0.9665
+     ],
+     "ms": 0.11942,
+     "amdclang_ms": 0.1151
+    }
+   ]
+  },
+  "moe_gate_topk": {
+   "library": "port",
+   "amdclang_ms": 0.65755,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: the kernel uses indexed vector registers (s_set_gpr_idx_on)"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: coarsen: the kernel uses indexed vector registers (s_set_gpr_idx_on)"
+    }
+   ]
+  },
+  "rb_axpy": {
+   "library": "rocblas",
+   "amdclang_ms": 0.16424,
+   "fallback": false,
+   "chosen": {
+    "path": "import+pass",
+    "how": "coarsen(factor=2)",
+    "bit_identical": true,
+    "speedup": 1.0389,
+    "ci95": [
+     1.0357,
+     1.0433
+    ],
+    "ms": 0.15778,
+    "amdclang_ms": 0.16424
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.0389,
+     "ci95": [
+      1.0357,
+      1.0433
+     ],
+     "ms": 0.15778,
+     "amdclang_ms": 0.16424
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 0.9841,
+     "ci95": [
+      0.9726,
+      0.9936
+     ],
+     "ms": 0.1685,
+     "amdclang_ms": 0.16586
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9502,
+     "ci95": [
+      0.9399,
+      0.9557
+     ],
+     "ms": 0.1734,
+     "amdclang_ms": 0.16452
+    }
+   ]
+  },
+  "rb_copy": {
+   "library": "rocblas",
+   "amdclang_ms": 0.10968,
+   "fallback": false,
+   "chosen": {
+    "path": "import+pass",
+    "how": "coarsen(factor=2)",
+    "bit_identical": true,
+    "speedup": 1.0288,
+    "ci95": [
+     1.0221,
+     1.0316
+    ],
+    "ms": 0.1071,
+    "amdclang_ms": 0.10968
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.0288,
+     "ci95": [
+      1.0221,
+      1.0316
+     ],
+     "ms": 0.1071,
+     "amdclang_ms": 0.10968
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9683,
+     "ci95": [
+      0.9585,
+      0.9749
+     ],
+     "ms": 0.11372,
+     "amdclang_ms": 0.10976
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9143,
+     "ci95": [
+      0.9059,
+      0.922
+     ],
+     "ms": 0.11822,
+     "amdclang_ms": 0.10812
+    }
+   ]
+  },
+  "rb_dot": {
+   "library": "rocblas",
+   "amdclang_ms": 0.13978,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_2: the back edge is not `s_cbranch_scc0` on a counter compare"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 1.0072,
+     "ci95": [
+      1.0011,
+      1.0134
+     ],
+     "ms": 0.13898,
+     "amdclang_ms": 0.13978
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.8896,
+     "ci95": [
+      0.8835,
+      0.8949
+     ],
+     "ms": 0.16026,
+     "amdclang_ms": 0.14208
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9394,
+     "ci95": [
+      0.9319,
+      0.9508
+     ],
+     "ms": 0.15098,
+     "amdclang_ms": 0.14132
+    }
+   ]
+  },
+  "rb_gemvn": {
+   "library": "rocblas",
+   "amdclang_ms": 0.2208,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: coarsen: a path reaches the end of the program without passing every s_barrier"
+    }
+   ]
+  },
+  "rb_gemvt": {
+   "library": "rocblas",
+   "amdclang_ms": 0.10758,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_11: the exit test is not `s_cmp_eq_u32 counter, 0`"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: coarsen: a path reaches the end of the program without passing every s_barrier"
+    }
+   ]
+  },
+  "rb_ger": {
+   "library": "rocblas",
+   "amdclang_ms": 0.1041,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_4: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_8: the back edge is not `s_cbranch_scc0` on a counter compare"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9363,
+     "ci95": [
+      0.9285,
+      0.9405
+     ],
+     "ms": 0.11186,
+     "amdclang_ms": 0.1041
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9347,
+     "ci95": [
+      0.9271,
+      0.9434
+     ],
+     "ms": 0.10892,
+     "amdclang_ms": 0.10192
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.8754,
+     "ci95": [
+      0.8711,
+      0.8818
+     ],
+     "ms": 0.11534,
+     "amdclang_ms": 0.10122
+    }
+   ]
+  },
+  "rb_nrm2": {
+   "library": "rocblas",
+   "amdclang_ms": 0.12326,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_2: the back edge is not `s_cbranch_scc0` on a counter compare"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 0.9981,
+     "ci95": [
+      0.9932,
+      1.0084
+     ],
+     "ms": 0.12328,
+     "amdclang_ms": 0.12326
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9534,
+     "ci95": [
+      0.9481,
+      0.9605
+     ],
+     "ms": 0.12576,
+     "amdclang_ms": 0.12038
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9779,
+     "ci95": [
+      0.9694,
+      0.9845
+     ],
+     "ms": 0.1273,
+     "amdclang_ms": 0.12546
+    }
+   ]
+  },
+  "rb_rot": {
+   "library": "rocblas",
+   "amdclang_ms": 0.20224,
+   "fallback": false,
+   "chosen": {
+    "path": "import+pass",
+    "how": "coarsen(factor=2)",
+    "bit_identical": true,
+    "speedup": 1.0773,
+    "ci95": [
+     1.071,
+     1.086
+    ],
+    "ms": 0.18704,
+    "amdclang_ms": 0.20224
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.0773,
+     "ci95": [
+      1.071,
+      1.086
+     ],
+     "ms": 0.18704,
+     "amdclang_ms": 0.20224
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 0.9993,
+     "ci95": [
+      0.9918,
+      1.0066
+     ],
+     "ms": 0.18208,
+     "amdclang_ms": 0.18238
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9739,
+     "ci95": [
+      0.9685,
+      0.9802
+     ],
+     "ms": 0.18678,
+     "amdclang_ms": 0.18286
+    }
+   ]
+  },
+  "rb_scal": {
+   "library": "rocblas",
+   "amdclang_ms": 0.10354,
+   "fallback": false,
+   "chosen": {
+    "path": "import+pass",
+    "how": "coarsen(factor=8)",
+    "bit_identical": true,
+    "speedup": 1.0576,
+    "ci95": [
+     1.0509,
+     1.065
+    ],
+    "ms": 0.09792,
+    "amdclang_ms": 0.10354
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.0603,
+     "ci95": [
+      1.0461,
+      1.0669
+     ],
+     "ms": 0.09756,
+     "amdclang_ms": 0.1033
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.0501,
+     "ci95": [
+      1.0425,
+      1.0577
+     ],
+     "ms": 0.09806,
+     "amdclang_ms": 0.1033
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.0576,
+     "ci95": [
+      1.0509,
+      1.065
+     ],
+     "ms": 0.09792,
+     "amdclang_ms": 0.10354
+    }
+   ]
+  },
+  "rb_swap": {
+   "library": "rocblas",
+   "amdclang_ms": 0.19064,
+   "fallback": false,
+   "chosen": {
+    "path": "import+pass",
+    "how": "coarsen(factor=2)",
+    "bit_identical": true,
+    "speedup": 1.0544,
+    "ci95": [
+     1.0484,
+     1.0599
+    ],
+    "ms": 0.18036,
+    "amdclang_ms": 0.19064
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.0544,
+     "ci95": [
+      1.0484,
+      1.0599
+     ],
+     "ms": 0.18036,
+     "amdclang_ms": 0.19064
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9774,
+     "ci95": [
+      0.9706,
+      0.9831
+     ],
+     "ms": 0.18464,
+     "amdclang_ms": 0.17996
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 1.0188,
+     "ci95": [
+      1.0086,
+      1.0294
+     ],
+     "ms": 0.18588,
+     "amdclang_ms": 0.19064
+    }
+   ]
+  },
+  "vl_fused_add_rms_norm": {
+   "library": "vllm",
+   "amdclang_ms": 0.14032,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_4: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_14: the back edge is not `s_cbranch_scc0` on a counter compare"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 1.0026,
+     "ci95": [
+      0.9946,
+      1.0066
+     ],
+     "ms": 0.13988,
+     "amdclang_ms": 0.14032
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.972,
+     "ci95": [
+      0.9676,
+      0.9793
+     ],
+     "ms": 0.14544,
+     "amdclang_ms": 0.14154
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.7339,
+     "ci95": [
+      0.7313,
+      0.7376
+     ],
+     "ms": 0.19342,
+     "amdclang_ms": 0.14182
+    }
+   ]
+  },
+  "vl_moe_align": {
+   "library": "vllm",
+   "amdclang_ms": 0.27148,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_3: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_60: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_64: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_67: the back edge is not `s_cbranch"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: coarsen: a path reaches the end of the program without passing every s_barrier"
+    }
+   ]
+  },
+  "vl_rms_norm": {
+   "library": "vllm",
+   "amdclang_ms": 0.13204,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_3: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_7: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_11: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_17: the back edge is not `s_cbranch_"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9789,
+     "ci95": [
+      0.9735,
+      0.9837
+     ],
+     "ms": 0.13504,
+     "amdclang_ms": 0.13204
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.938,
+     "ci95": [
+      0.9286,
+      0.9429
+     ],
+     "ms": 0.13982,
+     "amdclang_ms": 0.13072
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9199,
+     "ci95": [
+      0.9132,
+      0.9247
+     ],
+     "ms": 0.14012,
+     "amdclang_ms": 0.12904
+    }
+   ]
+  },
+  "vl_rotary_embedding": {
+   "library": "vllm",
+   "amdclang_ms": 0.12422,
+   "fallback": true,
+   "chosen": {
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
+    "bit_identical": true,
+    "speedup": 1.0,
+    "ci95": null
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_2: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_6: the back edge is not `s_cbranch_scc0` on a counter compare"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 1.001,
+     "ci95": [
+      0.9905,
+      1.0109
+     ],
+     "ms": 0.12462,
+     "amdclang_ms": 0.12422
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9618,
+     "ci95": [
+      0.9532,
+      0.9673
+     ],
+     "ms": 0.12794,
+     "amdclang_ms": 0.12288
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.969,
+     "ci95": [
+      0.9607,
+      0.974
+     ],
+     "ms": 0.1283,
+     "amdclang_ms": 0.12418
+    }
+   ]
+  }
+ },
+ "protocol": "agc-timing-amd-2",
+ "toolchain": {
+  "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
+  "rocm": "7.14.60850"
+ },
+ "baseline": "amdclang -O3",
+ "recorded": "2026-11-20",
+ "summary": {
+  "kernels": 36,
+  "wins": 10,
+  "fallbacks": 26,
+  "geomean": 1.015
+ }
+}

@@ -1,0 +1,136 @@
+{
+ "kernel": "vl_fused_add_rms_norm",
+ "launch": {
+  "grid": [
+   "B",
+   1,
+   1
+  ],
+  "block": [
+   "(1024)",
+   1,
+   1
+  ],
+  "lds": 0
+ },
+ "strict": false,
+ "path": [
+  "source"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 1.4143,
+  "speedup_ci95": [
+   1.4062,
+   1.4192
+  ],
+  "reference_ms": 0.14324,
+  "candidate_ms": 0.10158,
+  "cases": 77,
+  "protocol_version": "agc-timing-amd-2",
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 1.4434,
+    "ci95": [
+     1.4379,
+     1.4462
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 1.4143,
+    "ci95": [
+     1.4062,
+     1.4192
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "Shipping f00601574ea078db: 1.44x over amdclang at 240 pairs (CI 1.437-1.446; 1.437 at 60 pairs), battery 77/77. The 1.5x target was NOT reached. The baseline reads `residual` twice (reduction pass writes z, the scaling pass re-reads it); the new source keeps z = input + residual in registers across the block reduction, so each tensor is read once and written once, with block 1024 and one contiguous float4 per thread (one workgroup per row, cub BlockReduce kept, FP order of the per-element math kept, only the variance summation order changes, within the input tolerance). Case: the reference had headroom 1.34-1.45 because of the re-read; the shipped state sits at headroom 0.93-0.99 of the memory floor, so what is left is bytes, not code. A sibling (c387d64415614086, block 256, 4 float4 per thread, all loads before the stores) showed 1.50-1.52x against ref in its own runs, but a direct 240-pair compare against the shipped state is parity (0.997, CI 0.991-1.002): the difference was the reference's time drifting between runs (0.140-0.152 ms), not the kernel. I did not ship it for a second reason: the battery's shapes (D <= 1008) never execute its all-full fast path at block 256, i.e. the code that runs at the bench shape is not what the battery checks. For the shipped state, the bench-shape path (chunk 0, full float4) is the path the battery exercises; its fallback loop for D > 4096 is not reached by any battery shape (the same source text passed the battery at BLK=64/KCH=2, where that loop does run).",
+ "tried": [
+  {
+   "what": "coarsen on ref (earlier session, three factors)",
+   "state": "f3f3e94efa39438c / cee0af77c32adfbf / 2ffd24a014891671",
+   "outcome": "parity / loss / loss",
+   "speedup": "1.010 / 0.973 / 0.709"
+  },
+  {
+   "what": "source: single pass, z kept in registers, block 256, 4 float4 chunks per thread, per-chunk load-add-store",
+   "state": "718bd47e56fa67ad",
+   "outcome": "win",
+   "speedup": 1.423
+  },
+  {
+   "what": "same text, block 1024, 1 chunk per thread (shipped)",
+   "state": "f00601574ea078db",
+   "outcome": "win",
+   "speedup": "1.437 (60 pairs), 1.443 (240 pairs)"
+  },
+  {
+   "what": "same text, block 512, 2 chunks",
+   "state": "96fbd165383e101b",
+   "outcome": "win",
+   "speedup": 1.439
+  },
+  {
+   "what": "same text, block 128, 8 chunks (64 VGPRs)",
+   "state": "0f920e899ff79682",
+   "outcome": "win, slower than the others",
+   "speedup": 1.331
+  },
+  {
+   "what": "fast path when every chunk of the thread is full: all loads issued before the stores; block 256, 4 chunks. Battery passes but never runs the fast path (D <= 1008 < 3075)",
+   "state": "c387d64415614086",
+   "outcome": "win vs ref; parity vs shipped state in direct compare (0.997, CI 0.991-1.002)",
+   "speedup": "1.516 (60 pairs), 1.502 (240 pairs)"
+  },
+  {
+   "what": "fast path, block 512, 2 chunks (fast path also unreached by the battery)",
+   "state": "8446fc61679e054d",
+   "outcome": "win",
+   "speedup": 1.483
+  },
+  {
+   "what": "coverage only, not timed: fast-path text at BLK=64/KCH=4 (battery reaches the fast path) and BLK=64/KCH=2 (battery reaches the D > 4*KCH*BLK fallback loop)",
+   "state": "c93d88949f688cba / d60a2fc8f81a4ef9",
+   "outcome": "battery 77/77 both",
+   "speedup": null
+  },
+  {
+   "what": "machine-IR passes (fix_waits, unroll_loads) and a hand-written reduction on the shipped state",
+   "state": null,
+   "outcome": "not attempted: state is at headroom 0.93-0.99 and three different kinds of change (block size, loads before stores, coarsen) were all within 1%",
+   "speedup": null
+  }
+ ],
+ "friction": [
+  "Battery coverage gap: every battery shape has D <= 1008, the bench shape has D = 4096. Any source that specializes on row length (chunks beyond the first, an all-chunks-full fast path, a fallback loop for long rows) can pass check while the code that runs at the bench shape is never executed (c387d64415614086, 8446fc61679e054d, and chunks 1..3 of 718bd47e56fa67ad). bench does not compare outputs at the bench shape. Needed: one battery shape at or above the bench D (or an output comparison inside bench), or a coverage report from check saying which blocks never ran.",
+  "Separate bench runs are not comparable to about 4%: the reference's own time moved between 0.1404 and 0.1519 ms across runs, so the same pair of states read 1.44 vs 1.50 against ref and parity against each other. A 1.5x threshold decided by speedup-vs-ref in one run is inside that drift; compare(a, b) was the only reliable ranking. A bench mode that times several candidates and ref interleaved in one process would remove this.",
+  "The fallback path for rows longer than the register-held chunks could only be tested by recompiling the same text with smaller constants; a way to add a session shape variant (e.g. D = 5000) to check would have verified the shipped binary directly."
+ ],
+ "lessons": [
+  "vl_fused_add_rms_norm (two-pass: reduce then scale, re-reading the tensor it just wrote): keeping the summed value in registers across the block reduction gives 1.42-1.44x and lands at headroom 0.93-0.99 of the memory floor (about 97-103 us for 268 MB read + 268 MB written). Same lever as mo_t5_layernorm / kda_step.",
+  "Geometry for one row of 4096 floats per workgroup, 16 bytes per lane per chunk: block 1024 x 1 chunk, 512 x 2, 256 x 4 are equal within about 1%; block 128 x 8 chunks is 7% slower (1.33x vs 1.43x).",
+  "Issuing all of a thread's loads before its stores (4 x float4 from each of two tensors) measured parity in a direct 240-pair compare (0.997) even though its bench-vs-ref number read 5% higher: at the floor it buys nothing.",
+  "The reference's absolute time drifts about 8% between bench runs on this device (0.140-0.152 ms here), which moves speedup-vs-ref by about 4% between runs of different states. Rank candidates with compare(a, b, pairs=240), not by their separate bench numbers.",
+  "Check which paths the battery's shapes actually execute before trusting a pass: with D <= 1008 in the battery, any code guarded by a larger row length is unverified. Recompiling the same text with smaller constants (BLK=64) so the battery reaches those paths is a cheap partial substitute."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 1.5941454000000002,
+  "turns": 35,
+  "final": "The 1.5x target was not reached: the state I shipped, `f00601574ea078db`, is **1.44x** faster than amdclang (240 pairs, CI 1.437\u20131.446) and passes static check and the full battery (77/77).\n\n**What it does.** The baseline reads `residual` twice: once to form `z = input + residual` and the variance, then again after the reduction to scale it. The new source keeps `z` in registers across the block reduction, so each tensor is read once and written once. It uses block 1024 with one contiguous float4 per thread, one workgroup per row. Only the variance summation order changes, within the `input` tolerance.\n\n**Which case this is.** The reference had headroom 1.34\u20131.45 because of the re-read. The shipped state sits at 0.93\u20130.99 of the memory floor, so the remaining time is bytes moved, not code.\n\n**The 1.50x sibling I did not ship.** `c387d64415614086` (block 256, four float4 per thread, all loads before the stores) read 1.50\u20131.52x against ref in its own runs. I left it out for two reasons:\n\n- **It is not actually faster.** A direct 240-pair compare against the shipped state is parity (0.997, CI 0.991\u20131.002). The gap came from the reference's own time drifting between runs (0.140\u20130.152 ms).\n- **The battery never runs its hot path.** Every battery shape has D \u2264 1008, and at block 256 the all-chunks-full fast path needs a larger D. The battery pass therefore says nothing about the code that runs at the bench shape. The same source text does pass at BLK=64/KCH=4, where the battery reaches that path, but that is a different binary.\n\n**Remaining gap in the shipped state.** Its bench-shape path is the one the battery exercises. Its fallback loop for D > 4096 is reached by no battery shape; the fast-path sibling's copy of that loop passed the battery at BLK=64/KCH=2, where it does run, but that is a different binary.\n\n**Other variants.**\n\n| Variant | State | Speedup vs ref |\n|---|---|---|\n| Block 256, 4 chunks, per-chunk load-add-store | `718bd47e56fa67ad` | 1.42 |\n| Block 512, ",
+  "seconds": 215,
+  "log": ".agc/sessions/vl_fused_add_rms_norm-3b2e9f7cea/agent/20261120-190156.jsonl"
+ },
+ "recorded": "2026-11-20",
+ "attribution": {
+  "levels": [
+   "source"
+  ],
+  "amdclang_on_rewritten_source": 1.4143,
+  "machine_level_gain": 1.0
+ }
+}

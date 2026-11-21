@@ -1,0 +1,106 @@
+{
+ "name": "vl_fused_add_rms_norm",
+ "source": "vl_fused_add_rms_norm.hip",
+ "entry": "vl_fused_add_rms_norm",
+ "shapes": {
+  "B": 37,
+  "D": 1001
+ },
+ "bench_shapes": {
+  "B": 8192,
+  "D": 4096
+ },
+ "dynamic": [
+  "B",
+  "D"
+ ],
+ "params": [
+  {
+   "name": "input",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "B",
+    "D"
+   ],
+   "role": "inout"
+  },
+  {
+   "name": "input_stride",
+   "kind": "scalar",
+   "dtype": "i64",
+   "value": "D"
+  },
+  {
+   "name": "residual",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "B",
+    "D"
+   ],
+   "role": "inout"
+  },
+  {
+   "name": "weight",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "D"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "epsilon",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 1e-06
+  },
+  {
+   "name": "num_tokens",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "B"
+  },
+  {
+   "name": "hidden_size",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "D"
+  },
+  {
+   "name": "residual_stride",
+   "kind": "scalar",
+   "dtype": "i64",
+   "value": "D"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "B"
+  ],
+  "block": [
+   "min(D, 256)"
+  ]
+ },
+ "tolerance": {
+  "input": {
+   "rtol": 0.0001,
+   "atol": 1e-05
+  },
+  "residual": {
+   "rtol": 1e-06,
+   "atol": 0.0
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "vl_fused_add_rms_norm"
+ },
+ "tags": [
+  "llm",
+  "vllm",
+  "rowwise"
+ ]
+}

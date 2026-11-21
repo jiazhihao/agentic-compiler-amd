@@ -1,0 +1,140 @@
+{
+ "name": "kda_step",
+ "source": "kda_step.hip",
+ "entry": "kda_step",
+ "shapes": {
+  "H": 5,
+  "DK": 100,
+  "DV": 150
+ },
+ "bench_shapes": {
+  "H": 4096,
+  "DK": 128,
+  "DV": 128
+ },
+ "dynamic": [
+  "H",
+  "DK",
+  "DV"
+ ],
+ "params": [
+  {
+   "name": "S",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "H",
+    "DK",
+    "DV"
+   ],
+   "role": "inout"
+  },
+  {
+   "name": "g",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "H",
+    "DK"
+   ],
+   "role": "in",
+   "init": {
+    "kind": "int_range",
+    "lo": -3,
+    "hi": 1
+   }
+  },
+  {
+   "name": "k",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "H",
+    "DK"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "v",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "H",
+    "DV"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "beta",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "H"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "q",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "H",
+    "DK"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "o",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "H",
+    "DV"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "dk",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "DK"
+  },
+  {
+   "name": "dv",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "DV"
+  },
+  {
+   "name": "scale",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 0.08838834764831845
+  }
+ ],
+ "launch": {
+  "grid": [
+   "H"
+  ],
+  "block": [
+   128
+  ]
+ },
+ "tolerance": {
+  "*": {
+   "rtol": 0.0001,
+   "atol": 1e-05,
+   "cond": 4e-05
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "kda_step"
+ },
+ "tags": [
+  "llm",
+  "port",
+  "recurrent"
+ ]
+}

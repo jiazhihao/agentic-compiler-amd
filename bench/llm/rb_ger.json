@@ -1,0 +1,94 @@
+{
+ "name": "rb_ger",
+ "source": "rb_ger.hip",
+ "entry": "rb_ger",
+ "shapes": {
+  "M": 1100,
+  "N": 37
+ },
+ "bench_shapes": {
+  "M": 8192,
+  "N": 8192
+ },
+ "dynamic": [
+  "M",
+  "N"
+ ],
+ "params": [
+  {
+   "name": "m",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "M"
+  },
+  {
+   "name": "n",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "N"
+  },
+  {
+   "name": "alpha",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 1.5
+  },
+  {
+   "name": "x",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "M"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "y",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "A",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N",
+    "M"
+   ],
+   "role": "inout"
+  },
+  {
+   "name": "lda",
+   "kind": "scalar",
+   "dtype": "u64",
+   "value": "M"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "N"
+  ],
+  "block": [
+   1024
+  ]
+ },
+ "tolerance": {
+  "A": {
+   "cond": 1e-06
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "rb_ger"
+ },
+ "tags": [
+  "llm",
+  "rocblas",
+  "elementwise"
+ ]
+}

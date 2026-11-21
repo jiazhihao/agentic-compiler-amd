@@ -1,0 +1,82 @@
+{
+ "name": "mo_active_fwd",
+ "source": "mo_active_fwd.hip",
+ "entry": "mo_active_fwd",
+ "shapes": {
+  "Q": 2501
+ },
+ "bench_shapes": {
+  "Q": 16777216
+ },
+ "dynamic": [
+  "Q"
+ ],
+ "params": [
+  {
+   "name": "bot",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "4 * Q"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "top",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "4 * Q"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "map_size_aligned",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "Q"
+  },
+  {
+   "name": "gamma",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 0.0
+  },
+  {
+   "name": "beta",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 0.0
+  },
+  {
+   "name": "alpha",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 0.01
+  }
+ ],
+ "launch": {
+  "grid": [
+   "cdiv(Q, 256)"
+  ],
+  "block": [
+   256
+  ]
+ },
+ "tolerance": {
+  "top": {
+   "rtol": 1e-06,
+   "atol": 0.0
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "mo_active_fwd"
+ },
+ "tags": [
+  "llm",
+  "miopen",
+  "elementwise"
+ ]
+}

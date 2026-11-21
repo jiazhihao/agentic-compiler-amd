@@ -4,6 +4,8 @@ import json
 
 import pytest
 
+from agc.runtime.timing import PROTOCOL_VERSION
+
 from agc.manifest import Manifest
 from agc.runtime import harness, toolchain
 from agc.runtime.executor import run_job
@@ -75,7 +77,7 @@ def test_abi_mismatch_is_a_legible_error(m, tmp_path, agc_root):
 
 def test_bench_and_aa_control(m, ref, agc_root):
     r = harness.bench(m, ref)
-    assert r["ok"] and r["verification"]["ok"] and r["protocol"]["version"] == "agc-timing-amd-1"
+    assert r["ok"] and r["verification"]["ok"] and r["protocol"]["version"] == PROTOCOL_VERSION
     t = r["timing"]
     assert t["n"] >= 30 and 0.05 < t["median_ms"] < 5 and r["case"].endswith("[N=67108864]")
     assert t["median_ms"] <= r["wall_median_ms"] < t["median_ms"] + 0.2      # the event time is bounded by wall-clock

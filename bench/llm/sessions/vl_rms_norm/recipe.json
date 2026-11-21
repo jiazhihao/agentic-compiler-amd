@@ -1,0 +1,149 @@
+{
+ "kernel": "vl_rms_norm",
+ "launch": {
+  "grid": [
+   "B",
+   1,
+   1
+  ],
+  "block": [
+   "(1024)",
+   1,
+   1
+  ],
+  "lds": 0
+ },
+ "strict": false,
+ "path": [
+  "source"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 1.1324,
+  "speedup_ci95": [
+   1.1256,
+   1.138
+  ],
+  "reference_ms": 0.13388,
+  "candidate_ms": 0.11888,
+  "cases": 77,
+  "protocol_version": "agc-timing-amd-2",
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 1.1324,
+    "ci95": [
+     1.1256,
+     1.138
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 1.1449,
+    "ci95": [
+     1.1418,
+     1.148
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "Shipping a1032d89f72371cc: 1.14x over amdclang (240 pairs, CI 1.137-1.143; 0.1168 ms vs 0.1332 ms), static check clean, battery 77/77. The 1.5x target was NOT reached and is out of reach in principle: the reference headroom is only 1.27-1.29 over the memory floor. The baseline reads `input` twice (variance pass, then the scaling pass); the new source keeps each thread's float4 of input in registers across the reduction (block 1024, one contiguous float4 per thread, one workgroup per row), and replaces cub::BlockReduce (two barriers, thread 0 computes rsqrt and broadcasts through LDS) with a flat reduction: cub::WarpReduce per wave (compiles to DPP), one LDS slot per wave, one barrier, every thread sums the 16 slots and computes rsqrt itself. Per-element FP order is kept; only the variance summation order changes (within the manifest tolerance, not bit-identical). Case: re-read removed, the shipped state is at headroom 1.12 of the floor with a minimal body (1 load, 1 barrier, 1 cached weight load, 1 store), so what is left is bytes and per-wave overhead, not code. Coverage: the bench-shape path (chunk 0) is the path the battery executes; the fallback loop for D4 > 1024 is not reached by any battery shape in this binary, but the same text compiled at BLK=64 (ce0f4f33b314a099), where the battery does run it, passes 77/77.",
+ "tried": [
+  {
+   "what": "coarsen on ref, three factors (earlier session)",
+   "state": "ed485f78bf047669 / be128bda5eb4aaf3 / 8802e1a5d58917f1",
+   "outcome": "loss / loss / loss",
+   "speedup": "0.984 / 0.927 / 0.910"
+  },
+  {
+   "what": "source: single pass, input float4 kept in registers across cub::BlockReduce, block 1024 x 1 chunk",
+   "state": "a306ef08bba1e7e8",
+   "outcome": "win",
+   "speedup": 1.121
+  },
+  {
+   "what": "same text, block 256 x 4 chunks (chunks 2-3 not reached by battery shapes)",
+   "state": "6b2206516d9eb79d",
+   "outcome": "win",
+   "speedup": 1.106
+  },
+  {
+   "what": "same text, block 512 x 2 chunks",
+   "state": "1db528265c3118c3",
+   "outcome": "win",
+   "speedup": 1.145
+  },
+  {
+   "what": "coverage only, not timed: same text at BLK=64/KCH=1 so the battery reaches the fallback loop",
+   "state": "62d8767ff725c63c",
+   "outcome": "battery 77/77",
+   "speedup": null
+  },
+  {
+   "what": "weight float4 loaded together with the input, before the reduction (only the store after the barrier)",
+   "state": "5f0d5be914c156f3",
+   "outcome": "loss vs a306 in direct compare (0.978, CI 0.965-0.987)",
+   "speedup": "about 1.10 vs ref (derived)"
+  },
+  {
+   "what": "flat reduction: WarpReduce per wave + one LDS slot per wave + one barrier + per-thread sum of 16 slots and rsqrt; block 1024 x 1 (shipped)",
+   "state": "a1032d89f72371cc",
+   "outcome": "win; +1.4% over a306 in direct compare (1.014, CI 1.009-1.026)",
+   "speedup": "1.140 (240 pairs)"
+  },
+  {
+   "what": "flat reduction, block 512 x 2 chunks",
+   "state": "53363c982fcb84c6",
+   "outcome": "parity vs shipped (0.985, CI 0.977-1.003)",
+   "speedup": null
+  },
+  {
+   "what": "flat reduction, block 256 x 4 chunks",
+   "state": "00b57f404429720e",
+   "outcome": "loss vs shipped (0.961, CI 0.942-0.984)",
+   "speedup": null
+  },
+  {
+   "what": "coverage only, not timed: flat-reduction text at BLK=64/KCH=1 (fallback loop reached by the battery)",
+   "state": "ce0f4f33b314a099",
+   "outcome": "battery 77/77",
+   "speedup": null
+  },
+  {
+   "what": "machine-IR edits on the shipped state",
+   "state": null,
+   "outcome": "not attempted: the listing is already 1 load + immediate use, DPP wave reduction, 1 barrier, 1 weight load, 1 store; no loop runs at the bench shape, so unroll_loads / later waits have nothing to act on",
+   "speedup": null
+  }
+ ],
+ "friction": [
+  "Battery coverage gap (same as vl_fused_add_rms_norm): every battery shape has D4 <= 257, the bench shape has D4 = 1024. Any multi-chunk variant (block 256 x 4, 512 x 2) passes check while chunks beyond the first run for at most one thread, and the long-row fallback loop of the shipped binary is never executed. I could only cover it by recompiling the same text at BLK=64. Needed: a battery shape at or above the bench D4, an output comparison at the bench shape inside bench, or a per-block coverage report from check.",
+  "state(id, blocks=[...]) silently omits blocks whose names I did not guess (.Lft1/.LBB0_4 between .LBB0_2 and .LBB0_6 in a1032d89f72371cc), which made a conditional branch look like it fell into its own target; an option to list a contiguous range of blocks (from/to) would avoid guessing fall-through labels.",
+  "No way to see where the remaining 12% above the memory floor goes on a loop-free body: probe needs a hand-made variant; a per-phase probe (barrier removed, store removed) as a transform would have answered whether the barrier or the 16 waves per workgroup is the cost.",
+  "The headroom model reports the reference at 1.27-1.29, so the 1.5x goal in the task was unreachable from the start for this kernel; the brief could say so when reference_headroom < 1.5."
+ ],
+ "lessons": [
+  "vl_rms_norm (variance pass, then scaling pass re-reading input): keeping the input float4 in registers across the block reduction gives 1.12x (block 1024 x 1 float4 per thread), landing at headroom about 1.15; reference headroom was 1.28, so the re-read of a 268 MB input was worth only about 14 us of 134 us. The same lever gave 1.44x on vl_fused_add_rms_norm, where the re-read tensor was also the one just written.",
+  "Replacing cub::BlockReduce (two barriers + thread-0 rsqrt broadcast through LDS) with cub::WarpReduce<float, 64> per wave, one LDS slot per wave, ONE barrier and a per-thread sum of the 16 slots + per-thread rsqrt: +1.4% (direct compare 1.014, CI 1.009-1.026) at 16 waves per workgroup. hipcub's WarpReduce<float, 64> compiles to v_add_f32_dpp steps plus one ds_bpermute, no hand-written DPP needed; BlockReduce compiles to 10 ds_bpermute steps.",
+  "Loading the (cache-resident, 16 KB) weight early, before the barrier, so that only the store follows the barrier: 2% SLOWER (0.978, CI 0.965-0.987). Holding 4 more registers across the barrier and adding a second load to the cold-read phase costs more than the cached load after the barrier.",
+  "Geometry for one 4096-float row per workgroup with one barrier: block 1024 x 1 chunk >= 512 x 2 (0.985, parity) > 256 x 4 (0.961, loss). With the stock BlockReduce the three were within 3% of each other in separate runs.",
+  "A loop-free row kernel with 1 cold load, 1 barrier, 1 cached load and 1 store per thread still sits 12% above the copy-model floor (116.8 us vs 104.7 us for 268 MB read + 268 MB written); the floor model appears optimistic by about 10% for kernels that need a barrier between the read and the write."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 1.8449029999999997,
+  "turns": 43,
+  "final": "The 1.5x target was not reached: the state I shipped, `a1032d89f72371cc`, is **1.14x** faster than amdclang (240 pairs, CI 1.137\u20131.143; 0.1168 ms against 0.1332 ms). It passes static check and the full battery (77/77).\n\n**Which case this is.** The reference headroom is only 1.27\u20131.29 over the memory floor, so 1.5x was out of reach in principle. The baseline reads `input` twice (variance pass, then scaling pass); removing that re-read was the lever. The shipped state sits at headroom 1.12.\n\n**What it does differently.**\n- **Single pass:** each thread keeps its float4 of input in registers across the reduction, with block 1024 and one workgroup per row. This alone gave 1.12x.\n- **Flat reduction:** `cub::BlockReduce` is replaced by a per-wave `cub::WarpReduce`, one LDS slot per wave, a single barrier, and every thread summing the 16 slots and computing the rsqrt itself. This added 1.4% in a direct compare.\n- **Numerics:** the result is within the manifest tolerance, not bit-identical; only the variance summation order changes.\n\n**Untested path in the shipped binary.** The battery only goes up to `D4` = 257, so the fallback loop for rows longer than 1024 float4s (`D4` > 1024) is never executed in this binary. The same source compiled at block 64, where the battery does reach that loop, passes 77/77 (`ce0f4f33b314a099`). The bench-shape path is the one the battery exercises.\n\n**What did not help.**\n\n| Variant | State | Result |\n|---|---|---|\n| Weight loaded before the barrier | `5f0d5be914c156f3` | 0.978 against the single-pass state (loss) |\n| Flat reduction, block 512, 2 chunks | `53363c982fcb84c6` | 0.985 against shipped (parity) |\n| Flat reduction, block 256, 4 chunks | `00b57f404429720e` | 0.961 against shipped (loss) |\n| Coarsen on ref (earlier session) | three states | 0.91\u20130.98 (loss) |\n\nI did not attempt machine-IR edits on the shipped state: its body at the bench shape is one load, a DPP wave reduction, one barrier, one weight load and one store, with no loop f",
+  "seconds": 223,
+  "log": ".agc/sessions/vl_rms_norm-20cdea31bd/agent/20261120-191410.jsonl"
+ },
+ "recorded": "2026-11-20",
+ "attribution": {
+  "levels": [
+   "source"
+  ],
+  "amdclang_on_rewritten_source": 1.1324,
+  "machine_level_gain": 1.0
+ }
+}

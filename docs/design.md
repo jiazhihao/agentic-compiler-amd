@@ -7,6 +7,18 @@ with no kernel source at all. The compiler owns semantics, legality, verificatio
 measurement; an agent (Claude Code through MCP) or a scripted policy chooses the
 transformations.
 
+**agc is a harness for an agent, not a general compiler.** The aim is not one fixed
+pipeline that beats `amdclang` on arbitrary code. The aim is that an agent, working on
+one kernel at a time, can beat `amdclang` on that kernel by specializing and customizing
+its optimization: reading the assembly, choosing or parameterizing a pass, generating the
+kernel from its tensor program with a schedule fitted to its shapes, changing the launch
+geometry, or editing instructions by hand. agc gives the agent the actions to do this
+and the checks that make the result trustworthy (static safety, the battery, paired
+timing). The unit of result is therefore a kernel with its verified, replayable trace,
+and a benchmark result is a set of per-kernel sessions. General passes and the default
+policy are what the sessions have shown to pay often enough to automate; they are the
+floor an agent starts from, not the product.
+
 This project reuses the design and infrastructure of the NVIDIA reference implementation
 ([jiazhihao/agentic-compiler](https://github.com/jiazhihao/agentic-compiler), Hopper/PTX)
 and changes the bottom of the stack. On NVIDIA the compiler emitted PTX and `ptxas`
@@ -24,11 +36,14 @@ statistically separated timing.
 
 ## 1. Goals and non-goals
 
-**Goal.** For a given workload (operation, shapes, dtypes, numerical contract), produce a
-binary faster than the ROCm compiler's build of the same program, and as close as
-possible to (or faster than) the best hand-tuned vendor kernel. Compile time is traded
-for performance: a session may spend minutes to hours of agent and GPU time on one
-kernel. Every result is a verified, replayable trace of named decisions.
+**Goal.** For a given workload (operation, shapes, dtypes, numerical contract), let an
+agent produce a binary faster than the ROCm compiler's build of the same program, and as
+close as possible to (or faster than) the best hand-tuned vendor kernel, by optimizing
+that kernel specifically. The manifest's shapes, dtypes, launch and numerical contract
+are the specialization context: a session may fix a schedule, an unroll factor, a tile
+size or a launch geometry that is right for this workload and wrong in general. Compile
+time is traded for performance: a session may spend minutes to hours of agent and GPU
+time on one kernel. Every result is a verified, replayable trace of named decisions.
 
 **Kept from the reference design.** The manifest as the contract (entry point, tensors,
 shapes, launch, reference program, numerical contract); immutable, content-addressed
@@ -37,7 +52,9 @@ an interpreter; compiler-owned checking and timing; one serialized GPU executor;
 agent action menu with legible rejections; trace reuse, recipe promotion and knowledge
 notes.
 
-**Non-goals.** General HIP C++ (the HIP path goes through `amdclang` and is bounded by
+**Non-goals.** A general-purpose optimizing compiler that is better than `amdclang` on
+every program with no agent in the loop (the default policy is measured and reported,
+but a fallback to amdclang's build is an accepted outcome of it); general HIP C++ (the HIP path goes through `amdclang` and is bounded by
 what can be imported), a drop-in `hipcc` replacement, RDNA/wave32, other CDNA generations
 (possible later through arch data), multi-GPU collectives, multi-kernel fusion.
 
@@ -51,10 +68,11 @@ what can be imported), a drop-in `hipcc` replacement, RDNA/wave32, other CDNA ge
 | D4 | **Tensor programs enter at `tair` and are generated straight into virtual `mir`** by schedule templates (elementwise, rowwise, reduction, GEMM/MFMA, attention), then register-allocated by agc. | High-level inputs have no HIP to import. Generators produce MFMA/LDS code that the lane-level path cannot reach (e.g. a naive HIP GEMM can be replaced by an MFMA kernel because the spec, not the source, is the contract). |
 | D5 | **A machine model as data**, `agc/arch/gfx950.yaml`, every field tagged `isa-doc`, `rocminfo` or `measured`; measured fields come from on-device microbenchmarks. | Without a vendor scheduler, agc's scheduler needs latencies, issue rules and hazard windows. Python code holds no architecture constants. |
 | D6 | **Independent static checkers** (verifier, hazard checker, waitcnt checker, encode round-trip) run on every physical `mir` before any GPU job, separately from the passes that produced it. They are validated on every `amdclang` output in the corpus (zero violations) and by seeded mutations. | A missing wait or `s_nop` produces silent wrong results, not crashes. A candidate must not be able to skip the checker. |
-| D7 | **Compiler-owned verification and timing.** The candidate cannot choose its oracle, inputs, tolerance or measurement. Protocol `agc-timing-amd-1`. | Unchanged from the reference. Speedups are paired against amdclang under the same protocol. |
+| D7 | **Compiler-owned verification and timing.** The candidate cannot choose its oracle, inputs, tolerance or measurement. Protocol `agc-timing-amd-2` (versions and what changed: `agc/runtime/timing.py`). | Unchanged from the reference. Speedups are paired against amdclang under the same protocol. |
 | D8 | **One machine-wide GPU executor** (subprocess workers, a lock, interactive before batch), using the HIP module API through `libamdhip64` via ctypes. | Isolation, reproducibility and accounting; no HIP headers needed at runtime. |
 | D9 | **`kir` (lane-level IR) and the Clang-AST frontend are deferred**, not dropped. | `amdclang` + import covers HIP inputs at parity; generators cover high-level inputs. A lane-level IR returns only if a measured case needs a lane-level transformation that neither path provides. |
 | D10 | **Agent and scripted policy share one action menu.** | The default policy is the regression baseline; the agent explores. |
+| D11 | **Per-kernel specialization through the agent is the product; general passes are its by-product.** Every optimization is available as an action on one kernel's state (a parameterized pass, a generator template with its knobs, a launch change, a free-form `mir` edit), and nothing has to be general to be used. | The wins differ by kernel (loads in flight for one, coarsening for another, MFMA or a DPP reduction for a third) and depend on shapes and launch. A fixed pipeline has to be right for all kernels; an agent with a harness only has to be right for the one in front of it, and the checks, not the generality of the transformation, make the result safe. A customization that recurs is promoted to a pass or a template and enters the default policy. |
 
 ## 3. The IR stack
 
@@ -106,6 +124,14 @@ recomputes register counts and `accum_offset` from the instruction stream.
 | `peephole` | Fusions (`v_lshl_add`, `v_fmac`, `v_pk_*`), scalarization, dead code | rule selection |
 | `descriptor` | Kernel descriptor, metadata, kernarg preload, LDS size | preload count |
 
+**Transformations of an imported kernel** (`apply`), bit-identical by construction:
+`unroll_loads` (several iterations' loads in flight per wait in a counted loop) and `coarsen`
+(one launched workgroup runs `factor` consecutive workgroups of the original: the kernel body
+becomes a loop over virtual workgroup ids that starts every iteration from the entry state, the
+launch shrinks to `ceil(grid_x / factor)`, and one appended argument carries the original
+`grid_x`). A transformation that changes the launch records the new launch (grid, block,
+appended arguments) with the state; the runtime launches the state that way.
+
 **Checks** before any GPU job: verifier, hazard checker, waitcnt checker, and
 `llvm-mc` encode plus `llvm-objdump` round-trip to the same instruction stream.
 
@@ -122,19 +148,57 @@ thread trace give per-instruction stall evidence.
 
 ## 5. The agent interface
 
-A `Session` exposes the same operations through Python, MCP and the CLI.
+A `Session` exposes the same operations through Python, MCP and the CLI. It is the
+interface the agent optimizes one kernel through: inspect the state, try a
+transformation specific to this kernel, get it checked and measured, keep or discard
+it. The harness never trusts the agent: whatever the agent produces passes the same
+static checks, battery and paired timing as a built-in pass.
 
 | Group | Operations |
 |---|---|
 | Inspect | `state`, `actions`, `features`, `analyze`, `diff`, `asm_diff`, `trace` |
-| Transform | `apply` (any pass by name), `import_asm`, `generate` (template from `tair`), `edit_ir` (free-form `mir` text) |
-| Validate and measure | `static_check` (verifier + hazards + waitcnt + encode), `check` (battery), `bench` (paired timing), `profile` |
+| Transform | `source` (a rewritten HIP source, compiled and imported), `generate` (template from `tair`), `apply` (any pass by name), `edit` / `edit_ir` (free-form `mir` text), `relaunch` (grid, block, appended arguments) |
+| Validate and measure | `static_check` (verifier + hazards + waitcnt + encode), `check` (battery), `bench` (paired timing, memory traffic and headroom), `compare` (two states against each other) |
 | Organize | `branch`, `tag`, `notes`, `search_memory` |
+
+The actions range from general to fully custom, and a session mixes them freely:
+
+| Level | Action | What is specialized |
+|---|---|---|
+| Automated | `optimize` (the default policy) | Nothing: tries the built-in candidates and keeps the best verified one |
+| Parameterized | `apply(pass, params)`, `generate(template, params)` | Factors, tiles, elements per lane, which loop, launch geometry |
+| Custom | `edit` / `edit_ir` on `mir` text | Anything expressible in CDNA4 assembly for this kernel and these shapes |
+| Restructuring | `source(text, launch)` | The algorithm's split over threads and workgroups, elements per thread, block size, reductions: a rewritten HIP source that amdclang lowers, then refined at the `mir` level |
 
 Transformations create immutable, content-addressed states; verification and
 measurement attach to the exact state. Free-form edits start unverified and must pass
 the static checks before any GPU job. Rejections are JSON objects with a `kind`, the
 offending location and values, and a suggestion.
+
+### The per-kernel harness (`agc.agent`)
+
+`agc agent MANIFEST` runs one optimization session on one kernel:
+
+1. The default policy runs first; its results stay in the session's store.
+2. A headless agent (Claude Code) gets the agc MCP tools as its only way to change anything,
+   read access to the repository, the `agc` and `agc-notes` skills, a budget and a target
+   (1.5x, or the memory floor when the kernel is bound by memory). It works across the levels:
+   restructure at the source level, generate from a tensor program, apply passes, edit `mir`.
+3. The agent ends with `report(best, summary, tried, friction, lessons)`. Nothing in it is
+   trusted. The harness reruns the static check and the full battery on the named state and
+   times it with 240 pairs until two timings are valid (a timing whose 95 % CI is wider than
+   4 % was disturbed and is discarded, whatever its direction). The state is a win only when
+   both are wins; the lower one is recorded.
+4. A verified win becomes a recipe (`bench/llm/sessions/<kernel>/`: module text, launch, the
+   rewritten source if any, the verified numbers). `agc replay` rebuilds and re-measures every
+   recipe without the agent. A later session replaces a recipe only by beating it.
+5. `friction` (what the tools, transforms or IR lacked) becomes compiler work; `lessons`
+   (measured facts) go into the `agc-notes` skill, which the next session reads.
+
+`bench` reports a kernel's memory traffic against a copy model measured on the device
+(`time = 20 us + bytes / 5.95 TB/s`). Its ratio to the kernel's time, the headroom, says
+whether a speedup target is reachable: a kernel at headroom 1.0 moves bytes as fast as a copy
+does, and only moving fewer bytes can help.
 
 ### Verification layers
 
@@ -143,7 +207,7 @@ offending location and values, and a suggestion.
 | 1 Legality | `mir` verifier, hazard checker, waitcnt checker, encode round-trip |
 | 2 Interpreter (stretch, see roadmap) | A wave64 `mir` interpreter on reduced shapes; built only if a class of bug reaches the GPU that layers 1 and 3 miss |
 | 3 Battery | Several input distributions, hidden seeds, shape variants, output poisoning, error-model tolerances, the reference computed independently (NumPy or torch) |
-| 4 Timing (`agc-timing-amd-1`) | `hipEvent`s around repeated launches, L2 + MALL flush by a buffer larger than both, CI-converged medians, the amdclang reference timed the same way and interleaved (paired); clock state recorded (SR-IOV VFs cannot lock clocks) |
+| 4 Timing (`agc-timing-amd-2`) | `hipEvent`s around a single prepared launch, L2 + MALL flush by a buffer larger than both, CI-converged medians, the amdclang reference timed the same way and interleaved (paired); clock state recorded (SR-IOV VFs cannot lock clocks) |
 
 ## 6. Self-improvement
 
@@ -172,6 +236,7 @@ banks). Fields are tagged by source; `measured` fields are regenerated by
 | `agc/tair` | Specifications and their interpreter |
 | `agc/gen` | Template generators from `tair` to virtual `mir` |
 | `agc/store`, `agc/session`, `agc/mcp`, `agc/cli.py` | States, actions, the agent interface |
+| `agc/agent` | The per-kernel harness: session prompt, agent runner, independent verification, recipes, replay |
 | `agc/memory` | Traces, retrieval, notes, recipe promotion |
 
 ## 9. Implementation plan

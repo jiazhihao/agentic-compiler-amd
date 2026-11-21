@@ -1,0 +1,3 @@
+tair cast_bf16(x: f32[N]) -> (y: bf16[N]) {
+  y = cast_bf16(x)
+}

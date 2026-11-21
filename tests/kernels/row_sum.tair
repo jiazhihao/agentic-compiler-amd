@@ -1,0 +1,3 @@
+tair row_sum(x: f32[R, C]) -> (out: f32[R]) {
+  out = reduce sum(x)
+}

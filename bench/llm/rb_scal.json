@@ -1,0 +1,61 @@
+{
+ "name": "rb_scal",
+ "source": "rb_scal.hip",
+ "entry": "rb_scal",
+ "shapes": {
+  "N": 10001
+ },
+ "bench_shapes": {
+  "N": 67108864
+ },
+ "dynamic": [
+  "N"
+ ],
+ "params": [
+  {
+   "name": "n",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "N"
+  },
+  {
+   "name": "alpha",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 0.7
+  },
+  {
+   "name": "x",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "inout"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "cdiv(N, 512)"
+  ],
+  "block": [
+   256
+  ]
+ },
+ "tolerance": {
+  "x": {
+   "rtol": 1e-06,
+   "atol": 0.0
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "rb_scal"
+ },
+ "tags": [
+  "llm",
+  "rocblas",
+  "elementwise"
+ ]
+}

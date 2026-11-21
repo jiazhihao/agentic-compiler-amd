@@ -91,5 +91,8 @@
  },
  "tags": [
   "rowwise"
- ]
+ ],
+ "program": {
+  "file": "layernorm.tair"
+ }
 }

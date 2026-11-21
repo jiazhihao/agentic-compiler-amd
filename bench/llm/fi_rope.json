@@ -1,0 +1,203 @@
+{
+ "name": "fi_rope",
+ "source": "fi_rope.hip",
+ "entry": "fi_rope",
+ "shapes": {
+  "N": 37,
+  "Hq": 5,
+  "Hk": 2
+ },
+ "bench_shapes": {
+  "N": 4096,
+  "Hq": 32,
+  "Hk": 8
+ },
+ "dynamic": [
+  "N",
+  "Hq",
+  "Hk"
+ ],
+ "params": [
+  {
+   "name": "q",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N",
+    "Hq",
+    128
+   ],
+   "role": "in"
+  },
+  {
+   "name": "k",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N",
+    "Hk",
+    128
+   ],
+   "role": "in"
+  },
+  {
+   "name": "q_rope",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N",
+    "Hq",
+    128
+   ],
+   "role": "out"
+  },
+  {
+   "name": "k_rope",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N",
+    "Hk",
+    128
+   ],
+   "role": "out"
+  },
+  {
+   "name": "pos_ids",
+   "kind": "tensor",
+   "dtype": "i32",
+   "shape": [
+    "N"
+   ],
+   "role": "in",
+   "init": {
+    "kind": "int_range",
+    "lo": 0,
+    "hi": 256
+   }
+  },
+  {
+   "name": "nnz",
+   "kind": "scalar",
+   "dtype": "u32",
+   "value": "N"
+  },
+  {
+   "name": "num_qo_heads",
+   "kind": "scalar",
+   "dtype": "u32",
+   "value": "Hq"
+  },
+  {
+   "name": "num_kv_heads",
+   "kind": "scalar",
+   "dtype": "u32",
+   "value": "Hk"
+  },
+  {
+   "name": "rotary_dim",
+   "kind": "scalar",
+   "dtype": "u32",
+   "value": 128
+  },
+  {
+   "name": "q_stride_n",
+   "kind": "scalar",
+   "dtype": "u64",
+   "value": "Hq * 128"
+  },
+  {
+   "name": "q_stride_h",
+   "kind": "scalar",
+   "dtype": "u64",
+   "value": 128
+  },
+  {
+   "name": "k_stride_n",
+   "kind": "scalar",
+   "dtype": "u64",
+   "value": "Hk * 128"
+  },
+  {
+   "name": "k_stride_h",
+   "kind": "scalar",
+   "dtype": "u64",
+   "value": 128
+  },
+  {
+   "name": "q_rope_stride_n",
+   "kind": "scalar",
+   "dtype": "u64",
+   "value": "Hq * 128"
+  },
+  {
+   "name": "q_rope_stride_h",
+   "kind": "scalar",
+   "dtype": "u64",
+   "value": 128
+  },
+  {
+   "name": "k_rope_stride_n",
+   "kind": "scalar",
+   "dtype": "u64",
+   "value": "Hk * 128"
+  },
+  {
+   "name": "k_rope_stride_h",
+   "kind": "scalar",
+   "dtype": "u64",
+   "value": 128
+  },
+  {
+   "name": "smooth_a",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 0.0
+  },
+  {
+   "name": "smooth_b",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 0.0
+  },
+  {
+   "name": "rope_rcp_scale",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 1.0
+  },
+  {
+   "name": "rope_rcp_theta",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 0.0001
+  }
+ ],
+ "launch": {
+  "grid": [
+   "cdiv(N, 4)",
+   "Hq + Hk"
+  ],
+  "block": [
+   32,
+   4
+  ]
+ },
+ "tolerance": {
+  "*": {
+   "rtol": 0.0001,
+   "atol": 1e-05,
+   "cond": 4e-05
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "fi_rope"
+ },
+ "tags": [
+  "llm",
+  "flashinfer",
+  "elementwise"
+ ]
+}

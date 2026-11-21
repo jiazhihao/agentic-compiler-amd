@@ -1,0 +1,104 @@
+{
+ "name": "fi_rmsnorm",
+ "source": "fi_rmsnorm.hip",
+ "entry": "fi_rmsnorm",
+ "shapes": {
+  "B": 37,
+  "D4": 250
+ },
+ "bench_shapes": {
+  "B": 16384,
+  "D4": 1024
+ },
+ "dynamic": [
+  "B",
+  "D4"
+ ],
+ "params": [
+  {
+   "name": "input",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "B",
+    "4 * D4"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "weight",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "4 * D4"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "output",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "B",
+    "4 * D4"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "d",
+   "kind": "scalar",
+   "dtype": "u32",
+   "value": "4 * D4"
+  },
+  {
+   "name": "stride_input",
+   "kind": "scalar",
+   "dtype": "u32",
+   "value": "4 * D4"
+  },
+  {
+   "name": "stride_output",
+   "kind": "scalar",
+   "dtype": "u32",
+   "value": "4 * D4"
+  },
+  {
+   "name": "weight_bias",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 0.0
+  },
+  {
+   "name": "eps",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 1e-05
+  }
+ ],
+ "launch": {
+  "grid": [
+   "B"
+  ],
+  "block": [
+   32,
+   "cdiv(min(1024, D4), 32)"
+  ],
+  "lds": "4 * cdiv(min(1024, D4), 32)"
+ },
+ "tolerance": {
+  "output": {
+   "rtol": 0.0001,
+   "atol": 1e-05
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "fi_rmsnorm"
+ },
+ "tags": [
+  "llm",
+  "flashinfer",
+  "rowwise"
+ ]
+}

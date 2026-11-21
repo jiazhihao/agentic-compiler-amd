@@ -1,0 +1,120 @@
+{
+ "name": "fa_attention_causal",
+ "source": "fa_attention.hip",
+ "entry": "fa_attention",
+ "shapes": {
+  "N": 150
+ },
+ "bench_shapes": {
+  "N": 2048
+ },
+ "dynamic": [
+  "N"
+ ],
+ "params": [
+  {
+   "name": "Q",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N",
+    64
+   ],
+   "role": "in",
+   "init": "normal"
+  },
+  {
+   "name": "K",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N",
+    64
+   ],
+   "role": "in",
+   "init": "normal"
+  },
+  {
+   "name": "V",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N",
+    64
+   ],
+   "role": "in"
+  },
+  {
+   "name": "out",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N",
+    64
+   ],
+   "role": "out"
+  },
+  {
+   "name": "lse",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "n_q",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "N"
+  },
+  {
+   "name": "n_k",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "N"
+  },
+  {
+   "name": "scale",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 0.125
+  },
+  {
+   "name": "causal",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": 1
+  }
+ ],
+ "launch": {
+  "grid": [
+   "N"
+  ],
+  "block": [
+   64
+  ]
+ },
+ "tolerance": {
+  "out": {
+   "rtol": 0.0001,
+   "atol": 1e-05,
+   "cond": 0.0001
+  },
+  "lse": {
+   "rtol": 0.0001,
+   "atol": 0.0001
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "fa_attention"
+ },
+ "tags": [
+  "llm",
+  "port",
+  "attention"
+ ]
+}

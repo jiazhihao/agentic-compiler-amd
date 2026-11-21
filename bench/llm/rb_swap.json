@@ -1,0 +1,64 @@
+{
+ "name": "rb_swap",
+ "source": "rb_swap.hip",
+ "entry": "rb_swap",
+ "shapes": {
+  "N": 10001
+ },
+ "bench_shapes": {
+  "N": 67108864
+ },
+ "dynamic": [
+  "N"
+ ],
+ "params": [
+  {
+   "name": "n",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "N"
+  },
+  {
+   "name": "x",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "inout"
+  },
+  {
+   "name": "y",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "inout"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "cdiv(N, 512)"
+  ],
+  "block": [
+   256
+  ]
+ },
+ "tolerance": {
+  "*": {
+   "rtol": 0.0,
+   "atol": 0.0
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "rb_swap"
+ },
+ "tags": [
+  "llm",
+  "rocblas",
+  "elementwise"
+ ]
+}

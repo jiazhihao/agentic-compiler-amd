@@ -146,6 +146,7 @@ class Manifest:
     hip_flags: list[str] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
     bench_shapes: dict[str, int] = field(default_factory=dict)   # symbols overridden for timing (larger than the battery's)
+    program: Reference | None = None   # the high-level input: a tair program (`{"file" | "text"}`) a generator compiles
 
     def timing_symbols(self) -> dict[str, int]:
         return {**self.shapes, **self.bench_shapes}
@@ -162,7 +163,7 @@ class Manifest:
     @classmethod
     def from_dict(cls, d: dict, path: str | Path) -> "Manifest":
         path = Path(path)
-        for key in ("name", "entry", "params", "launch"):
+        for key in ("name", "entry", "params") + (("launch",) if d.get("source") else ()):
             if key not in d:
                 raise ManifestError(f"manifest missing required field {key!r}")
         params = []
@@ -181,7 +182,7 @@ class Manifest:
         names = [p.name for p in params]
         if len(set(names)) != len(names):
             raise ManifestError("duplicate parameter names")
-        launch = d["launch"]
+        launch = d.get("launch") or {}
 
         def dims(key):
             v = list(launch.get(key, [1]))
@@ -211,11 +212,19 @@ class Manifest:
             raise ManifestError(f"source file not found: {source}")
         if source is None and reference.kind == "none":
             raise ManifestError("a manifest without a source needs a reference program")
+        program = None
+        if d.get("program"):
+            pr = d["program"]
+            if set(pr) - {"file", "text"} or not (pr.get("file") or pr.get("text")):
+                raise ManifestError("program needs `file` or `text` (a tair program)")
+            program = Reference("tair", file=pr.get("file"), text=pr.get("text"))
+        if source is None and program is None:
+            raise ManifestError("a manifest needs a HIP `source`, a tair `program`, or both")
         m = cls(name=d["name"], entry=d["entry"], params=params, grid=dims("grid"), block=dims("block"),
                 lds=launch.get("lds", 0), shapes=shapes, dynamic=dynamic, path=path, source=source,
                 arch=d.get("arch", "gfx950"), tolerance=d.get("tolerance", {}), reference=reference,
                 hip_flags=list(d.get("hip_flags", [])), tags=list(d.get("tags", [])),
-                bench_shapes={k: int(v) for k, v in d.get("bench_shapes", {}).items()})
+                bench_shapes={k: int(v) for k, v in d.get("bench_shapes", {}).items()}, program=program)
         for s in m.bench_shapes:
             if s not in shapes:
                 raise ManifestError(f"bench_shapes names an unknown symbol {s!r}")
@@ -289,7 +298,8 @@ class Manifest:
                 "launch": {"grid": self.grid, "block": self.block, "lds": self.lds},
                 "shapes": self.shapes, "dynamic": self.dynamic, "tolerance": self.tolerance,
                 "reference": self.reference.to_dict(), "hip_flags": self.hip_flags, "tags": self.tags,
-                **({"bench_shapes": self.bench_shapes} if self.bench_shapes else {})}
+                **({"bench_shapes": self.bench_shapes} if self.bench_shapes else {}),
+                **({"program": {k: v for k, v in self.program.to_dict().items() if k != "kind"}} if self.program else {})}
 
 
 @dataclass

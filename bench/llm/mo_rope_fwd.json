@@ -1,0 +1,92 @@
+{
+ "name": "mo_rope_fwd",
+ "source": "mo_rope_fwd.hip",
+ "entry": "mo_rope_fwd",
+ "shapes": {
+  "B": 7,
+  "K": 75
+ },
+ "bench_shapes": {
+  "B": 2048,
+  "K": 16384
+ },
+ "dynamic": [
+  "B",
+  "K"
+ ],
+ "params": [
+  {
+   "name": "x",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "B",
+    "2 * K"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "cos",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "2 * K"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "sin",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "2 * K"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "y",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "B",
+    "2 * K"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "output_numel",
+   "kind": "scalar",
+   "dtype": "u64",
+   "value": "B * 2 * K"
+  },
+  {
+   "name": "rotary_numel",
+   "kind": "scalar",
+   "dtype": "u64",
+   "value": "2 * K"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "cdiv(B * 2 * K, 256)"
+  ],
+  "block": [
+   256
+  ]
+ },
+ "tolerance": {
+  "y": {
+   "cond": 4e-07
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "mo_rope_fwd"
+ },
+ "tags": [
+  "llm",
+  "miopen",
+  "elementwise"
+ ]
+}

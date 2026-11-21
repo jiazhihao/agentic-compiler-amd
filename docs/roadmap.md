@@ -3,6 +3,17 @@
 Tracked in GitHub issue #1, one sub-issue per milestone. Revised 2026-11-19 (see
 "What changed" at the end). Measured results go to [progress](progress.md).
 
+## What agc is
+
+agc is a harness through which an agent optimizes individual kernels, not a general
+compiler meant to beat `amdclang` on its own. For each benchmark kernel an agent session
+specializes and customizes the optimization: it picks and parameterizes passes,
+generates the kernel from its tensor program with a schedule fitted to its shapes,
+changes the launch, or edits the assembly directly, and agc checks and measures every
+step. The deliverable per kernel is a verified binary with its replayable trace. The
+default policy (`agc optimize`) is the unattended floor and the regression baseline; it
+automates what sessions have shown to pay repeatedly.
+
 ## Principles
 
 1. **Vertical slices.** Every milestone ends with something that runs on the GPU and a
@@ -20,6 +31,11 @@ Tracked in GitHub issue #1, one sub-issue per milestone. Revised 2026-11-19 (see
    recipe promotion and the profiler are stretch items, each with a stated trigger.
 5. **Honest numbers.** A speedup needs a passing battery and a paired timing whose
    confidence interval excludes 1.0. Every bench run includes an A/A control.
+6. **Per-kernel sessions are the unit of work.** A benchmark is worked kernel by kernel
+   in agent sessions; a transformation does not have to be general to be used, only
+   verified. What recurs across sessions is promoted to a pass, a template or a note,
+   and the report states for every kernel whether the result came from the policy or
+   from a session.
 
 ## Development host (observed 2026-11-19)
 
@@ -94,24 +110,24 @@ with the misses listed. (A clobbered live register is a semantic change, not a s
 property: it is the battery's job and was removed from this list.)
 
 ### M5 — The agent loop on assembly (#9)
-- [ ] Content-addressed store of immutable states; trace of actions.
-- [ ] Session actions: `import`, `edit_ir`, `static_check`, `check`, `bench` (paired
+- [x] Content-addressed store of immutable states; trace of actions.
+- [x] Session actions: `import`, `edit_ir`, `static_check`, `check`, `bench` (paired
       against the amdclang build), `asm_diff`, `state`, `branch`; rejections as JSON.
-- [ ] MCP server and the `agc` skill; CLI `agc run`.
-- [ ] A GPU job is refused for a state that has not passed `static_check`.
+- [x] MCP server and the `agc` skill; CLI `agc run`.
+- [x] A GPU job is refused for a state that has not passed `static_check`.
 
 Exit: an agent session through MCP takes three corpus kernels from import to a paired
 result. The outcome (win, parity or loss, with the edit that caused it) is recorded
 for each; these observations decide the pass list of M8.
 
 ### M6 — Tensor programs in, binaries out (#10)
-- [ ] `tair`: a small specification (maps, rowwise reductions, einsum contractions),
+- [x] `tair`: a small specification (maps, rowwise reductions, einsum contractions),
       text format, NumPy interpreter; manifests whose reference is the program.
-- [ ] `mir` builder with virtual registers; for generated code: linear-scan register
+- [x] `mir` builder with virtual registers; for generated code: linear-scan register
       allocation, waitcnt insertion, hazard insertion (each checked by M4's checkers).
-- [ ] Generators: elementwise (several elements per lane, wide loads), rowwise
+- [x] Generators: elementwise (several elements per lane, wide loads), rowwise
       reduction, softmax, rmsnorm/layernorm.
-- [ ] Session action `generate`; generator parameters are agent-visible knobs.
+- [x] Session action `generate`; generator parameters are agent-visible knobs.
 
 Exit: the tensor-program versions of the corpus kernels compile with no kernel
 source, pass the battery, and are paired against the amdclang build of the HIP
@@ -119,33 +135,56 @@ version. Expectation: about parity on memory-bound elementwise kernels, wins on 
 reductions and normalizations; the measured geomean is reported either way.
 
 ### M7 — GEMM on MFMA (#11)
-- [ ] MFMA operand and accumulator layouts in arch data; the microbenchmarks this
+- [x] MFMA operand and accumulator layouts in arch data; the microbenchmarks this
       needs (MFMA issue rate, LDS read bandwidth, global load latency), written in `mir`.
-- [ ] bf16 / f16 GEMM generator: LDS tiles, MFMA inner loop, AGPR accumulators.
-- [ ] Tuning knobs as agent actions: tile sizes, unroll, load/MFMA interleave,
+- [x] bf16 / f16 GEMM generator: LDS tiles, MFMA inner loop, AGPR accumulators.
+- [x] Tuning knobs as agent actions: tile sizes, unroll, load/MFMA interleave,
       direct-to-LDS loads, workgroup shape.
-- [ ] Baselines: amdclang naive and tiled HIP GEMM; hipBLASLt.
+- [x] Baselines: amdclang's build of the HIP bf16 GEMM; hipBLASLt.
+
+Not done here: direct-to-LDS loads and LDS-shared operands (follow-up #23); f16.
 
 Exit: verified bf16 GEMM at three shapes (square 4096, wide, tall), faster than the
 amdclang tiled HIP build by a CI-separated margin; time relative to hipBLASLt reported
 with an analysis of the gap. Target: within 1.5× of hipBLASLt on at least one shape.
 
 ### M8 — Backend passes for imported code (#8)
-The pass list is fixed by the M5 observations; candidates:
-- [ ] Waitcnt minimization (re-derive waits; relax to the first real use).
-- [ ] Peepholes; kernarg preload.
-- [ ] Block-local scheduling (hoist loads, interleave independent chains).
-- [ ] Default policy: import → pass pipelines → static check → battery → paired bench →
+The pass list comes from the M5 sessions (see progress): amdclang waits for every load in a
+loop, so the measured wins were all "more loads in flight per wait".
+- [x] Loop analysis: single-block counted loops, induction registers, contiguous and strided
+      load streams.
+- [x] `unroll_loads`: unroll such a loop by N with wide (`dwordx4`) or offset loads issued
+      before one wait, the arithmetic kept in the original order (bit-identical); remainder
+      loop kept. Parameters: factor, wide loads on/off.
+- [ ] `bulk_unmasked`: for a masked per-lane loop, a prefix loop for the iterations in which
+      every lane is active. (Not built: the rowwise generator already beats amdclang on every
+      kernel with such a loop; the hand edit is kept as `tests/mir/wins/row_sum_bulk4.s`.)
+- [x] Waitcnt re-derivation (`fix_waits`: waits at the first real use, as weak as legal).
+      Merging argument loads at entry was measured as parity on AXPY and not built.
+- [x] Default policy: import → pass pipelines → static check → battery → paired bench →
       keep the fastest verified state, else the amdclang build (reported as a fallback).
 
 Exit: the default policy is never slower than amdclang on the corpus (CI), and every
 win is reported with its pass.
 
 ### M9 — Campaigns and report (#13)
-- [ ] Agent sessions on the corpus and GEMM, with traces kept.
-- [ ] Knowledge notes from the sessions rendered into the `agc-notes` skill.
-- [ ] Final report: per-kernel paired speedup against amdclang and, for GEMM, hipBLASLt;
+- [x] Agent sessions on the corpus with traces kept (`tests/mir/wins/`); GEMM is covered by the
+      generator's parameter sweep.
+- [x] Knowledge notes from the sessions, as the `agc-notes` skill.
+- [x] Final report: per-kernel paired speedup against amdclang and, for GEMM, hipBLASLt;
       A/A controls; what did not work.
+
+### M10 — Per-kernel agent sessions on the LLM-kernel benchmark (#29)
+- [x] Benchmark of LLM kernels (FlashInfer, vLLM, attention, MLA, KDA, MoE, rocBLAS, MIOpen)
+      with amdclang baselines: `bench/llm`, 36 kernels.
+- [x] The default policy on every kernel (the floor): 10 wins, 26 fallbacks.
+- [x] The harness (`agc.agent`, #34): headless agent session per kernel, independent
+      verification, recipes, replay; source level, launch changes, traffic and headroom.
+- [ ] An agent session per fallback kernel (#35 to #60) until it is 1.5x faster than amdclang
+      or at its memory floor.
+- [x] First customization promoted to a pass: `coarsen` (#30). Further ones as sessions find them.
+- **Exit:** per-kernel table (policy and session results against amdclang, fallbacks
+  reported as fallbacks) in the report and on #29.
 
 ## Stretch (not scheduled; opened as an issue when the trigger occurs)
 
@@ -153,6 +192,7 @@ win is reported with its pass.
 |---|---|
 | Machine-model calibration beyond M7's microbenchmarks (#7) | A scheduler decision needs a latency that is not measured |
 | Attention, prefill and decode (#12) | M7's exit is met |
+| GEMM with LDS-shared macro-tiles (#23) | M7 measured a 2.8x gap to hipBLASLt, bound by operand loads |
 | FP8 GEMM | M7's exit is met |
 | Re-allocation of imported code (physical → virtual → physical) | An imported kernel is measured to be occupancy-limited |
 | Wave64 `mir` interpreter | A class of bug reaches the GPU that the static checkers and the battery miss |
@@ -168,9 +208,13 @@ win is reported with its pass.
 | A missing wait or `s_nop` gives silent wrong results | M4 before any edited code runs; mutation suite; battery with poisoning and hidden seeds |
 | The hazard list for gfx950 is incomplete in public documents | Derived from the ISA document and LLVM's `GCNHazardRecognizer`, validated by zero violations on amdclang output |
 | Import path yields no wins over amdclang | Expected for some kernels and reported as such; the generator path (M6, M7) carries the headline |
+| No general pass wins on a kernel | Not required: an agent session customizes that kernel (M10); the result is reported as a session result with its trace |
 | MFMA GEMM does not reach hipBLASLt | The exit is relative to amdclang; the hipBLASLt gap is reported and analysed, not hidden |
 
 ## What changed in this revision
+
+- (2026-11-20) Positioning made explicit: agc is a harness for per-kernel agent
+  optimization, not a general compiler; principle 6 and M10 added.
 
 - The agent interface moved from tenth to sixth place (M5), before any automatic pass.
 - Backend passes moved after the generators and are scoped by what M5 measures; full

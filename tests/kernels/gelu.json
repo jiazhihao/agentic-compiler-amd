@@ -57,5 +57,8 @@
  },
  "tags": [
   "elementwise"
- ]
+ ],
+ "program": {
+  "file": "gelu.tair"
+ }
 }

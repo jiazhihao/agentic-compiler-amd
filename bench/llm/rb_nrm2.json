@@ -1,0 +1,69 @@
+{
+ "name": "rb_nrm2",
+ "source": "rb_nrm2.hip",
+ "entry": "rb_nrm2",
+ "shapes": {
+  "N": 40001
+ },
+ "bench_shapes": {
+  "N": 67108864
+ },
+ "dynamic": [
+  "N"
+ ],
+ "params": [
+  {
+   "name": "n",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "N"
+  },
+  {
+   "name": "nblocks",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "cdiv(N, 2048)"
+  },
+  {
+   "name": "x",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "workspace",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "cdiv(N, 2048)"
+   ],
+   "role": "out"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "cdiv(N, 2048)"
+  ],
+  "block": [
+   512
+  ]
+ },
+ "tolerance": {
+  "workspace": {
+   "cond": 2e-05
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "rb_nrm2"
+ },
+ "tags": [
+  "llm",
+  "rocblas",
+  "reduction"
+ ]
+}

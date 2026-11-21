@@ -1,0 +1,101 @@
+{
+ "name": "rb_gemvn",
+ "source": "rb_gemvn.hip",
+ "entry": "rb_gemvn",
+ "shapes": {
+  "M": 300,
+  "N": 200
+ },
+ "bench_shapes": {
+  "M": 8192,
+  "N": 8192
+ },
+ "dynamic": [
+  "M",
+  "N"
+ ],
+ "params": [
+  {
+   "name": "m",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "M"
+  },
+  {
+   "name": "n",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "N"
+  },
+  {
+   "name": "alpha",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 1.5
+  },
+  {
+   "name": "A",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N",
+    "M"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "lda",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "M"
+  },
+  {
+   "name": "x",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "beta",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 0.5
+  },
+  {
+   "name": "y",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "M"
+   ],
+   "role": "inout"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "cdiv(M, 256)"
+  ],
+  "block": [
+   64,
+   16
+  ]
+ },
+ "tolerance": {
+  "y": {
+   "cond": 2e-05
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "rb_gemvn"
+ },
+ "tags": [
+  "llm",
+  "rocblas",
+  "contraction"
+ ]
+}

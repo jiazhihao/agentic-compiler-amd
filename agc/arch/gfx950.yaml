@@ -22,6 +22,10 @@ resources:
   max_agprs:            {value: 256, source: isa-doc}
   vgpr_granule:         {value: 8, source: llvm}
   accum_offset_granule: {value: 4, source: isa-doc}
+  # register tuples: v[n:m] and a[n:m] start at an even register; s[n:m] at a multiple of its
+  # size, up to 4 (pairs even, x4 / x8 / x16 at a multiple of 4)
+  vgpr_tuple_align:     {value: 2, source: llvm}
+  sgpr_tuple_align_max: {value: 4, source: llvm}
   sgprs_per_simd:       {value: 800, source: llvm}
   max_sgprs:            {value: 102, source: llvm}     # addressable SGPRs per wave (excluding vcc etc.)
   sgpr_granule:         {value: 8, source: llvm}
@@ -46,6 +50,17 @@ peaks:
   fp16_tflops:          {value: 2500, source: isa-doc}
   fp8_tflops:           {value: 5000, source: isa-doc}
   fp32_vector_tflops:   {value: 157.3, source: isa-doc}
+memory:
+  # TB/s reached by kernels on this device (measured here; not a datasheet limit)
+  cached_read_tb_per_s: {value: 7.5, source: measured}   # operand loads of the MFMA GEMM, which re-reads cached operands
+  # one cold pass: fitted over the benchmark's streaming kernels (dot, nrm2, reduce_sum, copy, scal, rot,
+  # axpy, layernorm), each within about 10 %: time = launch_fixed + read / cold_read + written / write
+  cold_read_tb_per_s:   {value: 4.5, source: measured}
+  write_tb_per_s:       {value: 10.7, source: measured}
+  # amdclang's copy kernel (rb_copy, 8 bytes per lane) from 2^24 to 2^28 floats: time = fixed + bytes / rate.
+  # No restructuring of the copy (wider per-lane accesses, several chunks per wave, other blocks) beat it.
+  copy_tb_per_s:        {value: 5.95, source: measured}
+  launch_fixed_us:      {value: 20, source: measured}
 waitcnt:
   # counter widths (max encodable outstanding count) for s_waitcnt on gfx9.4/9.5
   vmcnt:   {value: 63, source: isa-doc}
@@ -111,3 +126,16 @@ mfma:
     result_read_by_valu:      {value: {4: 6, 16: 19}, source: llvm}
     result_read_by_mem:       {value: {4: 9, 16: 18}, source: llvm}
     result_overwritten:       {value: {4: 6, 16: 11}, source: llvm}
+  # Operand and result layouts, measured on the device (tests/probes/mfma_layout.json): lane l
+  # (0..63), element e of a source (8 per lane), register r of the result.
+  layouts:
+    v_mfma_f32_32x32x16_bf16:
+      value: {tile: 32, k: 16, src_elements: 8, src_regs: 4, dst_regs: 16,
+              a: "i = l % 32; k = 8 * (l // 32) + e", b: "j = l % 32; k = 8 * (l // 32) + e",
+              d: "j = l % 32; i = 8 * (r // 4) + 4 * (l // 32) + r % 4"}
+      source: measured
+    v_mfma_f32_16x16x32_bf16:
+      value: {tile: 16, k: 32, src_elements: 8, src_regs: 4, dst_regs: 4,
+              a: "i = l % 16; k = 8 * (l // 16) + e", b: "j = l % 16; k = 8 * (l // 16) + e",
+              d: "j = l % 16; i = 4 * (l // 16) + r"}
+      source: measured

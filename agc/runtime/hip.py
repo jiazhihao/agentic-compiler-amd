@@ -129,6 +129,27 @@ class Kernel:
     def attributes(self) -> dict[str, int]:
         return {k: self.attribute(k) for k in FUNC_ATTRS}
 
+    def prepare(self, grid, block, args: bytes, stream=None, lds_bytes: int = 0):
+        """A zero-argument callable that submits this launch. All host-side work (argument buffer,
+        ctypes conversion) is done here, so that a timed interval contains only the submission call."""
+        buf = C.create_string_buffer(args, max(len(args), 1))
+        size = C.c_size_t(len(args))
+        extra = (C.c_void_p * 5)(C.c_void_p(_LAUNCH_BUFFER_POINTER), C.cast(buf, C.c_void_p),
+                                 C.c_void_p(_LAUNCH_BUFFER_SIZE), C.cast(C.byref(size), C.c_void_p),
+                                 C.c_void_p(_LAUNCH_END))
+        g = [C.c_uint(int(x)) for x in list(grid) + [1] * (3 - len(grid))]
+        b = [C.c_uint(int(x)) for x in list(block) + [1] * (3 - len(block))]
+        fn, handle, lds = lib().lib.hipModuleLaunchKernel, self.handle, C.c_uint(lds_bytes)
+        err = lib().lib.hipGetErrorString
+        keep = (buf, size, extra)                       # referenced by the closure: alive as long as it is
+
+        def submit():
+            code = fn(handle, g[0], g[1], g[2], b[0], b[1], b[2], lds, stream, None, extra)
+            if code != 0:
+                raise HipError("hipModuleLaunchKernel", code, err(code).decode())
+        submit.keep = keep
+        return submit
+
     def launch(self, grid, block, args: bytes, stream=None, lds_bytes: int = 0):
         buf = C.create_string_buffer(args, max(len(args), 1))
         size = C.c_size_t(len(args))

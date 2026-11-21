@@ -1,0 +1,63 @@
+{
+ "name": "mo_reduce_sum",
+ "source": "mo_reduce_sum.hip",
+ "entry": "mo_reduce_sum",
+ "shapes": {
+  "N": 10001
+ },
+ "bench_shapes": {
+  "N": 67108864
+ },
+ "dynamic": [
+  "N"
+ ],
+ "params": [
+  {
+   "name": "input",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "output",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "cdiv(N, 256)"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "N",
+   "kind": "scalar",
+   "dtype": "u64",
+   "value": "N"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "cdiv(N, 256)"
+  ],
+  "block": [
+   256
+  ]
+ },
+ "tolerance": {
+  "output": {
+   "cond": 2e-05
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "mo_reduce_sum"
+ },
+ "tags": [
+  "llm",
+  "miopen",
+  "reduction"
+ ]
+}

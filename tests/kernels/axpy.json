@@ -2,17 +2,68 @@
  "name": "axpy",
  "source": "axpy.hip",
  "entry": "axpy",
- "shapes": {"N": 4194304},
- "bench_shapes": {"N": 67108864},
- "dynamic": ["N"],
- "params": [
-  {"name": "x", "kind": "tensor", "dtype": "f32", "shape": ["N"]},
-  {"name": "y", "kind": "tensor", "dtype": "f32", "shape": ["N"], "role": "inout"},
-  {"name": "a", "kind": "scalar", "dtype": "f32", "value": 1.5},
-  {"name": "n", "kind": "scalar", "dtype": "i32", "value": "N"}
+ "shapes": {
+  "N": 4194304
+ },
+ "bench_shapes": {
+  "N": 67108864
+ },
+ "dynamic": [
+  "N"
  ],
- "launch": {"grid": ["cdiv(N, 256)"], "block": [256]},
- "tolerance": {"y": {"cond": 4e-7}},
- "reference": {"kind": "python", "file": "refs.py", "function": "axpy"},
- "tags": ["elementwise"]
+ "params": [
+  {
+   "name": "x",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ]
+  },
+  {
+   "name": "y",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "inout"
+  },
+  {
+   "name": "a",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": 1.5
+  },
+  {
+   "name": "n",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "N"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "cdiv(N, 256)"
+  ],
+  "block": [
+   256
+  ]
+ },
+ "tolerance": {
+  "y": {
+   "cond": 4e-07
+  }
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "axpy"
+ },
+ "tags": [
+  "elementwise"
+ ],
+ "program": {
+  "file": "axpy.tair"
+ }
 }
