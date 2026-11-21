@@ -77,13 +77,25 @@ def info() -> dict:
     return _s().info()
 
 
+def _short(st: dict) -> dict:
+    """A state as returned to the agent after an edit: long texts it just sent are not echoed back."""
+    a = st.get("action")
+    if isinstance(a, dict):
+        a = dict(a)
+        if isinstance(a.get("ops"), list):
+            a["ops"] = [{**o, "text": o["text"][:200] + f" ... ({len(o['text'].splitlines())} lines)"}
+                        if isinstance(o, dict) and len(str(o.get("text", ""))) > 240 else o for o in a["ops"]]
+        st = {**st, "action": a}
+    return st
+
+
 @tool
 def state(ref: str = "ref", include_ir: bool = True, blocks: list | None = None, full: bool = False) -> dict:
     """A state: its action, parent, children, what is known about it (static / check / bench), and the kernel body
     as a numbered listing (`label:` lines and `[index] instruction`), which is how `edit` addresses instructions.
     Kernels above 400 instructions come back as an outline (blocks, sizes, loop headers, successors): name the
     blocks to list with `blocks=[...]`, or pass full=True."""
-    return _s().state(ref, include_ir, blocks, full)
+    return _short(_s().state(ref, include_ir, blocks, full))
 
 
 @tool
@@ -133,18 +145,6 @@ def actions(ref: str = "ref") -> dict:
     return _s().actions(ref)
 
 
-def _short(st: dict) -> dict:
-    """A state as returned to the agent after an edit: long texts it just sent are not echoed back."""
-    a = st.get("action")
-    if isinstance(a, dict):
-        a = dict(a)
-        if isinstance(a.get("ops"), list):
-            a["ops"] = [{**o, "text": o["text"][:200] + f" ... ({len(o['text'].splitlines())} lines)"}
-                        if isinstance(o, dict) and len(str(o.get("text", ""))) > 240 else o for o in a["ops"]]
-        st = {**st, "action": a}
-    return st
-
-
 @tool
 def edit(parent: str, ops: list, note: str = "") -> dict:
     """Structured edits → a new state. ops: [{"op": "replace"|"insert"|"delete", "block": label, "index": i,
@@ -155,7 +155,11 @@ def edit(parent: str, ops: list, note: str = "") -> dict:
         %rep i 16                  ; i = 0..15; `%rep i 4 12` is 4..11; `%rep i 0 64 4` steps by 4; blocks nest
           v_fmac_f32 v{40 + i}, s{68 + i}, v{8 + i}
         %end
-    `{...}` is integer arithmetic over the counters. The result echoes each op's text only in short form."""
+        %for d in 22 26 30 62      ; listed values
+          v_mov_b32 v{d}, 0
+        %end
+    `{...}` is integer arithmetic over the counters. A `label:` line in `text` starts a new block there (for a
+    loop or a branch target the edit adds). The result echoes each op's text only in short form."""
     return _short(_s().edit(parent, ops, note))
 
 

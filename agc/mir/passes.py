@@ -14,9 +14,14 @@ from .ir import Call, Imm, Inst, Kernel, Module
 _LIMIT = 10_000
 
 
-def fix_waits(k: Kernel, arch: Arch | None = None) -> int:
-    """Insert `s_waitcnt` where the waitcnt checker needs one. Returns the number inserted."""
+def fix_waits(k: Kernel, arch: Arch | None = None, rewrite: bool = False) -> int:
+    """Insert `s_waitcnt` where the waitcnt checker needs one. Returns the number inserted. `rewrite`: drop
+    every wait the code has first, so that each one comes back as late and as weak as the checker allows
+    (after an edit put more loads in flight, the old waits still wait for all of them)."""
     arch = arch or load_arch()
+    if rewrite:
+        for b in k.blocks:
+            b.insts = [x for x in b.insts if x.mnemonic != "s_waitcnt"]
     added = 0
     for _ in range(_LIMIT):
         found = waitcnt.check(k, cfg(k, arch=arch), arch)
@@ -78,13 +83,15 @@ def legalize(k: Kernel, arch: Arch | None = None) -> dict:
 def register_transforms() -> None:
     from ..session.session import transform
 
-    @transform("fix_waits", "insert the s_waitcnt instructions the waitcnt checker asks for, as late as possible")
-    def _fix_waits(m: Module, kernel: str) -> Module:
-        fix_waits(m.kernel(kernel))
+    @transform("fix_waits", "insert the s_waitcnt instructions the waitcnt checker asks for, as late as possible; "
+               "rewrite=true first removes every existing wait, so all waits end up as late and as weak as is legal",
+               {"rewrite": [False, True]})
+    def _fix_waits(m: Module, kernel: str, rewrite: bool = False) -> Module:
+        fix_waits(m.kernel(kernel), rewrite=bool(rewrite))
         return m
 
-    @transform("unroll_loads", "unroll a counted loop so that `factor` iterations' loads are in flight per wait (wide or "
-               "offset loads; arithmetic in the original order: bit-identical)",
+    @transform("unroll_loads", "unroll a counted loop, or an exec-mask loop driven by a per-lane counter, so that `factor` iterations' loads "
+               "are in flight per wait (wide or offset loads; arithmetic in the original order: bit-identical)",
                {"factor": [2, 4, 8, 16], "loop": "label of the loop block (default: the first applicable)", "wide": [True, False]})
     def _unroll(m: Module, kernel: str, factor: int = 4, loop: str | None = None, wide: bool = True) -> Module:
         from . import loops
@@ -98,7 +105,7 @@ def register_transforms() -> None:
 
     @transform("coarsen", "one launched workgroup runs `factor` consecutive workgroups of the original (the kernel body in a "
                "loop over virtual workgroup ids; bit-identical); the launch shrinks to ceil(grid_x / factor) and one "
-               "argument carrying the original grid_x is appended", {"factor": [2, 4, 8, 16]}, launch=True)
+               "argument carrying the original grid_x is appended", {"factor": "any integer of at least 2 (the policy tries 2, 4, 8)"}, launch=True)
     def _coarsen(m: Module, kernel: str, launch: dict, factor: int = 4):
         from . import coarsen
         k = m.kernel(kernel)

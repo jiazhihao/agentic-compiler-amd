@@ -65,9 +65,23 @@ def check_kernel(k: Kernel, arch: Arch | None = None, strict: bool = False) -> l
         return findings                       # the analyses below need legal instructions
     g = cfg(k, isa, arch)
     written = entry_defined(k).union(*(info.defs for block in g.infos for info in block))
+    # what some path from the entry has written when a block starts: a read of anything else is undefined on
+    # every path, not only on some (a register the runtime is assumed to set but the descriptor does not enable)
+    may = [None] * g.nblocks
+    may[0] = set(entry_defined(k))
+    work = [0]
+    while work:
+        bb = work.pop()
+        out = may[bb].union(*(info.defs for info in g.infos[bb]))
+        for s in g.succ[bb]:
+            if may[s] is None or not out <= may[s]:
+                may[s] = out if may[s] is None else may[s] | out
+                work.append(s)
     for b, i, u in undefined_reads(g):
         name = "m0" if u[0] == "m0" else f"{u[0]}{u[1]}"
-        never = u not in written
+        # (scalars only: amdclang itself reads vector registers no path has written, under a mask that selects them away)
+        never = u not in written or (u[0] == "s" and may[b] is not None
+                                     and u not in may[b].union(*(info.defs for info in g.infos[b][:i])))
         # the other half of a register pair that is written: the unused half of a 64-bit operand
         # (amdclang's v_mad_u64_u32 addends, widened indices)
         inst = g.infos[b][i].inst
@@ -82,7 +96,9 @@ def check_kernel(k: Kernel, arch: Arch | None = None, strict: bool = False) -> l
         # A register nothing ever writes is an error.
         findings.append({"kind": "undefined_read", "severity": "error" if never or strict else "warning", "kernel": k.name,
                          "block": k.blocks[b].label, "index": i, "inst": str(g.infos[b][i].inst), "register": name,
-                         "message": f"reads {name}, which " + ("is never written" if never else
+                         "message": f"reads {name}, which " + ("is never written" if u not in written else
+                                                                "no path from the entry has written here (the runtime sets only "
+                                                                "the registers the kernel descriptor enables)" if never else
                                                                 "is not written on every path from the entry")})
     findings += waitcnt.check(k, g, arch)
     findings += hazards.check(k, g, arch)
@@ -98,6 +114,10 @@ def static_check(m: Module, encode: bool = True, strict: bool = False) -> dict:
         try:
             result["built"] = build(m)
         except EmitError as e:
-            findings.append({"kind": "encode", "message": e.message, "detail": e.detail[-2000:]})
+            hint = ""
+            if "constant bus" in e.detail:
+                hint = (": a VALU instruction may name at most one distinct SGPR or literal among its sources (the mask pair of "
+                        "a v_cndmask_b32_e64 counts); copy the second scalar into a VGPR with v_mov_b32 first")
+            findings.append({"kind": "encode", "message": e.message + hint, "detail": e.detail[-2000:]})
             result["ok"] = False
     return result

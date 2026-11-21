@@ -163,3 +163,35 @@ def test_edit_replaces_a_run_to_the_end_of_a_block_and_liveness_names_dead_regis
     lv = s.liveness("ref", b.label)["if_vector_writes_cover_all_lanes"]
     named = {int(n) for i in b.insts for n in __import__("re").findall(r"\bv(\d+)\b", str(i))}
     assert lv["dead_across_block"]["v"] and not named & set(lv["dead_across_block"]["v"])
+
+
+@needs_toolchain
+def test_edit_text_may_introduce_labels_and_an_empty_replace_deletes(tmp_path):
+    s = Session.open(KERNELS / "axpy.json", tmp_path, quick=True)
+    k = s._kernel(s.module("ref"))
+    b = k.blocks[0]
+    st = s.edit("ref", [{"op": "insert", "block": b.label, "index": 1, "text": "s_mov_b32 s40, 2\n.Lspin:\ns_sub_u32 s40, s40, 1\ns_cmp_lg_u32 s40, 0\ns_cbranch_scc1 .Lspin"}])
+    k2 = s._kernel(s.module(st["id"]))
+    labels = [x.label for x in k2.blocks]
+    assert ".Lspin" in labels and [str(i) for i in k2.block(".Lspin").insts] == ["s_sub_u32 s40, s40, 1", "s_cmp_lg_u32 s40, 0", "s_cbranch_scc1 .Lspin"]
+    assert s.static_check(st["id"])["ok"]
+    with pytest.raises(SessionError, match="already exists"):
+        s.edit("ref", [{"op": "insert", "block": b.label, "index": 1, "text": f"{k.blocks[-1].label}:\ns_nop 0"}])
+    gone = s.edit(st["id"], [{"op": "replace", "block": b.label, "index": 1, "text": ""}])
+    assert "s_mov_b32 s40, 2" not in [str(i) for i in s._kernel(s.module(gone["id"])).insts()]
+
+
+@needs_toolchain
+def test_static_check_names_the_nearest_instruction_and_a_scalar_no_path_has_written(tmp_path):
+    s = Session.open(KERNELS / "axpy.json", tmp_path, quick=True)
+    k = s._kernel(s.module("ref"))
+    b = k.blocks[0]
+    st = s.edit("ref", [{"op": "insert", "block": b.label, "index": 0, "text": "v_sub_nc_u32_e32 v9, v0, v0"}])
+    (e,) = [x for x in s.static_check(st["id"])["errors"] if "unknown instruction" in x["message"]]
+    assert "v_sub_u32" in e["message"]
+    st = s.edit("ref", [{"op": "insert", "block": b.label, "index": 0, "text": "s_mov_b32 s40, s41"},
+                        {"op": "insert", "block": k.blocks[-1].label, "index": 0, "text": "s_mov_b32 s41, 0"}])
+    r = s.static_check(st["id"])
+    assert not r["ok"] and any("no path from the entry" in x["message"] for x in r["errors"])
+    lazy = s.apply("ref", "fix_waits", {"rewrite": True})
+    assert s.static_check(lazy["id"] if "unchanged" not in lazy else "ref")["ok"]

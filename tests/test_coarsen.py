@@ -132,3 +132,55 @@ def test_coarsen_refusal_is_a_parameter_error(tmp_path):
     with pytest.raises(SessionError, match="s_barrier") as e:
         s.apply("ref", "coarsen", {"factor": 2})
     assert e.value.kind == "parameter"
+
+
+def test_coarsen_accepts_an_early_exit_every_wave_of_the_workgroup_takes_together():
+    """`if (alpha == 0) return;` before a barrier: decided by a kernel argument, the same in all waves."""
+    def body(test):
+        return f"""
+    s_load_dwordx2 s[4:5], s[0:1], 0x10
+    s_waitcnt lgkmcnt(0)
+{test}
+    s_barrier
+    v_mov_b32_e32 v1, v0
+.Ldone:
+    s_endpgm
+"""
+    scalar = "    s_cmp_eq_u32 s4, 0\n    s_cbranch_scc1 .Ldone"
+    mask = ("    v_cmp_eq_f32_e64 s[6:7], s4, 0\n    v_cmp_eq_f32_e64 s[8:9], s5, 1.0\n    s_and_b64 s[6:7], s[6:7], s[8:9]\n"
+            "    s_and_b64 vcc, exec, s[6:7]\n    s_cbranch_vccnz .Ldone")
+    for test in (scalar, mask):
+        k = kernel(body(test))
+        coarsen.coarsen(k, 2)
+        assert [str(i) for i in k.blocks[[b.label for b in k.blocks].index(coarsen.LATCH)].insts][0] == "s_barrier"
+    per_lane = "    v_cmp_eq_u32_e32 vcc, s4, v0\n    s_cbranch_vccnz .Ldone"                 # depends on the workitem id
+    loaded = ("    s_load_dword s6, s[4:5], 0x0\n    s_waitcnt lgkmcnt(0)\n    s_cmp_eq_u32 s6, 0\n"
+              "    s_cbranch_scc1 .Ldone")                                                   # memory the kernel may write
+    after = ("    v_cmp_eq_u32_e32 vcc, s4, v0\n    s_cbranch_vccz .Lskip\n    s_mov_b32 s4, 0\n.Lskip:\n"
+             "    s_cmp_eq_u32 s4, 0\n    s_cbranch_scc1 .Ldone")                             # a value set under a per-wave branch
+    for test in (per_lane, loaded, after):
+        with pytest.raises(NotApplicable, match="workgroup-uniform"):
+            coarsen.coarsen(kernel(body(test)), 2)
+
+
+def test_coarsen_follows_an_offset_copy_of_the_kernarg_pointer_and_accepts_scratch():
+    body = """
+    s_add_u32 s24, s0, 0x60
+    s_addc_u32 s25, s1, 0
+    s_load_dword s4, s[24:25], 0x4
+    s_waitcnt lgkmcnt(0)
+    v_mov_b32_e32 v1, s4
+    scratch_store_dword off, v1, off offset:4
+    scratch_load_dword v2, off, off offset:4
+    s_waitcnt vmcnt(0)
+    s_endpgm
+"""
+    args = [abi.Arg("global_buffer")] * 12 + [abi.Arg("hidden_block_count_x", 4), abi.Arg("hidden_block_count_y", 4)]
+    k = kernel(body, args)
+    coarsen.coarsen(k, 2)                                                           # 0x60 + 4 is gridDim.y: not redirected
+    k = kernel(body.replace("s[24:25], 0x4", "s[24:25], 0x0"), args)
+    with pytest.raises(NotApplicable, match="gridDim.x"):
+        coarsen.coarsen(k, 2)
+    k = kernel(body.replace("s_addc_u32 s25, s1, 0\n", "s_mov_b32 s25, s1\n"), args)
+    with pytest.raises(NotApplicable, match="other than as the base"):
+        coarsen.coarsen(k, 2)

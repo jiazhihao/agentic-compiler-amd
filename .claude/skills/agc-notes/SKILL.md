@@ -149,6 +149,19 @@ Measured on the LLM benchmark; recipes in `bench/llm/sessions/`.
 - `global_load_dword vdst, v_off32, s[base:base+1]` (scalar base + 32-bit vector offset) is
   legal and removes per-lane 64-bit address arithmetic.
 
+- **MFMA for attention** (`fa_attention`, 2.09x over the strongest amdclang build):
+  `v_mfma_f32_16x16x4_f32` computes 16 queries x 16 keys per tile, 16 MFMAs for the scores and
+  16 for the value update, so K and V are read once per 16 queries. Layout, verified by the
+  battery: lane l element of A is `A[l % 16][l // 16]`, of B is `B[l // 16][l % 16]`; result
+  register r lane l is `D[4 (l // 16) + r][l % 16]`.
+- A kernel that re-reads its inputs once per workgroup is not at the memory floor whatever
+  `headroom` says: the levers are fewer re-reads (more queries or heads per workgroup, MFMA
+  tiles), wave-uniform rows read with `s_load_dwordx16` and used as scalar operands, and 16 wide
+  loads in flight per wait (`mla_decode` 1.56x, `attn_decode` 1.55x, `fa_attention_causal` 1.99x).
+- Elementwise and reduction kernels that touch each element once measured parity for every
+  machine-level rewrite tried in round 2 (DPP in place of LDS trees, scalar loads, fewer VALU,
+  merged waits, coarsening): their time is the loads themselves.
+
 ## Rules that bit
 
 - Register tuples start on an even VGPR/AGPR and on a multiple of min(size, 4) for SGPRs

@@ -62,6 +62,7 @@ def transform(name: str, doc: str, params: dict | None = None, launch: bool = Fa
 
 
 _REP = re.compile(r"^\s*%rep\s+([A-Za-z_]\w*)\s+(.+?)\s*$")
+_FOR = re.compile(r"^\s*%for\s+([A-Za-z_]\w*)\s+in\s+(.+?)\s*$")
 _END = re.compile(r"^\s*%end\s*$")
 
 
@@ -72,8 +73,9 @@ def expand(text: str) -> str:
           global_load_dwordx4 v[{20 + 4*i}:{23 + 4*i}], v[2:3], off, off offset:{64*i}
         %end
 
-    `{expression}` is integer arithmetic over the enclosing counters (+ - * // % and parentheses). Blocks nest."""
-    if "%rep" not in text and "%end" not in text:
+    `{expression}` is integer arithmetic over the enclosing counters (+ - * // % and parentheses). Blocks nest.
+    `%for d in 22 26 30 62` ... `%end` runs over listed values (register bases that are not contiguous)."""
+    if "%rep" not in text and "%end" not in text and "%for" not in text:
         return text
     from ..manifest import eval_expr
 
@@ -88,14 +90,19 @@ def expand(text: str) -> str:
         while pos < len(lines):
             line = lines[pos]
             m = _REP.match(line.split(";")[0])
-            if m:
+            f = _FOR.match(line.split(";")[0])
+            if m or f:
                 try:
-                    nums = [eval_expr(x, env) for x in m.group(2).split()]
+                    nums = [eval_expr(x, env) for x in (m or f).group(2).replace(",", " ").split()]
                 except ManifestError as e:
                     raise SessionError("parse", f"%rep: {e}", location={"text": line}) from None
-                if not 1 <= len(nums) <= 3:
+                if f:
+                    rng = nums                               # the listed values, in order
+                    m = f
+                elif not 1 <= len(nums) <= 3:
                     raise SessionError("parse", "%rep NAME COUNT | NAME START STOP [STEP]", location={"text": line})
-                rng = range(*nums)
+                else:
+                    rng = range(*nums)
                 if len(rng) > 4096:
                     raise SessionError("parse", "%rep: more than 4096 repetitions", location={"text": line})
                 end = pos + 1
@@ -679,7 +686,8 @@ class Session:
         """Structured edits. Each op: {"op": "replace" | "insert" | "delete", "block": label, "index": i,
         "text": instructions (replace / insert; one per line; `%rep` blocks are expanded, see `expand`),
         "expect": the instruction now at that address (optional, checked), "count": instructions to delete
-        or to replace (default 1; "end": to the end of the block)}. `insert` places
+        or to replace (default 1; "end": to the end of the block)}. A `label:` line in the text starts a
+        new block there (a loop or a branch target added by the edit); a replace with empty text deletes. `insert` places
         the text before `index` (index = length appends). Addresses refer to the parent state; ops are applied from the last address backwards."""
         pid = self.resolve(parent)
         k0 = self._kernel(self.module(pid))
@@ -689,6 +697,7 @@ class Session:
             raise SessionError("parameter", "ops must be a non-empty list")
         order = {b.label: n for n, b in enumerate(blocks)}
         parsed = []
+        fresh: set = set()                                   # labels the edit introduces
         for n, op in enumerate(ops):
             kind, label, i = op.get("op"), op.get("block"), op.get("index")
             if kind not in ("replace", "insert", "delete"):
@@ -703,9 +712,19 @@ class Session:
                                    values={"expect": op["expect"], "found": str(index[label].insts[i])},
                                    suggestion="re-read the state's listing: addresses refer to the parent state")
             new = []
+            if kind == "replace" and not str(op.get("text", "")).strip():
+                kind = "delete"                              # replaced by nothing
             if kind != "delete":
                 try:
-                    new = [asm.parse_inst(l) for l in expand(str(op.get("text", ""))).splitlines() if l.strip()]
+                    for l in expand(str(op.get("text", ""))).splitlines():
+                        code = l.split(";")[0].strip()
+                        if re.fullmatch(r"[.\w$]+:", code):   # a label: a new block starts here
+                            if code[:-1] in index or code[:-1] in fresh:
+                                raise SessionError("parameter", f"ops[{n}]: label {code[:-1]} already exists")
+                            fresh.add(code[:-1])
+                            new.append(code[:-1])
+                        elif l.strip():
+                            new.append(asm.parse_inst(l))
                 except asm.AsmError as e:
                     raise SessionError("parse", f"ops[{n}]: {e.message}", location={"op": n, "text": e.text}) from None
                 if not new:
@@ -733,6 +752,18 @@ class Session:
                 del insts[i:i + count]
             else:
                 insts[i:i + count] = new
+        if fresh:                                            # label lines in the text split their block
+            split = []
+            for bl in blocks:
+                cur = Block(bl.label, [], bl.align)
+                split.append(cur)
+                for x in bl.insts:
+                    if isinstance(x, str):
+                        cur = Block(x, [])
+                        split.append(cur)
+                    else:
+                        cur.insts.append(x)
+            blocks = split
         blocks = asm.split_at_branches(blocks)
         if not any(b.insts for b in blocks):
             raise SessionError("parameter", "the edit leaves no instructions")

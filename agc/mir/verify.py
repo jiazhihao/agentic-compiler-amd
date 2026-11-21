@@ -122,7 +122,10 @@ def select(inst: Inst, isa: Isa, arch: Arch, labels: set[str] | None = None):
 def _select(inst: Inst, isa: Isa, arch: Arch, labels):
     r = isa.resolve(inst.mnemonic)
     if r is None:
-        return None, (), f"unknown instruction {inst.mnemonic!r}"
+        import difflib
+        stem = inst.mnemonic.removesuffix("_e32").removesuffix("_e64")
+        near = difflib.get_close_matches(stem, isa.names(), n=3, cutoff=0.75)
+        return None, (), f"unknown instruction {inst.mnemonic!r}" + (f" (gfx950 has {', '.join(near)})" if near else "")
     _, _, encodings = r
     ops = list(inst.operands)
     best = None

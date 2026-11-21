@@ -26,9 +26,13 @@ def test_loop_analysis_on_the_corpus():
     g = loops.find_loops(_import("gemm_naive").kernel())[0]
     strides = {str(p.reg): p.step for p in g.pointers}
     assert strides["v[4:5]"] == 4 and str(strides["v[6:7]"]) == "s[4:5]"            # A is contiguous, B is strided
-    # the rowwise loops exit on a per-lane mask, not on a counter: not this pass's business
+    # the rowwise loops exit on a per-lane mask: unrolled behind a guard when the mask comes from a per-lane counter
+    # alone; a loop that also leaves on the data (a NaN test) is refused
     why = loops.explain(_import("softmax").kernel())
-    assert len(why) == 4 and all("back edge" in r for r in why.values())
+    assert len(why) == 4 and why[".LBB0_7"] == "ok" and sum("one vector compare" in r for r in why.values()) == 3
+    (L,) = loops.find_loops(_import("row_sum").kernel())
+    assert L.mask["kind"] in ("rising", "countdown") and L.counter is None
+    assert "one vector compare" in loops.explain(_import("row_argmax").kernel())[".LBB0_2"]
     assert loops.explain(_import("axpy").kernel()) == {}
 
 
@@ -68,7 +72,7 @@ def test_unroll_loads_structure(factor):
 @needs_toolchain
 def test_unroll_loads_refusals():
     with pytest.raises(loops.NotApplicable, match="no loop can be unrolled"):
-        loops.unroll_loads(_import("softmax").kernel(), 4)
+        loops.unroll_loads(_import("row_argmax").kernel(), 4)
     with pytest.raises(loops.NotApplicable, match="no single-block loop"):
         loops.unroll_loads(_import("axpy").kernel(), 4)
     with pytest.raises(loops.NotApplicable, match="factor"):
@@ -93,7 +97,7 @@ def test_unroll_through_the_session(tmp_path):
     d = s.asm_diff("ref", e["id"])
     assert d["delta"]["loads"] > 8 and d["registers"]["b"]["vgprs"] > d["registers"]["a"]["vgprs"]
     with pytest.raises(SessionError, match="no loop can be unrolled"):
-        Session.open(KERNELS / "softmax.json", tmp_path, quick=True).apply("ref", "unroll_loads", {"factor": 4})
+        Session.open(KERNELS / "row_argmax.json", tmp_path, quick=True).apply("ref", "unroll_loads", {"factor": 4})
 
 
 def test_recorded_policy_results():
@@ -129,3 +133,51 @@ def test_default_policy(name, path, at_least, tmp_path):
     else:                                       # nothing applies: the amdclang build, reported as a fallback
         assert r["fallback"] and r["chosen"]["state"] == s.ref_id and r["chosen"]["speedup"] == 1.0
         assert all(c["outcome"] == "rejected" for c in r["candidates"])
+
+
+@needs_toolchain
+def test_unroll_loads_on_a_counter_that_goes_down_by_two():
+    """A loop amdclang unrolled itself (`#pragma unroll 2`) counts down by 2 per iteration."""
+    m = _import("matvec")
+    k = m.kernel()
+    b = k.block(".LBB0_3")
+    (i,) = [n for n, x in enumerate(b.insts) if str(x).startswith("s_add_") and str(x).endswith("s9, s9, -1")]
+    b.insts[i] = mir.asm.parse_inst(str(b.insts[i]).replace("-1", "-2"))
+    (L,) = loops.find_loops(k)
+    assert L.trip_step == 2
+    loops.unroll_loads(k, 4)
+    body = [str(x) for x in k.block(".Lunroll0").insts]
+    pre = [str(x) for x in k.block(".Lpre0").insts]
+    assert "s_add_i32 s9, s9, -8" in body and "s_cmp_lt_i32 s9, 8" in body and "s_cmp_lt_i32 s9, 8" in pre
+    assert check.static_check(m)["ok"]
+
+
+@needs_toolchain
+@pytest.mark.parametrize("factor", [2, 4, 8])
+def test_unroll_loads_on_an_exec_mask_loop_runs_behind_a_guard(factor):
+    m = _import("row_sum")
+    k = m.kernel()
+    (L,) = loops.find_loops(k)
+    loads = len(L.loads)
+    loops.unroll_loads(k, factor)
+    labels = [b.label for b in k.blocks]
+    i = labels.index(".Ltail0")                                                      # the guard
+    assert labels[i - 1] == ".Lpre0" and labels[i + 1] == ".Lunroll0" and labels[i + 2] == L.label
+    guard = [str(x) for x in k.blocks[i].insts]
+    assert guard[-1] == f"s_cbranch_scc1 {L.label}" and any(x.startswith("v_cmp_") for x in guard)
+    body = [str(x) for x in k.blocks[i + 1].insts]
+    assert body[-1] == "s_branch .Ltail0"
+    assert not any("exec" in x.split()[1] for x in body if x.startswith("s_"))        # EXEC does not change in the unrolled body
+    assert sum("global_load" in x for x in body) in (loads * factor, max(1, loads * factor // 4), loads * factor // 2)
+    orig = [str(x) for x in k.blocks[i + 2].insts]
+    assert orig[-1] == f"s_cbranch_execnz {L.label}"                                 # the original loop finishes
+    r = check.static_check(m)
+    assert r["ok"], [f for f in r["findings"] if f.get("severity") != "warning"]
+
+
+@pytest.mark.parametrize("name", [pytest.param(n, marks=gpu) for n in ("row_sum", "rmsnorm", "layernorm")])
+def test_unrolled_exec_mask_loops_pass_the_battery(name, tmp_path):
+    from agc.session import Session
+    s = Session.open(KERNELS / f"{name}.json", tmp_path)
+    st = s.apply("ref", "unroll_loads", {"factor": 4})
+    assert s.check(st["id"])["ok"]

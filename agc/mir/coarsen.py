@@ -12,11 +12,16 @@ work: the one-element-per-thread kernels of the BLAS and DNN libraries.
 
 Legality:
  - barriers: every path to the end of the program must pass every `s_barrier`, so that all waves
-   of a workgroup stay in the same virtual workgroup between barriers; a kernel that uses LDS or
-   barriers gets one more barrier at the end of each virtual workgroup, so that no wave starts
-   the next one (and overwrites LDS) while another still reads;
- - the kernel has no private segment (stack) and no preloaded arguments;
- - a read of the hidden `block_count_x` must be an `s_load_dword` from the kernarg pointer.
+   of a workgroup stay in the same virtual workgroup between barriers. A path that leaves early is
+   allowed when every branch that decides it is workgroup-uniform (its condition is computed from
+   kernel arguments, workgroup ids and constants only: all waves of the workgroup take it
+   together). A kernel that uses LDS or barriers gets one more barrier at the end of each virtual
+   workgroup, so that no wave starts the next one (and overwrites LDS) while another still reads;
+ - no preloaded arguments. A private segment (scratch spills) is fine: the body runs again on the
+   entry state and writes its spill slots before it reads them, as it did the first time;
+ - the kernarg pointer is used as the base of scalar loads, or to form `pointer + constant`
+   (`s_add_u32` / `s_addc_u32`) that is again only a load base; a read of the hidden
+   `block_count_x` must be a single `s_load_dword`.
 """
 from __future__ import annotations
 
@@ -34,8 +39,91 @@ def _align(x: int, a: int) -> int:
     return -(-x // a) * a
 
 
-def _barriers_on_every_path(g, k: Kernel) -> bool:
+_SCALAR = ("s", "scc", "m0")
+_MASK_OPS = ("s_and_b64", "s_or_b64", "s_and_b32", "s_or_b32")
+
+
+def uniform_branches(g, k: Kernel, kptr: int) -> set[int]:
+    """Blocks whose conditional branch every wave of a workgroup takes the same way.
+
+    Each scalar unit has a level: 0, the same value in every wave of the workgroup (computed from the
+    registers the runtime sets per workgroup, kernel arguments and constants); 1, a lane mask that is
+    zero in every wave or in none (`EXEC` as launched, a vector compare of level-0 scalars, and `and` /
+    `or` of such masks: every wave has an active lane, so `exec & c` is zero exactly when c is false);
+    2, anything else. A branch on SCC needs level 0, a branch on VCC or EXEC being zero level 1. Whatever
+    is written after a branch that is not uniform is level 2."""
+    kunits = {("s", kptr), ("s", kptr + 1)}
+    kreg = Reg("s", kptr, 2)
+    kwritten = any(i.defs & kunits for infos in g.infos for i in infos)
+    n = g.nblocks
+    downstream: set[int] = set()
+
+    def level(L: dict, u) -> int:
+        if u[0] in _SCALAR:
+            return L.get(u, 0)
+        if u[0] == "exec":
+            return L.get(u, 1)
+        if u[0] == "vcc":
+            return L.get(u, 2)
+        return 2
+
+    while True:
+        lin: list = [None] * n
+        lin[0] = {}
+        bad = [True] * n                                   # the block's conditional branch is not uniform
+        work = [0]
+        while work:
+            b = work.pop()
+            L = dict(lin[b])
+            for info in g.infos[b]:
+                name = info.name
+                if info.cond_branch:
+                    unit = ("scc", 0) if "scc" in name else ("vcc", 0) if "vcc" in name else ("exec", 0)
+                    bad[b] = b in downstream or level(L, unit) > (0 if unit[0] == "scc" else 1)
+                    continue
+                top = max((level(L, u) for u in info.uses), default=0)
+                rest = max((level(L, u) for u in info.uses if u[0] != "exec"), default=0)
+                out = {}
+                if b in downstream:
+                    lvl = 2
+                elif info.load or info.ds or info.lds_dma:
+                    lvl = 0 if info.smem and not kwritten and len(info.inst.operands) > 1 and info.inst.operands[1] == kreg else 2
+                elif info.valu and name.startswith("v_cmp_") and rest == 0 and level(L, ("exec", 0)) <= 1:
+                    lvl = 1                                # exec & (a comparison every wave decides alike)
+                elif name in _MASK_OPS and top <= 1:
+                    lvl = top
+                    out[("scc", 0)] = 0                    # "the result is not zero": one bit, the same in every wave
+                else:
+                    lvl = 0 if top == 0 else 2
+                for u in info.defs:
+                    if u[0] in _SCALAR or u[0] == "vcc":
+                        L[u] = out.get(u, lvl)
+                    elif u[0] == "exec":
+                        L[u] = 2
+            for s in g.succ[b]:
+                if lin[s] is None:
+                    lin[s] = dict(L)
+                    work.append(s)
+                else:
+                    new = {u: max(level(lin[s], u), level(L, u)) for u in set(lin[s]) | set(L)}
+                    if new != lin[s]:
+                        lin[s] = new
+                        work.append(s)
+        more = set(downstream)
+        work = [s for b in range(n) if lin[b] is not None and bad[b] and any(i.cond_branch for i in g.infos[b]) for s in g.succ[b]]
+        while work:
+            b = work.pop()
+            if b not in more:
+                more.add(b)
+                work += g.succ[b]
+        if more == downstream:
+            return {b for b in range(n) if lin[b] is not None and not bad[b] and b not in downstream}
+        downstream = more
+
+
+def _barriers_on_every_path(g, k: Kernel, kptr: int = 0) -> bool:
     exits = {bi for bi, b in enumerate(k.blocks) if any(i.mnemonic == "s_endpgm" for i in b.insts)}
+    uniform = None
     for bb, b in enumerate(k.blocks):
         if not any(i.mnemonic == "s_barrier" for i in b.insts):
             continue
@@ -47,7 +135,20 @@ def _barriers_on_every_path(g, k: Kernel) -> bool:
                 if s != bb and s not in seen:
                     seen.add(s)
                     work.append(s)
-        if seen & exits:
+        if not seen & exits:
+            continue
+        # some path ends without this barrier: fine when all waves of the workgroup take it together,
+        # that is when every branch on the way to such an end is workgroup-uniform
+        if uniform is None:
+            uniform = uniform_branches(g, k, kptr)
+        leaves, work = set(seen & exits), list(seen & exits)     # blocks of `seen` that can reach an end inside `seen`
+        while work:
+            x = work.pop()
+            for pr in g.pred[x]:
+                if pr in seen and pr not in leaves:
+                    leaves.add(pr)
+                    work.append(pr)
+        if any(any(i.cond_branch for i in g.infos[x]) and x not in uniform for x in leaves):
             return False
     return True
 
@@ -63,8 +164,8 @@ def coarsen(k: Kernel, factor: int, arch: Arch | None = None) -> dict:
         raise NotApplicable("the kernel is already coarsened")
     if not d.get("system_sgpr_workgroup_id_x"):
         raise NotApplicable("the kernel does not receive workgroup_id_x")
-    if d.get("enable_private_segment") or d.get("user_sgpr_private_segment_buffer") or d.get("private_segment_fixed_size"):
-        raise NotApplicable("the kernel uses a private segment (stack)")
+    if d.get("user_sgpr_private_segment_buffer"):
+        raise NotApplicable("the kernel addresses its private segment through a buffer descriptor")
     if d.get("user_sgpr_kernarg_preload_length"):
         raise NotApplicable("the kernel preloads arguments into SGPRs")
     if not d.get("user_sgpr_kernarg_segment_ptr"):
@@ -73,8 +174,9 @@ def coarsen(k: Kernel, factor: int, arch: Arch | None = None) -> dict:
     kreg = Reg("s", kptr, 2)
     wg = d["user_sgpr_count"]
     g = cfg(k, arch=arch)
-    if not _barriers_on_every_path(g, k):
-        raise NotApplicable("a path reaches the end of the program without passing every s_barrier")
+    if not _barriers_on_every_path(g, k, kptr):
+        raise NotApplicable("a path reaches the end of the program without passing every s_barrier, through a branch that "
+                            "is not workgroup-uniform")
     # ---- the read of gridDim.x ---------------------------------------------------------------------
     hidden_x = next((a[".offset"] for a in k.metadata.get(".args", []) if a.get(".value_kind") == "hidden_block_count_x"), None)
     off = _align(d.get("kernarg_size", 0), 8)
@@ -95,14 +197,29 @@ def coarsen(k: Kernel, factor: int, arch: Arch | None = None) -> dict:
                     must = bool(g.pred[bi]) and all(must_in[p] and not kills[p] for p in g.pred[bi])
                     if (may, must) != (may_in[bi], must_in[bi]):
                         may_in[bi], must_in[bi], changed = may, must, True
+        derived: dict[int, set[int]] = {}                 # SGPR pair -> constants c with pair = kernarg pointer + c
         for bi, (b, infos) in enumerate(zip(k.blocks, g.infos)):
             may, must = may_in[bi], must_in[bi]
-            for x, info in zip(b.insts, infos):
+            for xi, (x, info) in enumerate(zip(b.insts, infos)):
                 if may and info.uses & kunits:
                     words = _LOAD_WORDS.get(x.mnemonic)
                     o = x.operands[2] if len(x.operands) > 2 else None
                     if not must:
                         raise NotApplicable(f"`{x}`: may or may not read through the kernarg pointer")
+                    ops = x.operands
+                    nxt = b.insts[xi + 1] if xi + 1 < len(b.insts) else None
+                    prv = b.insts[xi - 1] if xi else None
+                    lo = lambda y: (y is not None and y.mnemonic == "s_add_u32" and y.operands[1] == Reg("s", kptr)
+                                    and isinstance(y.operands[2], Imm) and y.operands[0].cls == "s" and y.operands[0].index % 2 == 0
+                                    and y.operands[0].index != kptr)
+                    hi = lambda y, a: (y is not None and y.mnemonic == "s_addc_u32" and y.operands[1] == Reg("s", kptr + 1)
+                                       and isinstance(y.operands[2], Imm) and int(y.operands[2].value) == 0
+                                       and y.operands[0] == Reg("s", a + 1))
+                    if lo(x) and hi(nxt, ops[0].index):                      # pair = kernarg pointer + constant
+                        derived.setdefault(ops[0].index, set()).add(int(ops[2].value))
+                        continue
+                    if prv is not None and lo(prv) and hi(x, prv.operands[0].index):
+                        continue
                     if not (info.smem and info.load and words and x.operands[1] == kreg and isinstance(o, Imm)):
                         raise NotApplicable(f"`{x}`: the kernarg pointer is used other than as the base of a scalar load")
                     lo = int(o.value)
@@ -112,6 +229,21 @@ def coarsen(k: Kernel, factor: int, arch: Arch | None = None) -> dict:
                         redirect.append(x)
                 if info.defs & kunits:
                     may = must = False
+        for a, consts in derived.items():                 # loads through `kernarg pointer + c`
+            pair = {("s", a), ("s", a + 1)}
+            for b, infos in zip(k.blocks, g.infos):
+                for xi, (x, info) in enumerate(zip(b.insts, infos)):
+                    if info.defs & pair and not (x.mnemonic in ("s_add_u32", "s_addc_u32") and
+                                                 x.operands[1] in (Reg("s", kptr), Reg("s", kptr + 1))):
+                        consts.add(None)                  # the pair also holds something else
+                    words = _LOAD_WORDS.get(x.mnemonic)
+                    if not (words and len(x.operands) > 2 and x.operands[1] == Reg("s", a, 2)):
+                        continue
+                    if not isinstance(x.operands[2], Imm):
+                        raise NotApplicable(f"`{x}`: a load through the offset kernarg pointer with a register offset")
+                    for c in consts - {None}:
+                        if c + int(x.operands[2].value) <= hidden_x < c + int(x.operands[2].value) + 4 * words:
+                            raise NotApplicable(f"`{x}`: gridDim.x is read through an offset copy of the kernarg pointer")
     # ---- registers ----------------------------------------------------------------------------------
     entry = entry_defined(k)
     written = set().union(*(i.defs for infos in g.infos for i in infos)) if k.blocks else set()
