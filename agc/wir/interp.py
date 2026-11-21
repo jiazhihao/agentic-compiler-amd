@@ -25,6 +25,7 @@ class Interp(_KirInterp):
         self.wave_id = self.ids["group"].astype(np.int64) * ((nb + wave - 1) // wave) + self.ids["flat_local"] // wave
         self.first = np.unique(self.wave_id, return_index=True)[1]          # each wave's first lane
         self.ptrs: dict[int, Ptr] = {}
+        self.lds: dict[str, np.ndarray] = {}
 
     def check_uniform(self, s: Op, x, mask: np.ndarray):
         if isinstance(x, list):                              # a vector: each element
@@ -68,7 +69,7 @@ class Interp(_KirInterp):
             self.env[id(s.result)] = self.ids[("gdim." if f.startswith("block_count") else "bdim.") + f[-1]]
         elif n.startswith("wg."):
             self.env[id(s.result)] = self.ids["bid." + n[-1]]
-        elif n.startswith("lane."):
+        elif n in ("lane.x", "lane.y", "lane.z"):
             self.env[id(s.result)] = self.ids["tid." + n[-1]]
         elif n == "ptradd":
             self.env[id(s.result)] = self.address(s)
@@ -80,6 +81,12 @@ class Interp(_KirInterp):
             p, e = self.address(s), s.args[2].type.elem
             for i, x in enumerate(self.val(s.args[2])):
                 Memory.store(Ptr(p.raw, p.off + i * e.size, p.name), x, e, mask, s.site or "")
+        elif n == "lane.reduce":
+            from ..kir.idioms import WAVE as W, wave_reduce
+            if self.n % W or not mask.all():
+                raise InterpError("lane.reduce in a wave that is not whole and running")
+            x = np.ascontiguousarray(np.broadcast_to(self.val(s.args[0]), mask.shape))
+            self.env[id(s.result)] = np.repeat(wave_reduce(x.reshape(-1, W), s.attrs["op"]), W)
         elif n == "mulw":
             wide = np.int64 if s.args[0].type.signed else np.uint64
             a, b = (self.val(x).astype(wide) for x in s.args)

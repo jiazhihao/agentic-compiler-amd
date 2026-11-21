@@ -5,6 +5,8 @@
 | `tid.x|y|z`, `bid.*`, `bdim.*`, `gdim.*` | `threadIdx`, `blockIdx`, `blockDim`, `gridDim` (u32) |
 | `add sub mul div rem and or xor shl shr min max` | two operands of one type; signedness from the type; `div`/`rem` truncate as C. `add[nsw]`, `sub[nsw]`, `mul[nsw]`: the source guarantees no signed overflow |
 | `neg not` | one operand (`not` on `i1` is logical) |
+| `mulhi a, b` | the high 32 bits of the 64-bit product of two 32-bit integers |
+| `rcp x` | `1 / x` in floating point, to within one unit in the last place (the machine's reciprocal) |
 | `fma a, b, c` | `a * b + c` rounded once |
 | `eq ne lt le gt ge` | compare two operands of one type → `i1`; `ne` on floats is true for NaN |
 | `select c, a, b` | `c ? a : b` |
@@ -12,19 +14,22 @@
 | `bitcast x` | same bits, another type of the same size |
 | `gep p, i` | `p + i` elements |
 | `load p` / `store p, x` | memory |
+| `shared[name, bytes]` | the workgroup's shared array `name` (`__shared__`): an `lds<T>` pointer to its first element |
+| `barrier` | every thread of the workgroup reaches this point before any continues (`__syncthreads`) |
+| `wgreduce[op, size] x` | `x` combined over the `size` threads of the workgroup with `op`, in every thread; the order is that of the DPP lowering (`kir/idioms.py`), not the source's |
 """
 from __future__ import annotations
 
 from .ir import I1, U32, Const, IRError, Op, Type
 
 BUILTINS = {f"{b}.{d}" for b in ("tid", "bid", "bdim", "gdim") for d in "xyz"}
-BINARY = {"add", "sub", "mul", "div", "rem", "and", "or", "xor", "shl", "shr", "min", "max"}
-UNARY = {"neg", "not"}
+BINARY = {"add", "sub", "mul", "div", "rem", "and", "or", "xor", "shl", "shr", "min", "max", "mulhi"}
+UNARY = {"neg", "not", "rcp"}
 COMPARE = {"eq", "ne", "lt", "le", "gt", "ge"}
-INT_ONLY = {"rem", "and", "or", "xor", "shl", "shr", "not"}
-COMMUTATIVE = {"add", "mul", "and", "or", "xor", "min", "max", "eq", "ne"}
-PURE = BUILTINS | BINARY | UNARY | COMPARE | {"fma", "select", "cast", "bitcast", "gep"}
-ALL = PURE | {"load", "store"}
+INT_ONLY = {"rem", "and", "or", "xor", "shl", "shr", "not", "mulhi"}
+COMMUTATIVE = {"add", "mul", "and", "or", "xor", "min", "max", "eq", "ne", "mulhi"}
+PURE = BUILTINS | BINARY | UNARY | COMPARE | {"fma", "select", "cast", "bitcast", "gep", "shared"}
+ALL = PURE | {"load", "store", "barrier", "wgreduce"}
 
 
 def _same(op: Op, n: int) -> Type:
@@ -42,6 +47,20 @@ def check(op: Op) -> None:
     rt = r.type if r is not None else None
     if n not in ALL:
         raise IRError(f"unknown operation {n!r}")
+    if n == "barrier":
+        if r is not None or op.args:
+            raise IRError("barrier takes no operand and has no result")
+        return
+    if n == "wgreduce":
+        from .idioms import REDUCIBLE
+        if len(op.args) != 1 or r is None or r.type != op.args[0].type or op.attrs.get("op") not in REDUCIBLE \
+                or not isinstance(op.attrs.get("size"), int) or op.attrs["size"] % 64:
+            raise IRError("wgreduce[op, size] combines one value over a workgroup of whole waves")
+        return
+    if n == "shared":
+        if op.args or r is None or not r.type.is_lds or not isinstance(op.attrs.get("bytes"), int) or not op.attrs.get("name"):
+            raise IRError("shared[name, bytes] gives an lds<T> pointer")
+        return
     if n == "store":
         if r is not None or len(op.args) != 2 or not op.args[0].type.is_ptr or op.args[0].type.elem != op.args[1].type:
             raise IRError("store takes a pointer and a value of its element type, and has no result")
@@ -56,7 +75,8 @@ def check(op: Op) -> None:
             raise IRError(f"{n} on {want}")
     elif n in UNARY:
         want = _same(op, 1)
-        if (n == "neg" and not (want.is_int or want.is_float)) or (n == "not" and not (want.is_int or want.is_bool)):
+        if (n == "neg" and not (want.is_int or want.is_float)) or (n == "not" and not (want.is_int or want.is_bool)) \
+                or (n == "rcp" and not want.is_float):
             raise IRError(f"{n} on {want}")
     elif n == "fma":
         want = _same(op, 3)

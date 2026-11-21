@@ -13,8 +13,13 @@
 | `load[scale, off, n]`, `store[.., n]` | v | `n` consecutive elements per lane in one access (a `dwordxN` load): the value is a vector `f32x2` |
 | `extract[i] x`, `pack a, b, ..` | v | an element of a vector; a vector from elements |
 | `mulw a, b` | u or v | the 64-bit product of two 32-bit integers |
+| `lane.reduce[op] x` | v | `x` combined over the 64 lanes of the wave (DPP and `v_readlane`: no memory), in every lane; every lane of the wave must be running |
 
-A `load` whose base and index are `u` may itself be `u`: one scalar load for the wave (`s_load_dword`),
+| `region[name, bytes]` | u | an LDS region of the workgroup: an `lds<T>` handle (lowering assigns its offset; the kernel's LDS size is the sum) |
+| `barrier` | | the workgroup's barrier (`s_barrier`); it may not sit under a lane mask a wave could skip |
+
+A load or store whose base is an `lds<T>` handle is an LDS access (`ds_read_*`, `ds_write_*`); its index is a
+32-bit integer. A `load` whose base and index are `u` may itself be `u`: one scalar load for the wave (`s_load_dword`),
 with `n` up to 16.
 
 A `u` result needs `u` operands. A compare gives a `v i1` (a lane mask) or a `u i1` (a condition for
@@ -26,11 +31,11 @@ from __future__ import annotations
 from ..kir import ops as kops
 from ..kir.ir import Const, IRError, Op, U32, Value
 
-SOURCES_U = {"arg", "hidden"} | {f"wg.{d}" for d in "xyz"}
+SOURCES_U = {"arg", "hidden", "region"} | {f"wg.{d}" for d in "xyz"}
 SOURCES_V = {f"lane.{d}" for d in "xyz"}
 ARITH = (kops.PURE - kops.BUILTINS - {"gep"})
 HIDDEN_FIELDS = {f"{n}_{d}" for n in ("block_count", "group_size") for d in "xyz"}
-ALL = SOURCES_U | SOURCES_V | ARITH | {"ptradd", "load", "store", "extract", "pack", "mulw"}
+ALL = SOURCES_U | SOURCES_V | ARITH | {"ptradd", "load", "store", "extract", "pack", "mulw", "barrier", "lane.reduce"}
 
 
 def kind_of(x) -> str:
@@ -53,13 +58,22 @@ def check(op: Op) -> None:
             raise IRError(f"hidden: unknown field {op.attrs.get('field')!r}")
         if n == "arg" and not {"offset", "size"} <= set(op.attrs):
             raise IRError("arg needs `offset` and `size`")
-        if n not in ("arg",) and r.type != U32:
+        if n == "region" and not (r.type.is_lds and isinstance(op.attrs.get("bytes"), int) and op.attrs.get("name")):
+            raise IRError("region[name, bytes] gives an lds<T> handle")
+        if n not in ("arg", "region") and r.type != U32:
             raise IRError(f"{n} is u32")
+        return
+    if n == "barrier":
+        if r is not None or op.args:
+            raise IRError("barrier takes no operand and has no result")
         return
     if n in ("ptradd", "load", "store"):
         want = 3 if n == "store" else 2
-        if len(op.args) != want or not op.args[0].type.is_ptr or not op.args[1].type.is_int or op.args[1].type.bits != 64:
-            raise IRError(f"{n} takes a base pointer and a 64-bit index" + (" and a value" if n == "store" else ""))
+        bits = 32 if len(op.args) > 1 and op.args[0].type.is_lds else 64
+        if len(op.args) != want or not op.args[0].type.is_ptr or not op.args[1].type.is_int or op.args[1].type.bits != bits:
+            raise IRError(f"{n} takes a base pointer and a {bits}-bit index" + (" and a value" if n == "store" else ""))
+        if op.args[0].type.is_lds and (n == "ptradd" or (r is not None and r.kind != "v")):
+            raise IRError(f"an LDS access is per lane, and an LDS address is not a value (`{n}`)")
         if not isinstance(op.attrs.get("scale"), int) or not isinstance(op.attrs.get("off"), int) or op.attrs["scale"] < 1:
             raise IRError(f"{n} needs integer `scale` and `off`")
         elem = op.args[0].type.elem
@@ -81,6 +95,12 @@ def check(op: Op) -> None:
         t = op.args[0].type if len(op.args) == 1 else None
         if t is None or not t.is_vec or not isinstance(op.attrs.get("i"), int) or not 0 <= op.attrs["i"] < t.count or r.type != t.elem:
             raise IRError("extract[i] takes a vector and gives its element i")
+        return
+    if n == "lane.reduce":
+        from ..kir.idioms import REDUCIBLE
+        if len(op.args) != 1 or r is None or r.kind != "v" or r.type != op.args[0].type or r.type.size != 4 \
+                or op.attrs.get("op") not in REDUCIBLE:
+            raise IRError("lane.reduce[op] combines one 32-bit value over the wave")
         return
     if n == "mulw":
         ok = len(op.args) == 2 and op.args[0].type == op.args[1].type and op.args[0].type.is_int and op.args[0].type.bits == 32 \

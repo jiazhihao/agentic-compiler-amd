@@ -50,9 +50,12 @@ result is a new root state; check and time it like any other.
   trip, remainder loop kept, bit-identical), `loop.inflight` (`first`: all loads of a trip before any
   arithmetic, so one wait covers them), `branch.skip_empty`. More arrive with each roadmap milestone
   (`docs/roadmap.md`, phase 2).
+- `reduce.form: dpp` replaces a tree reduction through shared memory (a barrier per level) by DPP
+  inside each wave and one LDS slot per wave; the order of additions changes (tolerance, not
+  bit-identity). `order.loads` and `loop.inflight` default to loads first.
 - The loop pair is the first thing to try on a kernel whose loop waits for every load:
-  `replan(id, {"loop.unroll": 16, "loop.inflight": "first"})` gave `matvec` 2.78x and `gemm_naive`
-  2.15x over amdclang, bit-identical. A decision that does not exist in the kernel is refused with
+  `replan(id, {"loop.unroll": 16})` gave `matvec` 2.78x, `gemm_naive` 2.15x and (with 4) `row_sum`
+  1.29x over amdclang, bit-identical. A decision that does not exist in the kernel is refused with
   the list of those that do.
 - A kernel outside the supported subset is refused with kind `frontend` (every unsupported construct
   with its source location) or `unsupported` (a lowering not built yet). `ref`, amdclang's build,

@@ -37,6 +37,8 @@ class _Access:
         self.arg = roots.get(("arg", id(s.args[0])))
 
     def may_overlap(self, o: "_Access") -> bool:
+        if self.s.args[0].type.is_lds != o.s.args[0].type.is_lds:
+            return False                                  # shared memory and a global tensor
         if self.base == o.base and self.index == o.index and self.scale == o.scale:
             return self.off < o.off + o.size and o.off < self.off + self.size
         if self.arg is not None and o.arg is not None and self.arg != o.arg:
@@ -52,7 +54,7 @@ def arg_roots(w: Func) -> dict:
         before = len(roots)
         for s in w.walk():
             if isinstance(s, Op) and s.result is not None and s.result.type.is_ptr:
-                if s.name == "arg":
+                if s.name in ("arg", "region"):
                     roots[("arg", id(s.result))] = id(s.result)
                 elif s.name in ("bitcast", "ptradd", "select") and isinstance(s.args[-2 if s.name == "select" else 0], Value):
                     srcs = s.args[1:] if s.name == "select" else s.args[:1]
@@ -197,6 +199,8 @@ def _safe_for_load(x, a: _Access, roots: dict) -> bool:
     """Moving load `a` above statement `x` does not change what it reads."""
     if isinstance(x, (If, Loop)):
         return False                                      # a region may store anything
+    if x.name == "barrier" and a.s.args[0].type.is_lds:
+        return False                                      # other waves' stores become visible at the barrier
     if x.name == "store":
         return not _Access(x, roots).may_overlap(a)
     return True
@@ -206,6 +210,8 @@ def _safe_for_store(x, a: _Access, roots: dict, run: list) -> bool:
     """Moving store `a` below statement `x` changes neither what `x` reads nor the final memory."""
     if isinstance(x, (If, Loop)):
         return False
+    if x.name == "barrier" and a.s.args[0].type.is_lds:
+        return False                                      # the other waves must see the store before they continue
     if x.name in ("load", "store"):
         if any(x is r.s for r in run):
             return True                                   # the group's own stores: disjoint
@@ -237,7 +243,12 @@ def forward_loads(w: Func) -> Func:
         for s in stmts:
             if isinstance(s, Op):
                 s.args = [r(a) for a in s.args]
-                if s.name in ("load", "store") and s.attrs.get("n", 1) == 1:
+                if s.name == "barrier":                       # other waves run: nothing known about shared memory survives
+                    for k in [k for k, (a, _) in avail.items() if a.s.args[0].type.is_lds]:
+                        del avail[k]
+                elif s.name in ("load", "store") and s.args[0].type.is_lds:
+                    pass                                     # LDS is shared with other lanes and waves: never forwarded
+                elif s.name in ("load", "store") and s.attrs.get("n", 1) == 1:
                     a = _Access(s, roots)
                     key = (a.base, a.index, a.scale, a.off, str(s.args[0].type.elem))
                     if s.name == "load":

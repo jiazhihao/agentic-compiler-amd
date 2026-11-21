@@ -26,7 +26,9 @@ SUPPORTED = {
     "Expressions": "arithmetic, bitwise, shifts, comparisons, `&&` `||` `!`, `?:`, assignment and compound assignment, "
                    "`++` `--`, casts, `__builtin_bit_cast`, subscripts, `*p`, pointer plus integer",
     "Builtins": "`threadIdx`, `blockIdx`, `blockDim`, `gridDim` (`.x .y .z`), `__builtin_assume`, `__builtin_expect`",
-    "Calls": "functions with a body in the translation unit, inlined (parameters by value; templates as instantiated)",
+    "Calls": "functions with a body in the translation unit, inlined (parameters by value; templates as instantiated); "
+             "captureless lambdas passed to them; `__syncthreads`",
+    "Shared memory": "`__shared__` arrays of scalars with constant dimensions (one or more), subscripted",
 }
 _BASE = {"int": "i32", "unsigned int": "u32", "long": "i64", "unsigned long": "u64", "long long": "i64",
          "unsigned long long": "u64", "short": "i16", "unsigned short": "u16", "char": "i8", "signed char": "i8",
@@ -77,6 +79,13 @@ class _Abort(Exception):
     pass
 
 
+class Closure:
+    """A captureless lambda as a compile-time value: calling it inlines its body."""
+
+    def __init__(self, method: dict):
+        self.method = method
+
+
 class Lowerer:
     def __init__(self, source: str | Path, entry: str, flags=None, mcpu: str = "gfx950", include_dirs=()):
         self.source, self.entry = Path(source), entry
@@ -95,6 +104,8 @@ class Lowerer:
         # the returned value, and the (break, continue) flag keys of the loops around the current statement
         self.ctx: list[dict] = []
         self.serial = 0
+        self.dims: dict[int, tuple] = {}                   # pointer value -> the dimensions of the array it points into
+        self.entry_block: list | None = None
 
     # ---- declarations --------------------------------------------------------------------------
     def fetch(self, name: str) -> None:
@@ -170,7 +181,17 @@ class Lowerer:
             base, idx = self.rvalue(n["inner"][0]), self.rvalue(n["inner"][1])
             if not base.type.is_ptr:
                 base, idx = idx, base
-            return ("mem", self.emit("gep", [base, self.cast(idx, I64, n)], base.type, n, "p"))
+            dims = self.dims.get(id(base), ())
+            i = self.cast(idx, I64, n)
+            if len(dims) > 1:                               # a row of an array of rows: the address of its first element
+                step = 1
+                for d in dims[1:]:
+                    step *= d
+                i = self.fold("mul", [i, Const(step, I64)], I64, n)
+            p = self.emit("gep", [base, i], base.type, n, "p")
+            if len(dims) > 1:
+                self.dims[id(p)] = dims[1:]
+            return ("mem", p)
         if k == "UnaryOperator" and n.get("opcode") == "*":
             return ("mem", self.rvalue(n["inner"][0]))
         if k in _CASTS and n.get("castKind") == "NoOp":
@@ -226,8 +247,30 @@ class Lowerer:
             return self.call(n)
         if k == "ArraySubscriptExpr":
             return self.read(self.lvalue(n), n)
+        if k == "LambdaExpr":
+            return self.closure(n)
+        if k == "CXXConstructExpr" and len(n.get("inner", [])) == 1:      # a copy or a move of a value
+            return self.rvalue(n["inner"][0])
+        if k == "CXXOperatorCallExpr":
+            target = self.rvalue(n["inner"][1]) if len(n.get("inner", [])) > 1 else None
+            if isinstance(target, Closure):
+                return self.inline(target.method, n["inner"][2:], n, "a lambda")
+            self.refuse(n, "an overloaded operator")
+            raise _Abort
         self.refuse(n, f"expression `{k}`")
         raise _Abort
+
+    def closure(self, n: dict) -> Closure:
+        record = next((c for c in n.get("inner", []) if c.get("kind") == "CXXRecordDecl"), None)
+        if record is None or any(c.get("kind") == "FieldDecl" for c in record.get("inner", [])):
+            self.refuse(n, "a lambda that captures")
+            raise _Abort
+        method = next((c for c in record.get("inner", []) if c.get("kind") == "CXXMethodDecl" and c.get("name") == "operator()"
+                       and any(x.get("kind") == "CompoundStmt" for x in c.get("inner", []))), None)
+        if method is None:
+            self.refuse(n, "a lambda without a body (a generic lambda)")
+            raise _Abort
+        return Closure(method)
 
     def bitcast(self, x, t: Type, n):
         if x.type == t:
@@ -243,7 +286,12 @@ class Lowerer:
         if ck in ("FunctionToPointerDecay", "BuiltinFnToFnPtr"):
             self.refuse(n, "a function used as a value")
             raise _Abort
+        if ck == "ArrayToPointerDecay":                     # an array (or a row of one) used as a pointer to its elements
+            lv = self.lvalue(inner)
+            return self.vars[lv[1]] if lv[0] == "var" else lv[1]
         x = self.rvalue(inner)
+        if isinstance(x, Closure):
+            return x
         if ck in ("NoOp", "ConstructorConversion", "UserDefinedConversion") and x.type == self.type_of(n):
             return x
         if ck in ("IntegralCast", "IntegralToFloating", "FloatingToIntegral", "FloatingCast", "IntegralToBoolean",
@@ -418,6 +466,11 @@ class Lowerer:
             return Const(0, T("i32"))
         if name == "__builtin_expect":
             return self.rvalue(args[0])
+        if name == "__syncthreads":
+            self.emit("barrier", [], None, n)
+            return Const(0, T("i32"))
+        if name in ("__builtin_inff", "__builtin_huge_valf", "__builtin_inf", "__builtin_huge_val"):
+            return Const(float("inf"), self.type_of(n))
         sig = (name, ref.get("type", {}).get("qualType"))
         if sig not in self.funcs:
             self.fetch(name)
@@ -428,18 +481,21 @@ class Lowerer:
         if len({x.get("mangledName") for x in found}) > 1:
             self.refuse(n, f"call of `{name}`: several functions have this name and signature")
             raise _Abort
-        f = found[0]
+        return self.inline(found[0], args, n, f"`{name}`")
+
+    def inline(self, f: dict, args: list, n: dict, what: str):
+        """The body of function `f` with its parameters bound to the arguments: its value."""
         if self.depth > 32:
-            self.refuse(n, f"recursion through `{name}`")
+            self.refuse(n, f"recursion through {what}")
             raise _Abort
         params = [c for c in f.get("inner", []) if c.get("kind") == "ParmVarDecl"]
         if len(params) != len(args):
-            self.refuse(n, f"call of `{name}` with default or variadic arguments")
+            self.refuse(n, f"call of {what} with default or variadic arguments")
             raise _Abort
         values = []
         for p, a in zip(params, args):
             if "&" in (p.get("type", {}).get("qualType", "")):
-                self.refuse(a, f"a reference parameter of `{name}`")
+                self.refuse(a, f"a reference parameter of {what}")
                 raise _Abort
             values.append(self.rvalue(a))
         saved = {}
@@ -448,7 +504,8 @@ class Lowerer:
             self.vars[p["id"]] = v
             self.names[p["id"]] = p.get("name", "a")
         self.depth += 1
-        rt = self.ctype(re.sub(r"\(.*$", "", f.get("type", {}).get("desugaredQualType") or f.get("type", {}).get("qualType", "void")).strip())
+        spelled = f.get("type", {}).get("desugaredQualType") or f.get("type", {}).get("qualType", "void")
+        rt = self.ctype(re.sub(r"\(.*$", "", spelled).strip())
         body = next(c for c in f["inner"] if c.get("kind") == "CompoundStmt")
         result = self.function_body(body, rt)
         self.depth -= 1
@@ -579,6 +636,27 @@ class Lowerer:
             return
         if d.get("kind") != "VarDecl":
             self.refuse(d, f"declaration `{d.get('kind')}`")
+            return
+        q = (d.get("type") or {})
+        spelled = q.get("desugaredQualType") or q.get("qualType") or ""
+        arr = re.fullmatch(r"(.+?)((?:\[\d+\])+)", spelled.strip())
+        if arr and any(c.get("kind") == "CUDASharedAttr" for c in d.get("inner", [])):
+            elem = self.ctype(arr.group(1), d)
+            if elem is None:
+                return
+            dims = tuple(int(x) for x in re.findall(r"\[(\d+)\]", arr.group(2)))
+            size = elem.size
+            for n in dims:
+                size *= n
+            self.serial += 1
+            v = Value(self.namer.fresh(d.get("name", "shared")), Type("ptr", 64, elem=elem, name="lds"))
+            self.entry_block.insert(0, Op("shared", [], v, {"name": f"{d.get('name', 'shared')}{self.serial}", "bytes": size}, loc=loc_of(d)))
+            self.vars[d["id"]] = v
+            self.names[d["id"]] = d.get("name", "shared")
+            self.dims[id(v)] = dims
+            return
+        if arr:
+            self.refuse(d, f"a local array `{spelled}` that is not `__shared__`")
             return
         t = self.type_of(d)
         if t is None:
@@ -715,6 +793,7 @@ class Lowerer:
             self.names[p["id"]] = v.name
         f = Func(self.entry, params, [])
         self.blocks = [f.body]
+        self.entry_block = f.body
         self.function_body(next(c for c in fn["inner"] if c.get("kind") == "CompoundStmt"), None)
         if self.unsupported:
             seen, items = set(), []
