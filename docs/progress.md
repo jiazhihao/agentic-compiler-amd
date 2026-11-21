@@ -19,9 +19,55 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 | Codex review fixes | #27 | PR open |
 | Stretch: machine-model calibration, attention, LDS GEMM | #7, #12, #23 | not scheduled |
 | Phase 2 roadmap: agc's own lowering | #77 | PR #78 open |
-| M11 Tracer bullet: HIP to the GPU, own path | #79 | PR open |
+| M11 Tracer bullet: HIP to the GPU, own path | #79 | PR #80 open |
+| M12 Control flow, loops, loop decisions | #81 | PR open |
 
 ## Log
+
+### 2026-11-21 — M12: control flow, loops, and the first decisions that beat amdclang (#81)
+- **What.** Frontend: early `return`, `break`, `continue`, `do`, a `return` from a loop of an inlined
+  function, all as conditions in SSA (what follows a statement that may leave runs where it did not; a loop
+  carries the flag). `kir`: condition simplification (inverse compares, De Morgan, selects), LICM, CSE,
+  reassociation of constant index offsets, counted-loop recognition and unrolling (`agc/kir/loops.py`).
+  Wave lowering: a loop on a uniform integer comparison is a counted jump; any other loop runs under a mask
+  each lane drops out of; a carried value stays in an SGPR while its initial and next values are uniform.
+  Selection: loops test at the bottom, a next value is computed straight into the carried register,
+  scalar loads (`s_load_dword*`) for uniform addresses, widening and 64-bit multiplies, merged values as one
+  register written on each side of a region.
+- **Decisions added.** `loop.unroll` (1, 2, 4, 8, 16; also when each thread has its own bound),
+  `loop.inflight` (`as_written` / `first`), `load.uniform` (`scalar` / `vector`), `access.width` up to 16 for
+  scalar loads. Unrolling keeps the operations in source order, so the results are bit-identical; `first`
+  moves a trip's loads (and their address arithmetic) ahead of the arithmetic, unless a store in between may
+  overlap; waits are then derived at the first use, so one wait covers them.
+- **Measured** (`tests/baselines/own-gfx950.json`; paired against amdclang -O3 on the source as shipped; every
+  row passed the full battery and is bit-identical to amdclang's binary):
+
+| Kernel | Default plan (95 % CI) | Instructions (own / amdclang) | Best loop decisions | With them (95 % CI) |
+|---|---|---|---|---|
+| `matvec` | 0.976 (0.975 to 0.978) | 37 / 38 | `loop.unroll` 16, `loop.inflight` first | **2.773** (2.763 to 2.782) |
+| `gemm_naive` | 0.905 (0.904 to 0.905) | 50 / 62 | `loop.unroll` 16, `loop.inflight` first | **2.157** (2.150 to 2.164) |
+| `rb_ger` | 0.792 (0.783 to 0.800) | 64 / 100 | `loop.unroll` 4, `loop.inflight` first | **1.042** (1.036 to 1.049) |
+| `gemm_bf16` | 1.000 (0.999 to 1.000) | 52 / 53 | none is a win (1.00 at 4, 8, 16) | |
+| `transpose` | 0.997 (0.991 to 1.003) | 35 / 34 | no loop | |
+
+  The seven kernels of M11 stay at parity (0.996 to 1.004). 12 of 50 kernels now pass through the own path,
+  geomean of the default plan 0.970. The control-flow kernels written for this milestone (`tests/own/`:
+  break, continue, do-while, a return inside a counting-down loop of an inlined function) pass the battery.
+- **Against the exit.** `matvec` 2.77x (target 2.5x; the pass on imported assembly: 2.79x) and `gemm_naive`
+  2.16x (target 2.0x; the pass: 2.19x), by decisions on the own lowering. Default plan at 0.90 or better: met
+  on 11 kernels, missed on `rb_ger` (0.79). There amdclang's default already runs two iterations per trip
+  (its loop vectorizer emits `v_pk_fma_f32` on two iterations' loads), while agc's default is the loop as
+  written; `loop.unroll` 4 gives 1.04x. The default does not imitate amdclang's vectorizer heuristics.
+- **Found on the way.** On gfx950 a kernel that asks for more than the x workitem id gets all three packed in
+  `v0`, 10 bits each (2-D kernels wrote one row before this was read from amdclang's code). A scalar load
+  ignores the low two bits of its offset: the 16-bit `group_size_y` is the high half of the dword at the
+  aligned offset. A merged value that one side defines must not be read on the path that skips that side:
+  the strict static check refused it, and merges became masked copies into one register.
+- **Open.** `gemm_naive`'s default is 9 % behind: amdclang turns the indices into pointer increments (9
+  instructions per trip against 13); strength reduction of addresses is M16. `gemm_bf16` does not gain from
+  the loop decisions (cause not analysed). `mo_rope_fwd` needs a 64-bit remainder (M13). The loop decisions
+  are swept by the recorder and are candidates of `optimize(s, own=True)`, not of the default policy.
+  `branch.form` and `loop.bulk` were not built. The GPU suite was run for the own-path tests only.
 
 ### 2026-11-21 — M11: tracer bullet, HIP to the GPU with no amdclang code generation (#79)
 - **What.** agc's own lowering, end to end. `agc/frontend`: Clang's JSON AST (`-fsyntax-only`, cached) to

@@ -1,0 +1,47 @@
+kir func rb_ger(%m: i32, %n: i32, %alpha: f32, %x: ptr<f32>, %y: ptr<f32>, %A: ptr<f32>, %lda: u64) {
+  %tid_x: u32 = tid.x
+  %t: i32 = cast %tid_x
+  %bid_x: u32 = bid.x
+  %col: i32 = cast %bid_x
+  %t1: i1 = ne %alpha, 0.0:f32
+  %t2: i1 = not %t1
+  if %t2 @if0 {
+  }
+  merge %t3: i1 = true:i1, false:i1
+  %t4: i1 = not %t3
+  if %t4 @if1 {
+    %t5: i1 = lt %t, %m
+    if %t5 @if2 {
+      %t6: i64 = cast %t
+      %p: ptr<f32> = gep %A, %t6
+    }
+    merge %A7: ptr<f32> = %p, %A
+    %t8: u64 = cast %col
+    %t9: u64 = mul %t8, %lda
+    %t10: i64 = cast %t9
+    %p11: ptr<f32> = gep %A7, %t10
+    %t12: i64 = cast %col
+    %p13: ptr<f32> = gep %y, %t12
+    %v: f32 = load %p13 @load0
+    %res_y: f32 = mul %v, %alpha
+    loop @loop0 {
+      carry %i: i32 = 0:i32, %t26 -> %i27
+      %t15: i32 = add[nsw=true] %t, %i
+      %t16: i1 = lt %t15, %m
+      while %t16
+      %t17: i64 = cast %i
+      %p18: ptr<f32> = gep %p11, %t17
+      %v19: f32 = load %p18 @load1
+      %t20: i32 = add[nsw=true] %t, %i
+      %t21: i64 = cast %t20
+      %p22: ptr<f32> = gep %x, %t21
+      %v23: f32 = load %p22 @load2
+      %t24: f32 = mul %res_y, %v23
+      %t25: f32 = add %v19, %t24
+      store %p18, %t25 @store0
+      %t26: i32 = add[nsw=true] %i, 1024:i32
+    }
+  }
+  merge %A28: ptr<f32> = %p11, %A
+  merge %t29: i1 = false:i1, %t3
+}

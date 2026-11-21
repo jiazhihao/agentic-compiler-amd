@@ -1,0 +1,39 @@
+kir func halvings(%x: ptr<f32>, %out: ptr<i32>, %n: i32) {
+  %bid_x: u32 = bid.x
+  %bdim_x: u32 = bdim.x
+  %t: u32 = mul %bid_x, %bdim_x
+  %tid_x: u32 = tid.x
+  %t0: u32 = add %t, %tid_x
+  %i: i32 = cast %t0
+  %t2: i1 = ge %i, %n
+  if %t2 @if0 {
+  }
+  merge %t3: i1 = true:i1, false:i1
+  %t4: i1 = not %t3
+  if %t4 @if1 {
+    %t5: i64 = cast %i
+    %p: ptr<f32> = gep %x, %t5
+    %v: f32 = load %p @load0
+    %t6: i1 = lt %v, 0.0:f32
+    if %t6 @if2 {
+      %t7: f32 = neg %v
+    }
+    merge %v8: f32 = %t7, %v
+    loop @loop0 {
+      carry %v9: f32 = %v8, %t13 -> %v9_15
+      carry %k: i32 = 0:i32, %t14 -> %k16
+      carry %first: i1 = true:i1, false:i1 -> %first17
+      %t10: i1 = ge %v9, 1.0:f32
+      %t11: i1 = lt %k, 40:i32
+      %c: i1 = and %t10, %t11
+      %t12: i1 = or %first, %c
+      while %t12
+      %t13: f32 = mul %v9, 0.5:f32
+      %t14: i32 = add[nsw=true] %k, 1:i32
+    }
+    %t18: i64 = cast %i
+    %p19: ptr<i32> = gep %out, %t18
+    store %p19, %k16 @store0
+  }
+  merge %t20: i1 = false:i1, %t3
+}

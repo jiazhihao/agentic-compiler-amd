@@ -1,0 +1,39 @@
+kir func matvec(%A: ptr<f32>, %x: ptr<f32>, %y: ptr<f32>, %rows: i32, %cols: i32) {
+  %bid_x: u32 = bid.x
+  %bdim_x: u32 = bdim.x
+  %t: u32 = mul %bid_x, %bdim_x
+  %tid_x: u32 = tid.x
+  %t0: u32 = add %t, %tid_x
+  %i: i32 = cast %t0
+  %t2: i1 = ge %i, %rows
+  if %t2 @if0 {
+  }
+  merge %t3: i1 = true:i1, false:i1
+  %t4: i1 = not %t3
+  if %t4 @if1 {
+    %t5: u64 = cast %i
+    %t6: u64 = cast %cols
+    %t7: u64 = mul %t5, %t6
+    %t8: i64 = cast %t7
+    %p: ptr<f32> = gep %A, %t8
+    loop @loop0 {
+      carry %j: i32 = 0:i32, %t17 -> %j18
+      carry %acc: f32 = 0.0:f32, %t16 -> %acc19
+      %t9: i1 = lt %j, %cols
+      while %t9
+      %t10: i64 = cast %j
+      %p11: ptr<f32> = gep %p, %t10
+      %v: f32 = load %p11 @load0
+      %t12: i64 = cast %j
+      %p13: ptr<f32> = gep %x, %t12
+      %v14: f32 = load %p13 @load1
+      %t15: f32 = mul %v, %v14
+      %t16: f32 = add %acc, %t15
+      %t17: i32 = add[nsw=true] %j, 1:i32
+    }
+    %t20: i64 = cast %i
+    %p21: ptr<f32> = gep %y, %t20
+    store %p21, %acc19 @store0
+  }
+  merge %t22: i1 = false:i1, %t3
+}

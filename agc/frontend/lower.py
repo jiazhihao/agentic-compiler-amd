@@ -21,7 +21,7 @@ from . import clang_ast
 from .clang_ast import FrontendError
 
 SUPPORTED = {
-    "Statements": "compound, declaration, expression, `if`/`else`, `for`, `while`, `do`, `return` as the last statement",
+    "Statements": "compound, declaration, expression, `if`/`else`, `for`, `while`, `do`, `return`, `break`, `continue`",
     "Types": "`bool`, 8- to 64-bit integers, `float`, `double`, pointers to them (typedefs resolved by Clang)",
     "Expressions": "arithmetic, bitwise, shifts, comparisons, `&&` `||` `!`, `?:`, assignment and compound assignment, "
                    "`++` `--`, casts, `__builtin_bit_cast`, subscripts, `*p`, pointer plus integer",
@@ -91,6 +91,10 @@ class Lowerer:
         self.vars: dict[str, object] = {}                  # declaration id -> its current SSA value
         self.names: dict[str, str] = {}
         self.depth = 0
+        # the functions being lowered (the entry, then inlined calls): the key of the "has returned" flag, of
+        # the returned value, and the (break, continue) flag keys of the loops around the current statement
+        self.ctx: list[dict] = []
+        self.serial = 0
 
     # ---- declarations --------------------------------------------------------------------------
     def fetch(self, name: str) -> None:
@@ -345,7 +349,8 @@ class Lowerer:
                 new = self.emit("gep", [cur, Const(1 if op == "++" else -1, I64)], cur.type, n, "p")
             else:
                 one = Const(1.0 if cur.type.is_float else 1, cur.type)
-                new = self.fold("add" if op == "++" else "sub", [cur, one], cur.type, n)
+                new = self.fold("add" if op == "++" else "sub", [cur, one], cur.type, n,
+                                **({"nsw": True} if cur.type.is_int and cur.type.signed else {}))
             self.write(lv, new, n)
             return cur if n.get("isPostfix") else new
         if op == "*":
@@ -397,6 +402,9 @@ class Lowerer:
     def join(self, s: If, before: dict, a: dict, b: dict):
         self.vars = dict(before)
         for d in before:
+            if a[d] is None or b[d] is None:                # a pointer result, set on one path only
+                self.vars[d] = a[d] if a[d] is not None else b[d]
+                continue
             if a[d] is not b[d] and a[d] != b[d]:
                 r = Value(self.namer.fresh(self.names.get(d, "t")), a[d].type)
                 s.merges.append(Merge(r, a[d], b[d]))
@@ -440,40 +448,88 @@ class Lowerer:
             self.vars[p["id"]] = v
             self.names[p["id"]] = p.get("name", "a")
         self.depth += 1
+        rt = self.ctype(re.sub(r"\(.*$", "", f.get("type", {}).get("desugaredQualType") or f.get("type", {}).get("qualType", "void")).strip())
         body = next(c for c in f["inner"] if c.get("kind") == "CompoundStmt")
-        result = self.function_body(body)
+        result = self.function_body(body, rt)
         self.depth -= 1
         for d, v in saved.items():
             if v is None:
                 self.vars.pop(d, None)
             else:
                 self.vars[d] = v
-        rt = self.ctype(re.sub(r"\(.*$", "", f.get("type", {}).get("desugaredQualType") or f.get("type", {}).get("qualType", "void")).strip())
         if rt is None:
             return Const(0, T("i32"))
-        if result is None:
-            self.refuse(n, f"`{name}` does not end with a return")
-            raise _Abort
         return self.cast(result, rt, n)
 
     # ---- statements ----------------------------------------------------------------------------
-    def function_body(self, body: dict):
-        """Lower a function's statements; returns the value of a trailing `return`, if any."""
-        stmts = body.get("inner", [])
-        result = None
-        for i, s in enumerate(stmts):
-            if s.get("kind") == "ReturnStmt":
-                if i != len(stmts) - 1:
-                    self.refuse(s, "a `return` that is not the last statement")
-                    continue
-                if s.get("inner"):
-                    try:
-                        result = self.rvalue(s["inner"][0])
-                    except _Abort:
-                        pass
-                continue
-            self.stmt(s)
+    def function_body(self, body: dict, rt: Type | None):
+        """Lower a function's statements; returns the value it returns (None for `void`)."""
+        self.serial += 1
+        c = {"ret": f"$ret{self.serial}", "val": f"$val{self.serial}" if rt is not None else None, "loops": [], "rt": rt}
+        self.vars[c["ret"]] = Const(False, I1)
+        if rt is not None:
+            self.vars[c["val"]] = Const(0.0 if rt.is_float else 0, rt) if not rt.is_ptr else None
+        self.ctx.append(c)
+        self.seq(body.get("inner", []))
+        self.ctx.pop()
+        result = self.vars.pop(c["val"], None) if rt is not None else None
+        del self.vars[c["ret"]]
         return result
+
+    def left(self):
+        """Whether control has left the statement sequence being lowered (a `return`, or a `break` or
+        `continue` of the innermost loop): None (it has not), a constant true, or a condition."""
+        c = self.ctx[-1]
+        vals = [self.vars[k] for k in [c["ret"], *(c["loops"][-1] if c["loops"] else ())]]
+        if any(isinstance(v, Const) and v.value for v in vals):
+            return Const(True, I1)
+        vals = [v for v in vals if not isinstance(v, Const)]
+        if not vals:
+            return None
+        r = vals[0]
+        for v in vals[1:]:
+            r = self.emit("or", [r, v], I1)
+        return r
+
+    def seq(self, stmts: list):
+        """Statements in order; what follows a statement that may leave runs only where it did not."""
+        for i, s in enumerate(stmts):
+            self.stmt(s)
+            g = self.left()
+            if g is None:
+                continue
+            rest = stmts[i + 1:]
+            if isinstance(g, Const) or not rest:
+                return
+            keys = [self.ctx[-1]["ret"], *(self.ctx[-1]["loops"][-1] if self.ctx[-1]["loops"] else ())]
+
+            def remaining():
+                for key in keys:                            # where the rest runs, nothing has left
+                    self.vars[key] = Const(False, I1)
+                self.seq(rest)
+
+            self.region(self.fold("not", [g], I1, s), remaining, None, s)
+            return
+
+    def region(self, cond, then, orelse, n):
+        """`if (cond) then() else orelse()` with the variables both sides assign merged."""
+        if isinstance(cond, Const):
+            if cond.value:
+                then()
+            elif orelse:
+                orelse()
+            return
+        s, before = If(cond, loc=loc_of(n)), dict(self.vars)
+        self.blocks.append(s.then)
+        then()
+        after_then, self.vars = self.vars, dict(before)
+        self.blocks[-1] = s.orelse
+        if orelse:
+            orelse()
+        after_else = self.vars
+        self.blocks.pop()
+        self.blocks[-1].append(s)
+        self.join(s, before, {d: after_then[d] for d in before}, {d: after_else[d] for d in before})
 
     def stmt(self, n: dict):
         try:
@@ -484,8 +540,7 @@ class Lowerer:
     def _stmt(self, n: dict):
         k = n.get("kind")
         if k == "CompoundStmt":
-            for s in n.get("inner", []):
-                self.stmt(s)
+            self.seq(n.get("inner", []))
         elif k == "NullStmt":
             pass
         elif k == "DeclStmt":
@@ -495,8 +550,25 @@ class Lowerer:
             self.if_stmt(n)
         elif k in ("ForStmt", "WhileStmt", "DoStmt"):
             self.loop_stmt(n)
-        elif k in ("ReturnStmt", "BreakStmt", "ContinueStmt", "SwitchStmt", "GotoStmt", "LabelStmt"):
-            self.refuse(n, {"ReturnStmt": "a `return` that is not the last statement of its function"}.get(k, f"`{k}`"))
+        elif k == "ReturnStmt":
+            c = self.ctx[-1]
+            if n.get("inner") and c["rt"] is not None:
+                x = self.rvalue(n["inner"][0])
+                if x.type.is_ptr or c["rt"].is_ptr:
+                    if self.vars[c["ret"]] is not None and not (isinstance(self.vars[c["ret"]], Const) and not self.vars[c["ret"]].value):
+                        self.refuse(n, "a pointer returned from more than one place")
+                    self.vars[c["val"]] = x
+                else:
+                    self.vars[c["val"]] = self.cast(x, c["rt"], n)
+            self.vars[c["ret"]] = Const(True, I1)
+        elif k in ("BreakStmt", "ContinueStmt"):
+            c = self.ctx[-1]
+            if not c["loops"]:
+                self.refuse(n, f"`{k}` outside a loop")
+                return
+            self.vars[c["loops"][-1][0 if k == "BreakStmt" else 1]] = Const(True, I1)
+        elif k in ("SwitchStmt", "GotoStmt", "LabelStmt"):
+            self.refuse(n, f"`{k}`")
         elif k == "AttributedStmt":
             self.stmt(n["inner"][-1])
         else:
@@ -528,23 +600,7 @@ class Lowerer:
             self.refuse(n, "`if` with an init statement or a condition variable")
             raise _Abort
         cond = self.cast(self.rvalue(parts[0]), I1, n)
-        if isinstance(cond, Const):
-            if cond.value:
-                self.stmt(parts[1])
-            elif len(parts) > 2:
-                self.stmt(parts[2])
-            return
-        s, before = If(cond, loc=loc_of(n)), dict(self.vars)
-        self.blocks.append(s.then)
-        self.stmt(parts[1])
-        after_then, self.vars = self.vars, dict(before)
-        self.blocks[-1] = s.orelse
-        if len(parts) > 2:
-            self.stmt(parts[2])
-        after_else = self.vars
-        self.blocks.pop()
-        self.blocks[-1].append(s)
-        self.join(s, before, {d: after_then[d] for d in before}, {d: after_else[d] for d in before})
+        self.region(cond, lambda: self.stmt(parts[1]), (lambda: self.stmt(parts[2])) if len(parts) > 2 else None, n)
 
     def assigned(self, nodes: list[dict]) -> list[str]:
         """Declarations (already in scope) that the given subtrees assign."""
@@ -577,37 +633,65 @@ class Lowerer:
             (cond, body), inc = parts[-2:], {}
         else:
             (body, cond), inc = parts, {}
-        if any(x.get("kind") in ("BreakStmt", "ContinueStmt", "ReturnStmt") for x in _collect(body)):
-            self.refuse(n, "`break`, `continue` or `return` inside a loop")
-            raise _Abort
-        if k == "DoStmt":                                   # the body once, then a `while` loop
-            self.stmt(body)
-        s = Loop(loc=loc_of(n))
+        c = self.ctx[-1]
+        self.serial += 1
+        brk, cnt, first = f"$brk{self.serial}", f"$cnt{self.serial}", f"$first{self.serial}"
+        self.vars[brk] = self.vars[cnt] = Const(False, I1)
+        kinds = {x.get("kind") for x in _collect(body)}
         carried = self.assigned([x for x in (cond, inc, body) if x])
+        if "BreakStmt" in kinds:
+            carried.append(brk)
+        if "ReturnStmt" in kinds:
+            carried.append(c["ret"])
+            if c["val"] is not None and self.vars.get(c["val"]) is not None:
+                carried.append(c["val"])
+        if k == "DoStmt":                                   # the body runs before the first test
+            self.vars[first] = Const(True, I1)
+            carried.append(first)
+        s = Loop(loc=loc_of(n))
         for d in carried:
-            c = Value(self.namer.fresh(self.names.get(d, "t")), self.vars[d].type)
-            s.carried.append(c)
+            v = Value(self.namer.fresh(self.names.get(d, d.strip("$").rstrip("0123456789") or "t")), self.vars[d].type)
+            s.carried.append(v)
             s.init.append(self.vars[d])
-            self.vars[d] = c
+            self.vars[d] = v
         at_head = dict(self.vars)
         self.blocks.append(s.head)
-        s.cond = self.cast(self.rvalue(cond), I1, n) if cond else Const(True, I1)
+        try:
+            go = self.cast(self.rvalue(cond), I1, n) if cond else Const(True, I1)
+        except _Abort:
+            self.blocks.pop()
+            raise
         if any(self.vars.get(d) is not at_head.get(d) for d in at_head):
             self.blocks.pop()
             self.refuse(cond, "an assignment in a loop condition")
             raise _Abort
+        if k == "DoStmt":
+            go = self.fold("or", [self.vars[first], go], I1, n)
+        for d in (brk, c["ret"]):                           # a thread that broke out or returned stops iterating
+            if d in carried:
+                go = self.fold("and", [go, self.fold("not", [self.vars[d]], I1, n)], I1, n)
+        s.cond = go
         self.blocks[-1] = s.body
+        c["loops"].append((brk, cnt))
+        if k == "DoStmt":
+            self.vars[first] = Const(False, I1)
         self.stmt(body)
-        if inc:
-            self.stmt(inc)
+        c["loops"].pop()
+        if inc:                                             # `continue` reaches the increment; `break` and `return` do not
+            gone = [self.vars[d] for d in (brk, c["ret"]) if not (isinstance(self.vars[d], Const) and not self.vars[d].value)]
+            if not gone:
+                self.stmt(inc)
+            elif not any(isinstance(g, Const) for g in gone):
+                g = gone[0] if len(gone) == 1 else self.emit("or", gone, I1, n)
+                self.region(self.fold("not", [g], I1, n), lambda: self.stmt(inc), None, n)
         self.blocks.pop()
-        for d, c in zip(carried, s.carried):
+        for d, v in zip(carried, s.carried):
             s.next.append(self.vars[d])
-            o = Value(self.namer.fresh(self.names.get(d, "t")), c.type)
+            o = Value(self.namer.fresh(v.name), v.type)
             s.out.append(o)
             self.vars[d] = o
         self.blocks[-1].append(s)
-        for d in set(self.vars) - scope:                    # the loop's own declarations end with it
+        for d in set(self.vars) - scope:                    # the loop's own declarations and flags end with it
             del self.vars[d]
 
     # ---- the entry -----------------------------------------------------------------------------
@@ -631,7 +715,7 @@ class Lowerer:
             self.names[p["id"]] = v.name
         f = Func(self.entry, params, [])
         self.blocks = [f.body]
-        self.function_body(next(c for c in fn["inner"] if c.get("kind") == "CompoundStmt"))
+        self.function_body(next(c for c in fn["inner"] if c.get("kind") == "CompoundStmt"), None)
         if self.unsupported:
             seen, items = set(), []
             for u in self.unsupported:

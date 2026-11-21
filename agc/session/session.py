@@ -902,6 +902,8 @@ class Session:
         plan: every decision taken, its alternatives, and which were overridden."""
         from .. import lower as own
         from ..frontend import FrontendError
+        from ..gen.builder import GenError
+        from ..kir.ir import IRError
         if self.manifest.source is None:
             raise SessionError("parameter", "this manifest has no HIP source to lower", suggestion="generate() compiles its tensor program")
         if overrides is not None and not isinstance(overrides, dict):
@@ -916,6 +918,9 @@ class Session:
                                suggestion="the lowering does not do this yet; `ref` (amdclang's build) remains available") from None
         except own.PlanError as e:
             raise SessionError("parameter", e.message, values=e.values, suggestion="plan(ref) lists a state's decisions") from None
+        except (GenError, IRError) as e:                    # the lowering produced something its own checks refuse
+            raise SessionError("internal", f"the lowering failed its own check: {e}",
+                               suggestion="a bug in agc's lowering, not in the kernel; `ref` (amdclang's build) remains available") from None
         action = {"name": "lower", "overrides": r.overrides, "strict": True}
         if note:
             action["note"] = note

@@ -21,7 +21,7 @@ kir func rb_copy(%n: i32, %x: ptr<f32>, %y: ptr<f32>) {
       %p11: ptr<f32> = gep %x, %t10
       %v: f32 = load %p11 @load0
       store %p, %v @store0
-      %t12: i32 = add %j, 1:i32
+      %t12: i32 = add[nsw=true] %j, 1:i32
     }
   }
   %t14: i32 = rem %n, 2:i32

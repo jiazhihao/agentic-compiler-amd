@@ -12,6 +12,10 @@
 | `store[scale, off] base, index, x` | | |
 | `load[scale, off, n]`, `store[.., n]` | v | `n` consecutive elements per lane in one access (a `dwordxN` load): the value is a vector `f32x2` |
 | `extract[i] x`, `pack a, b, ..` | v | an element of a vector; a vector from elements |
+| `mulw a, b` | u or v | the 64-bit product of two 32-bit integers |
+
+A `load` whose base and index are `u` may itself be `u`: one scalar load for the wave (`s_load_dword`),
+with `n` up to 16.
 
 A `u` result needs `u` operands. A compare gives a `v i1` (a lane mask) or a `u i1` (a condition for
 `branch`). `where %mask { }` runs its region for the lanes of the mask; `branch %cond { }` is a
@@ -26,7 +30,7 @@ SOURCES_U = {"arg", "hidden"} | {f"wg.{d}" for d in "xyz"}
 SOURCES_V = {f"lane.{d}" for d in "xyz"}
 ARITH = (kops.PURE - kops.BUILTINS - {"gep"})
 HIDDEN_FIELDS = {f"{n}_{d}" for n in ("block_count", "group_size") for d in "xyz"}
-ALL = SOURCES_U | SOURCES_V | ARITH | {"ptradd", "load", "store", "extract", "pack"}
+ALL = SOURCES_U | SOURCES_V | ARITH | {"ptradd", "load", "store", "extract", "pack", "mulw"}
 
 
 def kind_of(x) -> str:
@@ -62,21 +66,27 @@ def check(op: Op) -> None:
         count = op.attrs.get("n", 1)
         if count != 1:
             from ..kir.ir import vec
-            if n == "ptradd" or not isinstance(count, int) or not 2 <= count <= 4 or elem.size != 4:
-                raise IRError(f"{n}: `n` is 2 to 4 elements of 32 bits")
+            scalar = n == "load" and r is not None and r.kind == "u"
+            if n == "ptradd" or not isinstance(count, int) or elem.size != 4 or \
+                    count not in ((2, 4, 8, 16) if scalar else (2, 3, 4)):
+                raise IRError(f"{n}: `n` is 2 to 4 elements of 32 bits per lane (2, 4, 8 or 16 for a scalar load)")
             elem = vec(elem, count)
         if n == "store":
             if r is not None or op.args[2].type != elem:
                 raise IRError(f"store: the value is {op.args[2].type}, the pointer's element {elem}")
         elif r is None or r.type != (op.args[0].type if n == "ptradd" else elem):
             raise IRError(f"{n}: wrong result type")
-        elif n == "load" and r.kind != "v":
-            raise IRError("load gives a per-lane value")
         return
     if n == "extract":
         t = op.args[0].type if len(op.args) == 1 else None
         if t is None or not t.is_vec or not isinstance(op.attrs.get("i"), int) or not 0 <= op.attrs["i"] < t.count or r.type != t.elem:
             raise IRError("extract[i] takes a vector and gives its element i")
+        return
+    if n == "mulw":
+        ok = len(op.args) == 2 and op.args[0].type == op.args[1].type and op.args[0].type.is_int and op.args[0].type.bits == 32 \
+            and r.type.is_int and r.type.bits == 64
+        if not ok:
+            raise IRError("mulw takes two 32-bit integers of one type and gives a 64-bit integer")
         return
     if n == "pack":
         if not 2 <= len(op.args) <= 4 or any(a.type != op.args[0].type for a in op.args) or not r.type.is_vec \

@@ -1,0 +1,68 @@
+{
+ "name": "first_below",
+ "source": "control.hip",
+ "entry": "first_below",
+ "shapes": {
+  "rows": 300,
+  "cols": 37
+ },
+ "dynamic": [
+  "rows",
+  "cols"
+ ],
+ "params": [
+  {
+   "name": "x",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "rows",
+    "cols"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "out",
+   "kind": "tensor",
+   "dtype": "i32",
+   "shape": [
+    "rows"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "t",
+   "kind": "scalar",
+   "dtype": "f32",
+   "value": -1.25
+  },
+  {
+   "name": "rows",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "rows"
+  },
+  {
+   "name": "cols",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "cols"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "cdiv(rows, 128)"
+  ],
+  "block": [
+   128
+  ]
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "first_below"
+ },
+ "tags": [
+  "control-flow"
+ ]
+}

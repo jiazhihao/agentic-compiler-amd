@@ -34,6 +34,8 @@ valu:
   mov: {x32: v_mov_b32, f32: v_mov_b32}
   lshl_add: {x64: v_lshl_add_u64}        # dst = (src0 << count) + src2, count 0..max_lshl_add
   bfe: {i32: v_bfe_i32, u32: v_bfe_u32}  # bit-field extract: dst = (src0 >> offset)[0:width], sign- or zero-extended
+  mulw: {i32: v_mad_i64_i32, u32: v_mad_u64_u32}   # 32 x 32 -> 64 (plus a 64-bit addend): dst, carry-out, a, b, addend
+  mulhi: {i32: v_mul_hi_i32, u32: v_mul_hi_u32}
   # value conversions, `from>to`
   cast:
     f32>i32: v_cvt_i32_f32
@@ -75,6 +77,7 @@ salu:
   subb: {x32: s_subb_u32}
   sext8: {x32: s_sext_i32_i8}
   sext16: {x32: s_sext_i32_i16}
+  mulhi: {i32: s_mul_hi_i32, u32: s_mul_hi_u32}     # the high half of a 32 x 32 product (the low half is `mul`)
 
 memory:
   load: {u8: global_load_ubyte, i8: global_load_sbyte, u16: global_load_ushort, i16: global_load_sshort,
@@ -82,6 +85,8 @@ memory:
   store: {x8: global_store_byte, x16: global_store_short, x32: global_store_dword, f32: global_store_dword,
           x64: global_store_dwordx2, f64: global_store_dwordx2}
   kernarg: {4: s_load_dword, 8: s_load_dwordx2}
+  # a load whose address is uniform over the wave: one scalar load for all lanes (dwords per load)
+  scalar: {1: s_load_dword, 2: s_load_dwordx2, 4: s_load_dwordx4, 8: s_load_dwordx8, 16: s_load_dwordx16}
   # several consecutive 32-bit elements per lane in one access
   load_wide: {2: global_load_dwordx2, 3: global_load_dwordx3, 4: global_load_dwordx4}
   store_wide: {2: global_store_dwordx2, 3: global_store_dwordx3, 4: global_store_dwordx4}
@@ -92,8 +97,11 @@ control:
   where_leave: s_or_b64                  # exec |= save
   skip_empty: s_cbranch_execz
   branch_false: s_cbranch_scc0
+  branch_true: s_cbranch_scc1
+  continue_nonempty: s_cbranch_execnz    # jump while some lane is still running
   jump: s_branch
   mask_copy: s_mov_b64
+  mask_and: s_and_b64
   cond_to_mask: s_cselect_b64            # a lane mask (all lanes or none) from the scalar condition code
   end: s_endpgm
 
@@ -102,8 +110,12 @@ limits:
   inline_float: [0.0, 0.5, -0.5, 1.0, -1.0, 2.0, -2.0, 4.0, -4.0]
   max_lshl_add: 4
   flat_offset: [-4096, 4095]             # signed 13-bit immediate offset of a global load or store
+  scalar_offset: [0, 1048575]            # immediate offset of a scalar load
   float_sign_bit: {f32: 0x80000000}
   # kernel entry state (AMD HSA ABI, as amdclang's kernels use it)
   kernarg_pointer: "s[0:1]"
   first_workgroup_id_sgpr: 2
   first_workitem_id_vgpr: 0
+  # a kernel that asks for more than the x workitem id gets all of them packed in that one register,
+  # this many bits each (x lowest); asking for x alone gives x unpacked (observed in amdclang's kernels)
+  workitem_id_bits: 10

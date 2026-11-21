@@ -27,6 +27,10 @@ class Interp(_KirInterp):
         self.ptrs: dict[int, Ptr] = {}
 
     def check_uniform(self, s: Op, x, mask: np.ndarray):
+        if isinstance(x, list):                              # a vector: each element
+            for e in x:
+                self.check_uniform(s, e, mask)
+            return
         if isinstance(x, Ptr):
             x = x.off
         x = np.asarray(x)
@@ -76,6 +80,11 @@ class Interp(_KirInterp):
             p, e = self.address(s), s.args[2].type.elem
             for i, x in enumerate(self.val(s.args[2])):
                 Memory.store(Ptr(p.raw, p.off + i * e.size, p.name), x, e, mask, s.site or "")
+        elif n == "mulw":
+            wide = np.int64 if s.args[0].type.signed else np.uint64
+            a, b = (self.val(x).astype(wide) for x in s.args)
+            with np.errstate(all="ignore"):
+                self.env[id(s.result)] = (a * b).astype(np_dtype(s.result.type))
         elif n == "extract":
             self.env[id(s.result)] = self.val(s.args[0])[s.attrs["i"]]
         elif n == "pack":

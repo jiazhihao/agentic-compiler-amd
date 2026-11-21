@@ -44,19 +44,42 @@ class _Access:
         return True
 
 
+def arg_roots(w: Func) -> dict:
+    """Which pointers are the same base retyped or offset, and which tensor argument each comes from: a
+    pointer computed from an argument (`ptradd`, `bitcast`) points into that argument's tensor."""
+    roots: dict = {}
+    for _ in range(8):                                     # merged and carried pointers: until nothing changes
+        before = len(roots)
+        for s in w.walk():
+            if isinstance(s, Op) and s.result is not None and s.result.type.is_ptr:
+                if s.name == "arg":
+                    roots[("arg", id(s.result))] = id(s.result)
+                elif s.name in ("bitcast", "ptradd", "select") and isinstance(s.args[-2 if s.name == "select" else 0], Value):
+                    srcs = s.args[1:] if s.name == "select" else s.args[:1]
+                    if s.name == "bitcast":
+                        roots[id(s.result)] = roots.get(id(srcs[0]), id(srcs[0]))
+                    tensors = {roots.get(("arg", id(x))) for x in srcs}
+                    if len(tensors) == 1 and None not in tensors:
+                        roots[("arg", id(s.result))] = tensors.pop()
+            elif isinstance(s, If):
+                for m in s.merges:                         # a pointer into the same tensor on both sides
+                    tensors = {roots.get(("arg", id(x))) for x in (m.a, m.b)}
+                    if m.result.type.is_ptr and len(tensors) == 1 and None not in tensors:
+                        roots[("arg", id(m.result))] = tensors.pop()
+            elif isinstance(s, Loop):
+                for c, i, n, o in zip(s.carried, s.init, s.next, s.out):
+                    if c.type.is_ptr and roots.get(("arg", id(i))) is not None:
+                        root = roots[("arg", id(i))]
+                        if roots.get(("arg", id(n)), root) == root:
+                            roots[("arg", id(c))] = roots[("arg", id(o))] = root
+        if len(roots) == before:
+            break
+    return roots
+
+
 def merge_accesses(w: Func, plan: Plan) -> Func:
     namer = Namer({v.name for s in w.walk() for v in results(s)})
-    # a pointer that is another one retyped shares its base; `arg` values name the manifest's tensors
-    roots: dict = {}
-    for s in w.walk():
-        if isinstance(s, Op) and s.result is not None:
-            if s.name == "arg" and s.result.type.is_ptr:
-                roots[("arg", id(s.result))] = id(s.result)
-            elif s.name == "bitcast" and s.result.type.is_ptr and isinstance(s.args[0], Value):
-                src = s.args[0]
-                roots[id(s.result)] = roots.get(id(src), id(src))
-                if ("arg", id(src)) in roots:
-                    roots[("arg", id(s.result))] = roots[("arg", id(src))]
+    roots = arg_roots(w)
 
     def block(stmts: list) -> list:
         for s in stmts:
@@ -69,6 +92,9 @@ def merge_accesses(w: Func, plan: Plan) -> Func:
     def mergeable(s) -> bool:
         return isinstance(s, Op) and s.attrs.get("n", 1) == 1 and s.args[0].type.elem.size == 4 and not s.args[0].type.elem.is_bool
 
+    def scalar(a: _Access) -> bool:
+        return a.s.name == "load" and a.s.result.kind == "u"
+
     def group(cands: list[_Access]) -> list[list[_Access]]:
         """Runs of accesses at consecutive offsets with one base, index, scale and element type."""
         out, used = [], set()
@@ -76,9 +102,9 @@ def merge_accesses(w: Func, plan: Plan) -> Func:
             if id(a) in used:
                 continue
             run = [a]
-            while len(run) < 4:
+            while len(run) < (16 if scalar(a) else 4):
                 nxt = next((c for c in cands if id(c) not in used and c is not a and c not in run and c.base == a.base
-                            and c.index == a.index and c.scale == a.scale
+                            and c.index == a.index and c.scale == a.scale and scalar(c) == scalar(a)
                             and c.s.args[0].type == a.s.args[0].type and c.off == run[-1].off + 4), None)
                 if nxt is None:
                     break
@@ -89,8 +115,11 @@ def merge_accesses(w: Func, plan: Plan) -> Func:
         return out
 
     def limit(run: list[_Access]) -> list[_Access]:
-        width = plan.choose(run[0].s.site or "access", "access.width", [4, 2, 1])
-        return run[:width] if width > 1 else []
+        """As many of the run as the decision allows and one access can hold (a scalar load: 2, 4, 8 or 16)."""
+        allowed = (16, 8, 4, 2) if scalar(run[0]) else (4, 3, 2)
+        width = plan.choose(run[0].s.site or "access", "access.width", [16, 8, 4, 2, 1] if scalar(run[0]) else [4, 2, 1])
+        n = next((k for k in allowed if k <= width and k <= len(run)), 0)
+        return run[:n]
 
     def _loads(stmts: list) -> list:
         pos = {id(s): i for i, s in enumerate(stmts)}
@@ -113,7 +142,7 @@ def merge_accesses(w: Func, plan: Plan) -> Func:
             if len(ok) < 2:
                 continue
             lead = ok[0].s
-            wide = Value(namer.fresh("w"), vec(lead.result.type, len(ok)), "v")
+            wide = Value(namer.fresh("w"), vec(lead.result.type, len(ok)), lead.result.kind)
             new = [Op("load", list(lead.args), wide, {**lead.attrs, "n": len(ok)}, lead.site, lead.loc)]
             new += [Op("extract", [wide], a.s.result, {"i": i}) for i, a in enumerate(ok)]
             insert[id(first.s)] = new
@@ -187,16 +216,7 @@ def _safe_for_store(x, a: _Access, roots: dict, run: list) -> bool:
 def forward_loads(w: Func) -> Func:
     """Remove loads whose value is already in a register: an earlier load of the same address, or
     the value an earlier store wrote there, when no store in between can overlap."""
-    roots: dict = {}
-    for s in w.walk():
-        if isinstance(s, Op) and s.result is not None:
-            if s.name == "arg" and s.result.type.is_ptr:
-                roots[("arg", id(s.result))] = id(s.result)
-            elif s.name == "bitcast" and s.result.type.is_ptr and isinstance(s.args[0], Value):
-                src = s.args[0]
-                roots[id(s.result)] = roots.get(id(src), id(src))
-                if ("arg", id(src)) in roots:
-                    roots[("arg", id(s.result))] = roots[("arg", id(src))]
+    roots = arg_roots(w)
     subst: dict[int, object] = {}
 
     def r(x):

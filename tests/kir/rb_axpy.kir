@@ -29,7 +29,7 @@ kir func rb_axpy(%n: i32, %alpha: f32, %x: ptr<f32>, %y: ptr<f32>) {
         %t17: f32 = mul %alpha, %v16
         %t18: f32 = add %v, %t17
         store %p, %t18 @store0
-        %t19: i32 = add %j, 1:i32
+        %t19: i32 = add[nsw=true] %j, 1:i32
       }
     }
     %t21: i32 = rem %n, 2:i32

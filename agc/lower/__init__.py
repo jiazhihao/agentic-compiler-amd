@@ -14,12 +14,12 @@ from dataclasses import dataclass, field
 
 from ..kir import print_func
 from ..kir.ir import Func, number_sites
-from ..kir.passes import contract, reduce_strength, simplify, unroll_constant_loops, widen_indices
+from ..kir.passes import contract, cse, licm, reduce_strength, simplify, unroll_constant_loops, widen_indices
 from ..kir.verify import assert_ok
 from ..manifest import Manifest
 from ..mir import abi
 from ..wir import ops as wops
-from . import isel, wave, widen
+from . import isel, sched, wave, widen
 from .plan import DECISIONS, Plan, PlanError
 from .table import load as load_table
 from .wave import LowerError
@@ -46,9 +46,21 @@ def normalize(f: Func, plan: Plan) -> Func:
         contract(f)
     reduce_strength(f)
     widen_indices(f)
+    licm(f)
     for s in f.walk():
         s.site = None
     number_sites(f)
+    # loop decisions, on the numbered sites; the copies an unrolling makes are sites `load0.1`, `loop0.x4`
+    from ..kir import loops
+    from ..kir.ir import Loop
+    defs = {id(s.result): s for s in f.walk() if getattr(s, "result", None) is not None}
+    for s in [s for s in f.walk() if isinstance(s, Loop)]:
+        if isinstance(loops.counted(s, defs), loops.Counted) and not any(isinstance(x, Loop) for x in loops.walk(s.body)):
+            n = plan.choose(s.site, "loop.unroll", [1, 2, 4, 8, 16])
+            if n > 1:
+                loops.unroll(f, s.site, n)
+                widen_indices(f)
+                licm(f)
     return assert_ok(f)
 
 
@@ -81,7 +93,9 @@ def lower_kir(f: Func, overrides: dict | None = None, arch: str = "gfx950", plan
     table = load_table(arch)
     args, layout, hidden = abi_of(f)
     w = wave.lower(f, layout, table, plan)
+    w = cse(licm(w))
     w = widen.forward_loads(w)
+    w = sched.loads_first(w, plan)
     w = widen.merge_accesses(w, plan)
     k = isel.select(w, table, plan, args, hidden)
     plan.finish()

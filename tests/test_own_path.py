@@ -22,12 +22,14 @@ from conftest import gpu, needs_toolchain
 
 KIR = Path(__file__).parent / "kir"
 LLM = Path(__file__).parent.parent / "bench" / "llm"
-LOWERED = ["axpy", "cast_bf16", "rb_axpy", "rb_copy", "rb_rot", "rb_scal", "rb_swap"]     # pass the battery (own-gfx950.json)
+OWN = Path(__file__).parent / "own"                    # control-flow kernels written for the lowering
+LOWERED = ["axpy", "cast_bf16", "gemm_bf16", "gemm_naive", "matvec", "rb_axpy", "rb_copy", "rb_ger", "rb_rot", "rb_scal",
+           "rb_swap", "transpose"]                     # pass the battery through the own path (own-gfx950.json)
+CONTROL = ["first_below", "halvings", "last_above", "sum_positive"]
 
 
 def manifest(name: str) -> Manifest:
-    p = corpus.CORPUS_DIR / f"{name}.json"
-    return Manifest.load(p if p.exists() else LLM / f"{name}.json")
+    return Manifest.load(next(d / f"{name}.json" for d in (corpus.CORPUS_DIR, LLM, OWN) if (d / f"{name}.json").exists()))
 
 
 def lowered(name: str, overrides=None):
@@ -130,7 +132,7 @@ def test_passes_unroll_contract_and_no_wrap_indices():
 
 
 # ---- lowering ------------------------------------------------------------------------------------
-@pytest.mark.parametrize("name", LOWERED)
+@pytest.mark.parametrize("name", LOWERED + CONTROL)
 def test_lowering_is_checked_on_the_cpu(name):
     m, r = manifest(name), lowered(name)
     chk = cpu_check(m, r)
@@ -157,6 +159,60 @@ def test_plan_records_every_decision_and_overrides_change_the_code():
     assert "v_fmac_f32" in body(lowered("axpy")) and "v_fmac_f32" not in body(off) and "v_mul_f32" in body(off)
 
 
+def test_loop_decisions_put_several_iterations_loads_in_flight():
+    m, r = manifest("matvec"), lowered("matvec")
+    assert ("loop0", "loop.unroll") in {(e["site"], e["decision"]) for e in r.plan}
+    assert any(e["decision"] == "load.uniform" and e["chosen"] == "scalar" for e in r.plan)
+    b = body(r)
+    assert "s_load_dword " in b and "s_cbranch_scc1" in b           # x[j] is one scalar load; the loop tests at the bottom
+    assert b.count("s_waitcnt vmcnt(0)") == 1
+    fast = lowered("matvec", {"loop.unroll": 4, "loop.inflight": "first"})
+    fb = body(fast)
+    assert "global_load_dwordx4" in fb and "s_load_dwordx4" in fb    # four iterations' data under one wait
+    assert fb.count("v_fmac_f32") + fb.count("v_fma_f32") == 5       # four in the main loop, one in the remainder
+    assert cpu_check(m, fast)["ok"]
+    assert mircheck.static_check(fast.module, encode=False, strict=True)["ok"]
+    wide = lowered("matvec", {"loop.unroll": 16, "loop.inflight": "first"})
+    assert "s_load_dwordx16" in body(wide) and body(wide).count("global_load_dwordx4") == 4 and cpu_check(m, wide)["ok"]
+    with pytest.raises(PlanError, match="not an alternative"):
+        lowered("matvec", {"loop.unroll": 3})
+    strided = lowered("gemm_naive", {"loop.unroll": 4, "loop.inflight": "first"})      # B is read down a column
+    assert cpu_check(manifest("gemm_naive"), strided)["ok"] and "global_load_dwordx4" in body(strided)
+    vec = lowered("matvec", {"load.uniform": "vector"})
+    assert "s_load_dword " not in body(vec).split("s_waitcnt lgkmcnt(0)", 1)[1] and cpu_check(m, vec)["ok"]
+
+
+def test_counted_loops_and_why_others_are_not():
+    from agc.kir import loops
+    from agc.kir.ir import Loop
+    from agc.lower import normalize, Plan
+    f = normalize(parse_func((KIR / "matvec.kir").read_text()), Plan({}))
+    lp = next(s for s in f.walk() if isinstance(s, Loop))
+    c = loops.counted(lp)
+    assert isinstance(c, loops.Counted) and (c.start, c.step) == (0, 1)
+    g = parse_func(LOOP)
+    reason = loops.counted(next(s for s in g.walk() if isinstance(s, Loop)))
+    assert isinstance(reason, str) and "changes inside the loop" in reason
+    h = normalize(parse_func((KIR / "first_below.kir").read_text()), Plan({}))
+    assert not any(e["decision"] == "loop.unroll" for e in lower_kir(parse_func((KIR / "first_below.kir").read_text())).plan)
+    assert isinstance(loops.counted(next(s for s in h.walk() if isinstance(s, Loop))), str)
+
+
+def test_scalar_loads_need_the_empty_mask_branch():
+    with pytest.raises(LowerError, match="empty-mask branch"):
+        lowered("matvec", {"branch.skip_empty": "none"})
+    ok = lowered("matvec", {"branch.skip_empty": "none", "load.uniform": "vector"})
+    assert cpu_check(manifest("matvec"), ok)["ok"]
+
+
+def test_control_flow_becomes_masks():
+    r = lowered("first_below")
+    assert "break" not in r.kir and "loop @loop0" in r.kir          # the flag of the break is a carried condition
+    b = body(r)
+    assert "s_cbranch_execnz" in b and "s_or_b64 exec, exec" in b    # lanes leave one by one; the mask is restored
+    assert "do" not in lowered("halvings").kir.split("{", 1)[1].split()[0:1]
+
+
 def test_plan_refuses_unknown_decisions_and_alternatives():
     with pytest.raises(PlanError, match="no such decision"):
         lowered("axpy", {"if7.branch.skip_empty": "none"})
@@ -171,11 +227,15 @@ def test_lowered_axpy_matches_amdclang_in_shape():
     assert len(b.splitlines()) <= 23                            # amdclang: 21
 
 
-def test_loops_are_refused_with_their_site():
-    f = parse_func(LOOP)
-    with pytest.raises(LowerError, match="M12") as e:
-        lower_kir(f)
-    assert e.value.site == "loop0"
+def test_a_loop_each_thread_leaves_on_its_own_is_lowered_under_a_mask():
+    r = lower_kir(parse_func(LOOP))
+    b = body(r)
+    assert "s_and_b64 exec, exec" in b and "s_cbranch_execz" in b and "s_or_b64 exec, exec" in b
+    w = parse_func(r.wir)
+    y = np.zeros(8, dtype=np.int32)
+    run_wir(w, (1,), (8,), {0: y, 8: 0})
+    assert y.tolist() == [0, 0, 1, 3, 6, 10, 15, 21]
+    assert mircheck.static_check(r.module, encode=False, strict=True)["ok"]
 
 
 def test_wir_interpreter_checks_uniformity():
@@ -240,7 +300,29 @@ def test_lowered_modules_assemble(name):
 
 
 # ---- on the device -------------------------------------------------------------------------------
-@pytest.mark.parametrize("name", ["axpy", "rb_scal"])
+@pytest.mark.parametrize("marks", [pytest.param(None, marks=gpu)])
+def test_control_flow_kernels_pass_the_battery(marks, agc_root):
+    from agc.session import Session
+    for name in CONTROL:
+        s = Session.open(OWN / f"{name}.json", agc_root)
+        st = s.lower()
+        ck = s.check(st["id"])
+        assert ck["ok"] and ck["cases_run"] == ck["cases_total"], (name, ck)
+
+
+@pytest.mark.parametrize("marks", [pytest.param(None, marks=gpu)])
+def test_loop_decisions_beat_amdclang_bit_identically(marks, agc_root):
+    from agc.session import Session
+    s = Session.open(corpus.CORPUS_DIR / "matvec.json", agc_root)
+    base = s.lower()
+    fast = s.replan(base["id"], {"loop.unroll": 16, "loop.inflight": "first"})
+    assert s.check(fast["id"])["ok"] and s.equivalent(fast["id"], "ref")["bit_identical"]
+    b = s.bench(fast["id"])
+    assert b["outcome"] == "win" and b["speedup_ci95"][0] > 2.0, b
+    assert s.explain(fast["id"], "loop0")["decisions"][0]["chosen"] == 16
+
+
+@pytest.mark.parametrize("name", ["axpy", "rb_scal", "gemm_naive"])
 @pytest.mark.parametrize("marks", [pytest.param(None, marks=gpu)])
 def test_own_path_passes_the_battery_and_equals_amdclang(name, marks, agc_root):
     from agc.session import Session

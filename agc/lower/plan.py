@@ -17,8 +17,19 @@ DECISIONS: dict[str, dict] = {
                            "multiply and the add (`off`: two roundings, the result of the source as written)"},
     "access.width": {"level": "wir", "site": "load / store", "kb": "A2",
                      "doc": "merge accesses of consecutive 32-bit elements with one base and index into one wide access "
-                            "of up to 4 (default, `global_load_dwordx4`), 2, or 1 (no merging) elements per lane; a merged "
-                            "load puts all of its data in flight under one wait"},
+                            "of up to 4 (default, `global_load_dwordx4`), 2, or 1 (no merging) elements per lane, or up to "
+                            "16 elements for a scalar load (`s_load_dwordx16`); a merged load puts all of its data in "
+                            "flight under one wait"},
+    "load.uniform": {"level": "wir", "site": "load", "kb": "A3",
+                     "doc": "a load whose address is the same for every lane of the wave: one `scalar` load into an SGPR "
+                            "(amdclang; the value is then a scalar operand), or a per-lane `vector` load"},
+    "loop.unroll": {"level": "kir", "site": "loop", "kb": "A1",
+                    "doc": "run a counted loop 1 (as written), 2, 4, 8 or 16 iterations per trip, with the original loop for "
+                           "the remainder; the operations keep the order of the source, so results are bit-identical"},
+    "loop.inflight": {"level": "wir", "site": "loop", "kb": "A1",
+                      "doc": "the loads of one trip of the loop: issued where the source reads them (`as_written`, amdclang: "
+                             "the loop then waits for each load), or all `first`, before any arithmetic, so that one wait "
+                             "covers them; with `loop.unroll` this puts several iterations' loads in flight"},
     "branch.skip_empty": {"level": "mir", "site": "if", "kb": "F3",
                           "doc": "at a `where` region: `branch` over it when no lane of the wave enters (amdclang), "
                                  "or `none`: run it under the empty mask (one branch fewer; costs when the region has "

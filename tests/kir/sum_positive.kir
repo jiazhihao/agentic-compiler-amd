@@ -1,0 +1,45 @@
+kir func sum_positive(%x: ptr<f32>, %out: ptr<f32>, %rows: i32, %cols: i32) {
+  %bid_x: u32 = bid.x
+  %bdim_x: u32 = bdim.x
+  %t: u32 = mul %bid_x, %bdim_x
+  %tid_x: u32 = tid.x
+  %t0: u32 = add %t, %tid_x
+  %i: i32 = cast %t0
+  %t2: i1 = ge %i, %rows
+  if %t2 @if0 {
+  }
+  merge %t3: i1 = true:i1, false:i1
+  %t4: i1 = not %t3
+  if %t4 @if1 {
+    loop @loop0 {
+      carry %j: i32 = 0:i32, %t19 -> %j20
+      carry %acc: f32 = 0.0:f32, %acc17 -> %acc21
+      %t5: i1 = lt %j, %cols
+      while %t5
+      %t6: u64 = cast %i
+      %t7: u64 = cast %cols
+      %t8: u64 = mul %t6, %t7
+      %t9: u64 = cast %j
+      %t10: u64 = add %t8, %t9
+      %t11: i64 = cast %t10
+      %p: ptr<f32> = gep %x, %t11
+      %v: f32 = load %p @load0
+      %t12: i1 = gt %v, 0.0:f32
+      %t13: i1 = not %t12
+      if %t13 @if2 {
+      }
+      merge %t14: i1 = true:i1, false:i1
+      %t15: i1 = not %t14
+      if %t15 @if3 {
+        %t16: f32 = add %acc, %v
+      }
+      merge %acc17: f32 = %t16, %acc
+      merge %t18: i1 = false:i1, %t14
+      %t19: i32 = add[nsw=true] %j, 1:i32
+    }
+    %t22: i64 = cast %i
+    %p23: ptr<f32> = gep %out, %t22
+    store %p23, %acc21 @store0
+  }
+  merge %t24: i1 = false:i1, %t3
+}

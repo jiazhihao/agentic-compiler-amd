@@ -2,6 +2,7 @@
 """agc's own lowering from HIP (roadmap phase 2) on every kernel that has a HIP source.
 
     .venv/bin/python scripts/own_path.py [--no-time] [kernel ...]   -> tests/baselines/own-gfx950.json
+    .venv/bin/python scripts/own_path.py --decisions [kernel ...]   the loop decisions on the kernels that have them
     .venv/bin/python scripts/own_path.py --fixtures                 -> tests/kir/<kernel>.kir (the frontend's output)
 
 Per kernel: how far it gets (frontend, lowered, static check, battery) with the reason when it stops,
@@ -47,8 +48,11 @@ def one(path: Path, root: str, timing: bool) -> dict:
         st = s.lower()
     except SessionError as e:
         row.update(stopped=e.kind, reason=e.message[:400])
-        if e.kind == "unsupported":
+        if e.kind in ("unsupported", "internal"):
             row["stage"] = "lower"
+        return row
+    except Exception as e:  # noqa: BLE001  (a crash of the lowering is a row of the table, not the end of the run)
+        row.update(stage="lower", stopped="internal", reason=f"{type(e).__name__}: {e}"[:400])
         return row
     sid = st["id"]
     row.update(stage="lowered", instructions=insts(s, sid), amdclang_instructions=insts(s, "ref"),
@@ -92,7 +96,8 @@ def fixtures() -> int:
     from agc.manifest import Manifest
     KIR.mkdir(exist_ok=True)
     n = 0
-    for name, path in manifests().items():
+    own = {p.stem: p for p in sorted((corpus.CORPUS_DIR.parent / "own").glob("*.json"))}     # the lowering's own test kernels
+    for name, path in {**manifests(), **own}.items():
         m = Manifest.load(path)
         try:
             text = print_func(lower_hip(m.source, m.entry, flags=m.hip_flags, mcpu=m.arch))
@@ -104,9 +109,63 @@ def fixtures() -> int:
     return 0
 
 
+LOOPS = (4, 8, 16)
+
+
+def decisions(path: Path, root: str) -> dict | None:
+    """The loop decisions on one kernel: `loop.unroll` at each factor with `loop.inflight: first`, each through
+    the static check, the full battery, the differential check and a paired timing against amdclang -O3.
+    Returns the best verified one and every attempt; None when the kernel has no loop decision."""
+    s = Session.open(path, root)
+    try:
+        base = s.lower()
+    except SessionError:
+        return None
+    if not any(e["decision"] == "loop.unroll" for e in s.plan(base["id"])["decisions"]):
+        return None
+    rows = []
+    for n in LOOPS:
+        ov = {"loop.unroll": n, "loop.inflight": "first"}
+        row = {"overrides": ov}
+        try:
+            sid = s.replan(base["id"], ov)["id"]
+            ck = s.check(sid)
+            if not ck["ok"]:
+                row.update(outcome="battery", reason=json.dumps(ck.get("failures") or ck.get("error"))[:300])
+            else:
+                c = s.compare("ref", sid)
+                row.update(outcome=c.get("outcome_b_vs_a"), speed_over_amdclang=c.get("speedup_b_over_a"), ci95=c.get("ci95"),
+                           own_ms=c.get("b_ms"), bit_identical=bool(s.equivalent(sid, "ref").get("bit_identical")),
+                           instructions=insts(s, sid))
+        except SessionError as e:
+            row.update(outcome="rejected", reason=f"{e.kind}: {e.message}"[:300])
+        rows.append(row)
+    wins = [r for r in rows if r.get("outcome") == "win"]
+    return {"tried": rows, "best": max(wins, key=lambda r: r["ci95"][0]) if wins else None}
+
+
 def main(argv) -> int:
     if "--fixtures" in argv:
         return fixtures()
+    if "--decisions" in argv:
+        names = [a for a in argv if not a.startswith("--")]
+        out = json.loads(OUT.read_text())
+        root = tempfile.mkdtemp(prefix="agc-own-")
+        for name, path in manifests().items():
+            k = out["kernels"].get(name)
+            if (names and name not in names) or not k or k["stage"] != "battery":
+                continue
+            d = decisions(path, root)
+            if d is None:
+                k.pop("loop_decisions", None)
+                continue
+            k["loop_decisions"] = d
+            b = d["best"]
+            print(f"{name:26s} " + (f"{b['overrides']} {b['speed_over_amdclang']} {b['ci95']} bit-identical={b['bit_identical']}" if b
+                                     else "no verified win: " + "; ".join(str(r.get('speed_over_amdclang') or r.get('reason'))[:60] for r in d["tried"])),
+                  flush=True)
+        OUT.write_text(json.dumps(out, indent=1) + "\n")
+        return 0
     timing = "--no-time" not in argv
     names = [a for a in argv if not a.startswith("--")]
     every = manifests()

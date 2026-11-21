@@ -1,0 +1,53 @@
+{
+ "name": "halvings",
+ "source": "control.hip",
+ "entry": "halvings",
+ "shapes": {
+  "N": 5000
+ },
+ "dynamic": [
+  "N"
+ ],
+ "params": [
+  {
+   "name": "x",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "N"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "out",
+   "kind": "tensor",
+   "dtype": "i32",
+   "shape": [
+    "N"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "n",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "N"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "cdiv(N, 128)"
+  ],
+  "block": [
+   128
+  ]
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "halvings"
+ },
+ "tags": [
+  "control-flow"
+ ]
+}
