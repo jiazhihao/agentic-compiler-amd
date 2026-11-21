@@ -49,6 +49,20 @@ def candidates(s: Session) -> list[dict]:
     return out
 
 
+def rebuild(s: Session, chosen: dict) -> str:
+    """The state a policy result describes (`path`, `how`), made again in session `s`: its id."""
+    import re
+    sid = "baseline"
+    for step in chosen["how"].split(" + "):
+        name, args = re.fullmatch(r"(\w+)\((.*)\)", step).groups()
+        params = {}
+        for kv in filter(None, (x.strip() for x in args.split(","))):
+            key, v = kv.split("=")
+            params[key] = int(v) if v.lstrip("-").isdigit() else v
+        sid = (s.generate(name, params) if chosen["path"] == "generate" and sid == "baseline" else s.apply(sid, name, params))["id"]
+    return sid
+
+
 def warm_control(s: Session, state: str) -> dict:
     """The same paired timing with the caches as the previous launch left them."""
     try:

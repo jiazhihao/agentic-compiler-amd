@@ -35,8 +35,8 @@
     "lds": 0
    }
   },
-  "over_strongest_amdclang": 1.0224,
-  "over_shipped_O3": 1.4047
+  "over_strongest_amdclang": 1.0248,
+  "over_shipped_O3": 1.4713
  },
  "path": [
   "source",
@@ -45,13 +45,13 @@
  ],
  "verified": {
   "outcome": "win",
-  "speedup": 1.0224,
+  "speedup": 1.0248,
   "speedup_ci95": [
-   1.0182,
-   1.0276
+   1.0198,
+   1.0297
   ],
-  "reference_ms": 0.08534,
-  "candidate_ms": 0.08368,
+  "reference_ms": 0.08598,
+  "candidate_ms": 0.08398,
   "cases": 49,
   "protocol_version": "agc-timing-amd-2",
   "equivalent": {
@@ -69,18 +69,18 @@
   "pairs": 240,
   "runs": [
    {
-    "speedup": 1.0224,
+    "speedup": 1.0248,
     "ci95": [
-     1.0182,
-     1.0276
+     1.0198,
+     1.0297
     ],
     "valid": true
    },
    {
-    "speedup": 1.0286,
+    "speedup": 1.0259,
     "ci95": [
-     1.025,
-     1.0324
+     1.0199,
+     1.0318
     ],
     "valid": true
    }

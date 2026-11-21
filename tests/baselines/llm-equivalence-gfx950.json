@@ -42,6 +42,16 @@
     "max_abs_err": 0.109375,
     "max_rel_err": 0.28665819606079346,
     "worst_case": "large_exponent/seed1[NK=150,NQ=37]"
+   },
+   "policy: attention_mfma(waves=4, ahead=1)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 0,
+    "within_tolerance": true,
+    "max_abs_err": 0.0859375,
+    "max_rel_err": 1.675031427447012,
+    "worst_case": "large_exponent/seed2[NK=150,NQ=37]"
    }
   },
   "fa_attention_causal": {
@@ -59,7 +69,7 @@
     "ok": true,
     "cases": 50,
     "bit_identical": false,
-    "bit_identical_cases": 4,
+    "bit_identical_cases": 3,
     "within_tolerance": true,
     "max_abs_err": 0.15625,
     "max_rel_err": 0.008340943077936928,
@@ -69,6 +79,16 @@
   "fi_fused_add_rmsnorm": {},
   "fi_gelu_tanh_and_mul": {
    "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 23,
+    "within_tolerance": true,
+    "max_abs_err": 0.5,
+    "max_rel_err": 0.0003878936758852522,
+    "worst_case": "large_exponent/seed0[B=36,D4=300]"
+   },
+   "policy: stream_loads(scope=all)": {
     "ok": true,
     "cases": 78,
     "bit_identical": false,
@@ -89,9 +109,30 @@
     "max_abs_err": 0.125,
     "max_rel_err": 0.8515611763074507,
     "worst_case": "large_exponent/seed0[H=8,P=38]"
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 6,
+    "within_tolerance": true,
+    "max_abs_err": 0.125,
+    "max_rel_err": 0.8515611763074507,
+    "worst_case": "large_exponent/seed0[H=8,P=38]"
    }
   },
-  "fi_merge_state_in_place": {},
+  "fi_merge_state_in_place": {
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": true,
+    "bit_identical_cases": 78,
+    "within_tolerance": true,
+    "max_abs_err": 0.0,
+    "max_rel_err": 0.0,
+    "worst_case": null
+   }
+  },
   "fi_merge_states": {
    "session recipe": {
     "ok": true,
@@ -103,7 +144,7 @@
     "max_rel_err": 0.0,
     "worst_case": null
    },
-   "policy: coarsen(factor=2)": {
+   "policy: coarsen(factor=2) + stream_loads(scope=all)": {
     "ok": true,
     "cases": 106,
     "bit_identical": true,
@@ -166,6 +207,16 @@
     "max_abs_err": 14.6328125,
     "max_rel_err": 4.237768365366283,
     "worst_case": "large_exponent/seed0[Hk=2,Hq=5,N=74]"
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 99,
+    "bit_identical": false,
+    "bit_identical_cases": 0,
+    "within_tolerance": true,
+    "max_abs_err": 14.6328125,
+    "max_rel_err": 4.237768365366283,
+    "worst_case": "large_exponent/seed0[Hk=2,Hq=5,N=74]"
    }
   },
   "fi_silu_and_mul": {
@@ -188,10 +239,30 @@
     "max_abs_err": 1.0,
     "max_rel_err": 1.0,
     "worst_case": "large_exponent/seed2[B=37,D4=300]"
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 3,
+    "within_tolerance": true,
+    "max_abs_err": 1.0,
+    "max_rel_err": 1.0,
+    "worst_case": "large_exponent/seed2[B=37,D4=300]"
    }
   },
   "kda_step": {
    "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 106,
+    "bit_identical": false,
+    "bit_identical_cases": 1,
+    "within_tolerance": true,
+    "max_abs_err": 5.902958103587057e+20,
+    "max_rel_err": 4.937599444863383,
+    "worst_case": "large_exponent/seed2[DK=100,DV=150,H=5]"
+   },
+   "policy: stream_loads(scope=all)": {
     "ok": true,
     "cases": 106,
     "bit_identical": false,
@@ -234,6 +305,16 @@
     "max_abs_err": 0.0,
     "max_rel_err": 0.0,
     "worst_case": null
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": true,
+    "bit_identical_cases": 50,
+    "within_tolerance": true,
+    "max_abs_err": 0.0,
+    "max_rel_err": 0.0,
+    "worst_case": null
    }
   },
   "mo_adam": {
@@ -241,7 +322,7 @@
     "ok": true,
     "cases": 50,
     "bit_identical": false,
-    "bit_identical_cases": 6,
+    "bit_identical_cases": 7,
     "within_tolerance": true,
     "max_abs_err": 1024.0,
     "max_rel_err": 2.0509090423583984,
@@ -251,7 +332,17 @@
     "ok": true,
     "cases": 50,
     "bit_identical": false,
-    "bit_identical_cases": 6,
+    "bit_identical_cases": 7,
+    "within_tolerance": true,
+    "max_abs_err": 1024.0,
+    "max_rel_err": 2.0509090423583984,
+    "worst_case": "large_exponent/seed1[N=10001]"
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 7,
     "within_tolerance": true,
     "max_abs_err": 1024.0,
     "max_rel_err": 2.0509090423583984,
@@ -260,6 +351,16 @@
   },
   "mo_bn_infer": {
    "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 106,
+    "bit_identical": false,
+    "bit_identical_cases": 4,
+    "within_tolerance": true,
+    "max_abs_err": 32768.0,
+    "max_rel_err": 1.0792596047569012,
+    "worst_case": "large_exponent/seed0[C=80,HW4=300,N=30]"
+   },
+   "policy: stream_loads(scope=all)": {
     "ok": true,
     "cases": 106,
     "bit_identical": false,
@@ -291,7 +392,7 @@
     "max_rel_err": 1.0,
     "worst_case": "large_exponent/seed2[N=10001]"
    },
-   "policy: coarsen(factor=4)": {
+   "policy: coarsen(factor=4) + stream_loads(scope=all)": {
     "ok": true,
     "cases": 50,
     "bit_identical": false,
@@ -312,10 +413,30 @@
     "max_abs_err": 0.0,
     "max_rel_err": 0.0,
     "worst_case": null
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": true,
+    "bit_identical_cases": 50,
+    "within_tolerance": true,
+    "max_abs_err": 0.0,
+    "max_rel_err": 0.0,
+    "worst_case": null
    }
   },
   "mo_reduce_sum": {
    "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 14,
+    "within_tolerance": true,
+    "max_abs_err": 0.5,
+    "max_rel_err": 0.3333333333333333,
+    "worst_case": "large_exponent/seed1[N=10001]"
+   },
+   "policy: stream_loads(scope=all)": {
     "ok": true,
     "cases": 50,
     "bit_identical": false,
@@ -337,7 +458,7 @@
     "max_rel_err": 1.3391939524706098,
     "worst_case": "large_exponent/seed0[B=7,K=76]"
    },
-   "session recipe": {
+   "policy: stream_loads(scope=all)": {
     "ok": true,
     "cases": 78,
     "bit_identical": false,
@@ -353,7 +474,17 @@
     "ok": true,
     "cases": 78,
     "bit_identical": false,
-    "bit_identical_cases": 12,
+    "bit_identical_cases": 11,
+    "within_tolerance": true,
+    "max_abs_err": 1.0,
+    "max_rel_err": 3.4308279331148657e-07,
+    "worst_case": "large_exponent/seed0[D=1000,R=74]"
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 11,
     "within_tolerance": true,
     "max_abs_err": 1.0,
     "max_rel_err": 3.4308279331148657e-07,
@@ -365,7 +496,7 @@
     "ok": true,
     "cases": 50,
     "bit_identical": false,
-    "bit_identical_cases": 8,
+    "bit_identical_cases": 7,
     "within_tolerance": true,
     "max_abs_err": 2.86102294921875e-06,
     "max_rel_err": 1.0,
@@ -375,14 +506,25 @@
     "ok": true,
     "cases": 50,
     "bit_identical": false,
-    "bit_identical_cases": 8,
+    "bit_identical_cases": 7,
     "within_tolerance": true,
     "max_abs_err": 2.9802322387695312e-06,
     "max_rel_err": 1.0,
     "worst_case": "sparse_spikes/seed0[E=60,T=301]"
    }
   },
-  "rb_axpy": {},
+  "rb_axpy": {
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": true,
+    "bit_identical_cases": 50,
+    "within_tolerance": true,
+    "max_abs_err": 0.0,
+    "max_rel_err": 0.0,
+    "worst_case": null
+   }
+  },
   "rb_copy": {
    "session recipe": {
     "ok": true,
@@ -394,7 +536,7 @@
     "max_rel_err": 0.0,
     "worst_case": null
    },
-   "policy: coarsen(factor=2)": {
+   "policy: stream_loads(scope=all)": {
     "ok": true,
     "cases": 50,
     "bit_identical": true,
@@ -426,7 +568,7 @@
     "max_rel_err": 0.013114754098360656,
     "worst_case": "large_exponent/seed0[N=40000]"
    },
-   "policy: throttle(workgroups_per_cu=4)": {
+   "policy: stream_loads(scope=all)": {
     "ok": true,
     "cases": 50,
     "bit_identical": false,
@@ -439,6 +581,16 @@
   },
   "rb_gemvn": {
    "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 29,
+    "within_tolerance": true,
+    "max_abs_err": 262144.0,
+    "max_rel_err": 0.0007431002100974088,
+    "worst_case": "large_exponent/seed0[M=300,N=200]"
+   },
+   "policy: stream_loads(scope=all)": {
     "ok": true,
     "cases": 78,
     "bit_identical": false,
@@ -468,6 +620,16 @@
     "within_tolerance": true,
     "max_abs_err": 393216.0,
     "max_rel_err": 0.014881990466224857,
+    "worst_case": "large_exponent/seed2[M=1000,N=37]"
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 30,
+    "within_tolerance": true,
+    "max_abs_err": 393216.0,
+    "max_rel_err": 0.02786108155170746,
     "worst_case": "large_exponent/seed2[M=1000,N=37]"
    }
   },
@@ -514,7 +676,7 @@
     "max_rel_err": 2.3837959089294612e-07,
     "worst_case": "large_exponent/seed2[N=40001]"
    },
-   "policy: throttle(workgroups_per_cu=4)": {
+   "policy: stream_loads(scope=all)": {
     "ok": true,
     "cases": 50,
     "bit_identical": false,
@@ -526,7 +688,7 @@
    }
   },
   "rb_rot": {
-   "policy: coarsen(factor=4)": {
+   "policy: coarsen(factor=4) + stream_loads(scope=all)": {
     "ok": true,
     "cases": 50,
     "bit_identical": true,
@@ -548,7 +710,7 @@
     "max_rel_err": 0.0,
     "worst_case": null
    },
-   "policy: coarsen(factor=2)": {
+   "policy: coarsen(factor=2) + stream_loads(scope=all)": {
     "ok": true,
     "cases": 50,
     "bit_identical": true,
@@ -565,7 +727,7 @@
     "ok": true,
     "cases": 78,
     "bit_identical": false,
-    "bit_identical_cases": 25,
+    "bit_identical_cases": 24,
     "within_tolerance": true,
     "max_abs_err": 0.5,
     "max_rel_err": 3.5348108764245436e-07,

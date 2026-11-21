@@ -22,8 +22,8 @@
   "baseline": {
    "source": "baselines/rb_dot.hip"
   },
-  "over_strongest_amdclang": 1.0232,
-  "over_shipped_O3": 1.0546
+  "over_strongest_amdclang": 1.0309,
+  "over_shipped_O3": 1.067
  },
  "path": [
   "source",
@@ -33,13 +33,13 @@
  ],
  "verified": {
   "outcome": "win",
-  "speedup": 1.0232,
+  "speedup": 1.0309,
   "speedup_ci95": [
-   1.0196,
-   1.0274
+   1.025,
+   1.0368
   ],
-  "reference_ms": 0.13788,
-  "candidate_ms": 0.13474,
+  "reference_ms": 0.13446,
+  "candidate_ms": 0.1306,
   "cases": 49,
   "protocol_version": "agc-timing-amd-2",
   "equivalent": {
@@ -57,18 +57,18 @@
   "pairs": 240,
   "runs": [
    {
-    "speedup": 1.0379,
+    "speedup": 1.0346,
     "ci95": [
-     1.0337,
-     1.0413
+     1.0291,
+     1.0401
     ],
     "valid": true
    },
    {
-    "speedup": 1.0232,
+    "speedup": 1.0309,
     "ci95": [
-     1.0196,
-     1.0274
+     1.025,
+     1.0368
     ],
     "valid": true
    }

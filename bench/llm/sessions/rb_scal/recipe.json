@@ -20,8 +20,8 @@
    "mir"
   ],
   "baseline": "amdclang -O3 on the source as shipped",
-  "over_strongest_amdclang": 1.1238,
-  "over_shipped_O3": 1.1308
+  "over_strongest_amdclang": 1.1221,
+  "over_shipped_O3": 1.125
  },
  "path": [
   "import",
@@ -29,30 +29,42 @@
  ],
  "verified": {
   "outcome": "win",
-  "speedup": 1.1238,
+  "speedup": 1.1221,
   "speedup_ci95": [
-   1.1191,
-   1.1282
+   1.1181,
+   1.126
   ],
-  "reference_ms": 0.10466,
-  "candidate_ms": 0.09304,
+  "reference_ms": 0.10432,
+  "candidate_ms": 0.09284,
   "cases": 49,
   "protocol_version": "agc-timing-amd-2",
+  "equivalent": {
+   "ok": true,
+   "cases": 50,
+   "bit_identical": true,
+   "bit_identical_cases": 50,
+   "within_tolerance": true,
+   "max_abs_err": 0.0,
+   "max_rel_err": 0.0,
+   "worst_case": null,
+   "failing": [],
+   "error": null
+  },
   "pairs": 240,
   "runs": [
    {
-    "speedup": 1.1238,
+    "speedup": 1.1221,
     "ci95": [
-     1.1191,
-     1.1282
+     1.1181,
+     1.126
     ],
     "valid": true
    },
    {
-    "speedup": 1.1275,
+    "speedup": 1.1251,
     "ci95": [
-     1.1227,
-     1.1301
+     1.1223,
+     1.1278
     ],
     "valid": true
    }

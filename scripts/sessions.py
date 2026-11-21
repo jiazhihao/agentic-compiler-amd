@@ -77,7 +77,7 @@ def table() -> str:
              "", f"{wins} of {len(gain)} kernels have a verified agc gain over the strongest amdclang build; {len(gain) - wins} fallbacks; "
                  f"geomean of the agc gain {gm(gain):.3f} with fallbacks at 1.0; geomean over -O3 on the shipped source {gm(total):.3f}.",
              "", "Timings flush the caches before every launch. Results of `stream_loads` (non-temporal loads) depend on that: with the "
-                 "caches as the previous launch left them (`warm caches`) they are mostly parity. Counting those results at their "
+                 "caches as the previous launch left them (`warm caches`) they are smaller, parity or a loss. Counting those results at their "
                  f"warm-cache value, {sum(g > 1 for g in warm_gain)} of {len(gain)} kernels have a gain and the geomean is {gm(warm_gain):.3f}."]
     return "\n".join(rows)
 

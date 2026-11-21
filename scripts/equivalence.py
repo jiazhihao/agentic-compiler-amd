@@ -15,6 +15,7 @@ import time
 from pathlib import Path
 
 from agc import agent, corpus
+from agc.session.policy import rebuild
 from agc.session import Session, SessionError
 
 BENCH = Path(__file__).resolve().parent.parent / "bench" / "llm"
@@ -58,10 +59,8 @@ def main(argv) -> int:
             states["session recipe"] = s.adopt((d / "best.s").read_text(), recipe["launch"], recipe["strict"])["id"]
         if n in pol and not pol[n]["fallback"]:
             how = pol[n]["chosen"]["how"]
-            name, _, arg = how.partition("(")
-            params = {k: int(v) for k, v in (kv.split("=") for kv in arg.rstrip(")").split(", ") if "=" in kv)}
             try:
-                states[f"policy: {how}"] = s.apply("baseline", name, params)["id"]
+                states[f"policy: {how}"] = rebuild(s, pol[n]["chosen"])
             except SessionError as e:
                 out[f"policy: {how}"] = {"error": e.message[:200]}
         for what, sid in states.items():

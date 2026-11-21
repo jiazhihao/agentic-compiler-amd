@@ -70,23 +70,15 @@ def table(out: dict) -> str:
 
 def warm(only: list[str]) -> None:
     """The warm-cache control for every chosen result that uses non-temporal loads and has none yet."""
-    import re
-    from agc.session.policy import warm_control
+    from agc.session.policy import rebuild, warm_control
     out = json.loads(OUT.read_text())
     root = tempfile.mkdtemp(prefix="agc-llm-warm-")
     for n, k in out["kernels"].items():
         c = k["chosen"]
-        if k["fallback"] or "stream_loads" not in c["how"] or c["path"] != "import+pass" or (only and n not in only) or (c.get("warm") and not only):
+        if k["fallback"] or "stream_loads" not in c["how"] or (only and n not in only) or (c.get("warm") and not only):
             continue
         s = Session.open(BENCH / f"{n}.json", root)
-        sid = "baseline"
-        for step in c["how"].split(" + "):
-            name, args = re.fullmatch(r"(\w+)\((.*)\)", step).groups()
-            params = {}
-            for kv in filter(None, (x.strip() for x in args.split(","))):
-                key, v = kv.split("=")
-                params[key] = int(v) if v.lstrip("-").isdigit() else v
-            sid = s.apply(sid, name, params)["id"]
+        sid = rebuild(s, c)
         s.check(sid)
         c["warm"] = warm_control(s, sid)
         OUT.write_text(json.dumps(out, indent=1) + "\n")

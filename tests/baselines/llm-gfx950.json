@@ -2,7 +2,7 @@
  "kernels": {
   "attn_decode": {
    "library": "port",
-   "amdclang_ms": 0.16633,
+   "amdclang_ms": 0.16647,
    "fallback": true,
    "chosen": {
     "path": "amdclang",
@@ -27,19 +27,52 @@
      "verified": false,
      "outcome": "rejected",
      "reason": "parameter: coarsen: a path reaches the end of the program without passing every s_barrier, through a branch that is not workgroup-uniform"
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.4117,
+     "ci95": [
+      0.4057,
+      0.4178
+     ],
+     "ms": 0.40871,
+     "amdclang_ms": 0.16647
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 0.9993,
+     "ci95": [
+      0.9977,
+      1.0008
+     ],
+     "ms": 0.16664,
+     "amdclang_ms": 0.16704
     }
    ]
   },
   "fa_attention": {
    "library": "port",
-   "amdclang_ms": 0.05464,
-   "fallback": true,
+   "amdclang_ms": 0.05732,
+   "fallback": false,
    "chosen": {
-    "path": "amdclang",
-    "how": "the amdclang build (no verified win)",
-    "bit_identical": true,
-    "speedup": 1.0,
-    "ci95": null
+    "path": "generate",
+    "how": "attention_mfma(waves=4, ahead=1)",
+    "bit_identical": false,
+    "speedup": 1.9486,
+    "ci95": [
+     1.9415,
+     1.9557
+    ],
+    "ms": 0.02938,
+    "amdclang_ms": 0.05732
    },
    "candidates": [
     {
@@ -57,12 +90,160 @@
      "verified": false,
      "outcome": "rejected",
      "reason": "parameter: coarsen: a path reaches the end of the program without passing every s_barrier, through a branch that is not workgroup-uniform"
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.6137,
+     "ci95": [
+      0.6114,
+      0.616
+     ],
+     "ms": 0.09298,
+     "amdclang_ms": 0.05716
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: throttle: the kernel already reserves 42112 bytes of LDS: 4 workgroups per compute unit is no restriction"
+    },
+    {
+     "path": "generate",
+     "how": "attention_mfma(waves=1, ahead=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.4358,
+     "ci95": [
+      0.4325,
+      0.4392
+     ],
+     "ms": 0.13056,
+     "amdclang_ms": 0.05706
+    },
+    {
+     "path": "generate",
+     "how": "attention_mfma(waves=1, ahead=1)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.6867,
+     "ci95": [
+      0.6843,
+      0.6891
+     ],
+     "ms": 0.08326,
+     "amdclang_ms": 0.05716
+    },
+    {
+     "path": "generate",
+     "how": "attention_mfma(waves=2, ahead=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.8201,
+     "ci95": [
+      0.8138,
+      0.8265
+     ],
+     "ms": 0.06944,
+     "amdclang_ms": 0.05702
+    },
+    {
+     "path": "generate",
+     "how": "attention_mfma(waves=2, ahead=1)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.229,
+     "ci95": [
+      1.2252,
+      1.2329
+     ],
+     "ms": 0.04672,
+     "amdclang_ms": 0.05734
+    },
+    {
+     "path": "generate",
+     "how": "attention_mfma(waves=4, ahead=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.4679,
+     "ci95": [
+      1.4533,
+      1.4826
+     ],
+     "ms": 0.03892,
+     "amdclang_ms": 0.0574
+    },
+    {
+     "path": "generate",
+     "how": "attention_mfma(waves=4, ahead=1)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.9486,
+     "ci95": [
+      1.9415,
+      1.9557
+     ],
+     "ms": 0.02938,
+     "amdclang_ms": 0.05732
+    },
+    {
+     "path": "generate",
+     "how": "attention_mfma(waves=8, ahead=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.6401,
+     "ci95": [
+      1.6327,
+      1.6475
+     ],
+     "ms": 0.03488,
+     "amdclang_ms": 0.0572
+    },
+    {
+     "path": "generate",
+     "how": "attention_mfma(waves=8, ahead=1)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.6479,
+     "ci95": [
+      1.6401,
+      1.6556
+     ],
+     "ms": 0.03442,
+     "amdclang_ms": 0.05674
+    },
+    {
+     "path": "generate",
+     "how": "attention_mfma(waves=4, ahead=1) + stream_loads(scope=all)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.4513,
+     "ci95": [
+      1.4389,
+      1.4637
+     ],
+     "ms": 0.03906,
+     "amdclang_ms": 0.05686
     }
    ]
   },
   "fa_attention_causal": {
    "library": "port",
-   "amdclang_ms": 0.08888,
+   "amdclang_ms": 0.09047,
    "fallback": true,
    "chosen": {
     "path": "amdclang",
@@ -87,12 +268,40 @@
      "verified": false,
      "outcome": "rejected",
      "reason": "parameter: coarsen: needs 103 SGPRs, the wave has 102"
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.5572,
+     "ci95": [
+      0.5537,
+      0.5608
+     ],
+     "ms": 0.16228,
+     "amdclang_ms": 0.09047
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 0.997,
+     "ci95": [
+      0.9916,
+      1.0024
+     ],
+     "ms": 0.09024,
+     "amdclang_ms": 0.08988
     }
    ]
   },
   "fi_fused_add_rmsnorm": {
    "library": "flashinfer",
-   "amdclang_ms": 0.10232,
+   "amdclang_ms": 0.09836,
    "fallback": true,
    "chosen": {
     "path": "amdclang",
@@ -116,27 +325,27 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9739,
+     "speedup": 0.9563,
      "ci95": [
-      0.9718,
-      0.9799
+      0.947,
+      0.9658
      ],
-     "ms": 0.10538,
-     "amdclang_ms": 0.10232
+     "ms": 0.10314,
+     "amdclang_ms": 0.09836
     },
     {
      "path": "import+pass",
      "how": "coarsen(factor=4)",
      "bit_identical": true,
      "verified": true,
-     "outcome": "loss",
-     "speedup": 0.9642,
+     "outcome": "parity",
+     "speedup": 0.9988,
      "ci95": [
-      0.9554,
-      0.9716
+      0.9892,
+      1.0085
      ],
-     "ms": 0.10678,
-     "amdclang_ms": 0.10304
+     "ms": 0.10526,
+     "amdclang_ms": 0.1051
     },
     {
      "path": "import+pass",
@@ -144,26 +353,63 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.895,
+     "speedup": 0.9361,
      "ci95": [
-      0.8861,
-      0.905
+      0.9122,
+      0.9607
      ],
-     "ms": 0.11158,
-     "amdclang_ms": 0.10006
+     "ms": 0.10806,
+     "amdclang_ms": 0.10146
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9145,
+     "ci95": [
+      0.9028,
+      0.9263
+     ],
+     "ms": 0.11204,
+     "amdclang_ms": 0.10306
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: throttle: the launch already has a dynamic LDS size (4 * (cdiv(cdiv(min(1024, D4), 32), 4) * 4 + 4 * D4)); set the reservation with relaunch"
     }
    ]
   },
   "fi_gelu_tanh_and_mul": {
    "library": "flashinfer",
-   "amdclang_ms": 0.09278,
-   "fallback": true,
+   "amdclang_ms": 0.09478,
+   "fallback": false,
    "chosen": {
-    "path": "amdclang",
-    "how": "the amdclang build (no verified win)",
+    "path": "import+pass",
+    "how": "stream_loads(scope=all)",
     "bit_identical": true,
-    "speedup": 1.0,
-    "ci95": null
+    "speedup": 1.3595,
+    "ci95": [
+     1.346,
+     1.3731
+    ],
+    "ms": 0.06956,
+    "amdclang_ms": 0.09478,
+    "warm": {
+     "outcome": "loss",
+     "speedup": 0.9684,
+     "speedup_ci95": [
+      0.9637,
+      0.9731
+     ],
+     "reference_ms": 0.06826,
+     "candidate_ms": 0.07036
+    }
    },
    "candidates": [
     {
@@ -179,92 +425,28 @@
      "how": "coarsen(factor=2)",
      "bit_identical": true,
      "verified": true,
-     "outcome": "loss",
-     "speedup": 0.9841,
+     "outcome": "parity",
+     "speedup": 0.994,
      "ci95": [
-      0.9778,
-      0.9888
+      0.9788,
+      1.0095
      ],
-     "ms": 0.09412,
-     "amdclang_ms": 0.09278
+     "ms": 0.0961,
+     "amdclang_ms": 0.09498
     },
     {
      "path": "import+pass",
      "how": "coarsen(factor=4)",
-     "bit_identical": true,
-     "verified": true,
-     "outcome": "loss",
-     "speedup": 0.9539,
-     "ci95": [
-      0.9434,
-      0.9619
-     ],
-     "ms": 0.09836,
-     "amdclang_ms": 0.09382
-    },
-    {
-     "path": "import+pass",
-     "how": "coarsen(factor=8)",
-     "bit_identical": true,
-     "verified": true,
-     "outcome": "loss",
-     "speedup": 0.9056,
-     "ci95": [
-      0.8996,
-      0.9149
-     ],
-     "ms": 0.10294,
-     "amdclang_ms": 0.09336
-    }
-   ]
-  },
-  "fi_merge_state": {
-   "library": "flashinfer",
-   "amdclang_ms": 0.10262,
-   "fallback": true,
-   "chosen": {
-    "path": "amdclang",
-    "how": "the amdclang build (no verified win)",
-    "bit_identical": true,
-    "speedup": 1.0,
-    "ci95": null
-   },
-   "candidates": [
-    {
-     "path": "import+pass",
-     "how": "unroll_loads(factor=4)",
-     "bit_identical": true,
-     "verified": false,
-     "outcome": "rejected",
-     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
-    },
-    {
-     "path": "import+pass",
-     "how": "coarsen(factor=2)",
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
      "speedup": 0.953,
      "ci95": [
-      0.9475,
-      0.9638
+      0.9391,
+      0.9671
      ],
-     "ms": 0.10712,
-     "amdclang_ms": 0.10262
-    },
-    {
-     "path": "import+pass",
-     "how": "coarsen(factor=4)",
-     "bit_identical": true,
-     "verified": true,
-     "outcome": "loss",
-     "speedup": 0.9203,
-     "ci95": [
-      0.9121,
-      0.9321
-     ],
-     "ms": 0.10942,
-     "amdclang_ms": 0.10078
+     "ms": 0.09952,
+     "amdclang_ms": 0.09452
     },
     {
      "path": "import+pass",
@@ -272,26 +454,176 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9261,
+     "speedup": 0.912,
      "ci95": [
-      0.9181,
-      0.9395
+      0.8981,
+      0.9261
      ],
-     "ms": 0.10846,
-     "amdclang_ms": 0.1007
+     "ms": 0.10472,
+     "amdclang_ms": 0.09556
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.3595,
+     "ci95": [
+      1.346,
+      1.3731
+     ],
+     "ms": 0.06956,
+     "amdclang_ms": 0.09478
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.3127,
+     "ci95": [
+      0.3093,
+      0.316
+     ],
+     "ms": 0.30492,
+     "amdclang_ms": 0.09512
+    }
+   ]
+  },
+  "fi_merge_state": {
+   "library": "flashinfer",
+   "amdclang_ms": 0.09942,
+   "fallback": false,
+   "chosen": {
+    "path": "import+pass",
+    "how": "stream_loads(scope=all)",
+    "bit_identical": true,
+    "speedup": 1.3344,
+    "ci95": [
+     1.3213,
+     1.3476
+    ],
+    "ms": 0.07486,
+    "amdclang_ms": 0.09942,
+    "warm": {
+     "outcome": "loss",
+     "speedup": 0.978,
+     "speedup_ci95": [
+      0.9668,
+      0.9893
+     ],
+     "reference_ms": 0.0654,
+     "candidate_ms": 0.06684
+    }
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 0.9681,
+     "ci95": [
+      0.9445,
+      0.9923
+     ],
+     "ms": 0.1082,
+     "amdclang_ms": 0.10522
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9297,
+     "ci95": [
+      0.9179,
+      0.9416
+     ],
+     "ms": 0.1088,
+     "amdclang_ms": 0.10082
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9212,
+     "ci95": [
+      0.9097,
+      0.9328
+     ],
+     "ms": 0.11162,
+     "amdclang_ms": 0.10354
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.3344,
+     "ci95": [
+      1.3213,
+      1.3476
+     ],
+     "ms": 0.07486,
+     "amdclang_ms": 0.09942
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.7029,
+     "ci95": [
+      0.7003,
+      0.7056
+     ],
+     "ms": 0.14306,
+     "amdclang_ms": 0.10056
     }
    ]
   },
   "fi_merge_state_in_place": {
    "library": "flashinfer",
-   "amdclang_ms": 0.101,
-   "fallback": true,
+   "amdclang_ms": 0.10146,
+   "fallback": false,
    "chosen": {
-    "path": "amdclang",
-    "how": "the amdclang build (no verified win)",
+    "path": "import+pass",
+    "how": "stream_loads(scope=all)",
     "bit_identical": true,
-    "speedup": 1.0,
-    "ci95": null
+    "speedup": 1.2026,
+    "ci95": [
+     1.1958,
+     1.2095
+    ],
+    "ms": 0.0844,
+    "amdclang_ms": 0.10146,
+    "warm": {
+     "outcome": "loss",
+     "speedup": 0.8957,
+     "speedup_ci95": [
+      0.8896,
+      0.9019
+     ],
+     "reference_ms": 0.0766,
+     "candidate_ms": 0.08542
+    }
    },
    "candidates": [
     {
@@ -308,13 +640,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9676,
+     "speedup": 0.9651,
      "ci95": [
-      0.9633,
-      0.9724
+      0.9556,
+      0.9748
      ],
-     "ms": 0.10458,
-     "amdclang_ms": 0.101
+     "ms": 0.10584,
+     "amdclang_ms": 0.10182
     },
     {
      "path": "import+pass",
@@ -322,13 +654,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9421,
+     "speedup": 0.9338,
      "ci95": [
-      0.9383,
-      0.9513
+      0.9239,
+      0.9438
      ],
-     "ms": 0.10646,
-     "amdclang_ms": 0.10038
+     "ms": 0.10724,
+     "amdclang_ms": 0.1
     },
     {
      "path": "import+pass",
@@ -336,31 +668,69 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9198,
+     "speedup": 0.917,
      "ci95": [
-      0.9133,
-      0.9251
+      0.9115,
+      0.9225
      ],
-     "ms": 0.11018,
-     "amdclang_ms": 0.10164
+     "ms": 0.11036,
+     "amdclang_ms": 0.10124
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.2026,
+     "ci95": [
+      1.1958,
+      1.2095
+     ],
+     "ms": 0.0844,
+     "amdclang_ms": 0.10146
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 1.0004,
+     "ci95": [
+      0.9951,
+      1.0057
+     ],
+     "ms": 0.1015,
+     "amdclang_ms": 0.10148
     }
    ]
   },
   "fi_merge_states": {
    "library": "flashinfer",
-   "amdclang_ms": 0.10764,
+   "amdclang_ms": 0.10838,
    "fallback": false,
    "chosen": {
     "path": "import+pass",
-    "how": "coarsen(factor=2)",
+    "how": "coarsen(factor=2) + stream_loads(scope=all)",
     "bit_identical": true,
-    "speedup": 1.0505,
+    "speedup": 1.6897,
     "ci95": [
-     1.0403,
-     1.063
+     1.6662,
+     1.7135
     ],
-    "ms": 0.10246,
-    "amdclang_ms": 0.10764
+    "ms": 0.06438,
+    "amdclang_ms": 0.10838,
+    "warm": {
+     "outcome": "win",
+     "speedup": 1.077,
+     "speedup_ci95": [
+      1.061,
+      1.0932
+     ],
+     "reference_ms": 0.06002,
+     "candidate_ms": 0.05566
+    }
    },
    "candidates": [
     {
@@ -377,13 +747,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.0505,
+     "speedup": 1.0497,
      "ci95": [
-      1.0403,
-      1.063
+      1.0356,
+      1.064
      ],
-     "ms": 0.10246,
-     "amdclang_ms": 0.10764
+     "ms": 0.10226,
+     "amdclang_ms": 0.1078
     },
     {
      "path": "import+pass",
@@ -391,45 +761,87 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.021,
+     "speedup": 1.0343,
      "ci95": [
-      1.0115,
-      1.0311
+      1.02,
+      1.0487
      ],
-     "ms": 0.10442,
-     "amdclang_ms": 0.10688
+     "ms": 0.10508,
+     "amdclang_ms": 0.10898
     },
     {
      "path": "import+pass",
      "how": "coarsen(factor=8)",
      "bit_identical": true,
      "verified": true,
-     "outcome": "loss",
-     "speedup": 0.9836,
+     "outcome": "parity",
+     "speedup": 0.9986,
      "ci95": [
-      0.9765,
-      0.9887
+      0.9878,
+      1.0096
      ],
-     "ms": 0.10844,
-     "amdclang_ms": 0.10664
+     "ms": 0.10762,
+     "amdclang_ms": 0.10828
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.6733,
+     "ci95": [
+      1.6438,
+      1.7032
+     ],
+     "ms": 0.06502,
+     "amdclang_ms": 0.10932
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 1.0078,
+     "ci95": [
+      0.9979,
+      1.0177
+     ],
+     "ms": 0.10778,
+     "amdclang_ms": 0.1084
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2) + stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.6897,
+     "ci95": [
+      1.6662,
+      1.7135
+     ],
+     "ms": 0.06438,
+     "amdclang_ms": 0.10838
     }
    ]
   },
   "fi_rmsnorm": {
    "library": "flashinfer",
-   "amdclang_ms": 0.12556,
+   "amdclang_ms": 0.12686,
    "fallback": false,
    "chosen": {
     "path": "import+pass",
     "how": "coarsen(factor=2)",
     "bit_identical": true,
-    "speedup": 1.0437,
+    "speedup": 1.0398,
     "ci95": [
-     1.0407,
-     1.0531
+     1.0337,
+     1.0458
     ],
-    "ms": 0.11988,
-    "amdclang_ms": 0.12556
+    "ms": 0.12206,
+    "amdclang_ms": 0.12686
    },
    "candidates": [
     {
@@ -446,13 +858,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.0437,
+     "speedup": 1.0398,
      "ci95": [
-      1.0407,
-      1.0531
+      1.0337,
+      1.0458
      ],
-     "ms": 0.11988,
-     "amdclang_ms": 0.12556
+     "ms": 0.12206,
+     "amdclang_ms": 0.12686
     },
     {
      "path": "import+pass",
@@ -460,13 +872,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9661,
+     "speedup": 0.9817,
      "ci95": [
-      0.9602,
-      0.9726
+      0.9775,
+      0.986
      ],
-     "ms": 0.12894,
-     "amdclang_ms": 0.1249
+     "ms": 0.12896,
+     "amdclang_ms": 0.1268
     },
     {
      "path": "import+pass",
@@ -474,26 +886,77 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9263,
+     "speedup": 0.9271,
      "ci95": [
-      0.9236,
-      0.9339
+      0.9182,
+      0.9362
      ],
-     "ms": 0.13452,
-     "amdclang_ms": 0.12492
+     "ms": 0.13564,
+     "amdclang_ms": 0.12628
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.8896,
+     "ci95": [
+      0.8849,
+      0.8943
+     ],
+     "ms": 0.14208,
+     "amdclang_ms": 0.12666
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: throttle: the launch already has a dynamic LDS size (4 * cdiv(min(1024, D4), 32)); set the reservation with relaunch"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2) + stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9073,
+     "ci95": [
+      0.9016,
+      0.9131
+     ],
+     "ms": 0.14004,
+     "amdclang_ms": 0.12718
     }
    ]
   },
   "fi_rope": {
    "library": "flashinfer",
    "amdclang_ms": 0.0496,
-   "fallback": true,
+   "fallback": false,
    "chosen": {
-    "path": "amdclang",
-    "how": "the amdclang build (no verified win)",
+    "path": "import+pass",
+    "how": "stream_loads(scope=all)",
     "bit_identical": true,
-    "speedup": 1.0,
-    "ci95": null
+    "speedup": 1.3068,
+    "ci95": [
+     1.2881,
+     1.3259
+    ],
+    "ms": 0.0381,
+    "amdclang_ms": 0.0496,
+    "warm": {
+     "outcome": "loss",
+     "speedup": 0.9749,
+     "speedup_ci95": [
+      0.9667,
+      0.9831
+     ],
+     "reference_ms": 0.03186,
+     "candidate_ms": 0.03232
+    }
    },
    "candidates": [
     {
@@ -510,13 +973,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "parity",
-     "speedup": 0.993,
+     "speedup": 0.989,
      "ci95": [
-      0.9848,
-      1.0044
+      0.9683,
+      1.0101
      ],
-     "ms": 0.04986,
-     "amdclang_ms": 0.0496
+     "ms": 0.05002,
+     "amdclang_ms": 0.04994
     },
     {
      "path": "import+pass",
@@ -524,40 +987,83 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9432,
+     "speedup": 0.957,
      "ci95": [
-      0.9329,
-      0.9486
+      0.9475,
+      0.9667
      ],
-     "ms": 0.05256,
-     "amdclang_ms": 0.04942
+     "ms": 0.05208,
+     "amdclang_ms": 0.04978
     },
     {
      "path": "import+pass",
      "how": "coarsen(factor=8)",
      "bit_identical": true,
      "verified": true,
-     "outcome": "loss",
-     "speedup": 0.9516,
+     "outcome": "parity",
+     "speedup": 0.9831,
      "ci95": [
-      0.9468,
-      0.9583
+      0.9758,
+      0.9904
      ],
-     "ms": 0.05144,
-     "amdclang_ms": 0.04894
+     "ms": 0.04988,
+     "amdclang_ms": 0.04906
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.3068,
+     "ci95": [
+      1.2881,
+      1.3259
+     ],
+     "ms": 0.0381,
+     "amdclang_ms": 0.0496
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 1.0055,
+     "ci95": [
+      0.995,
+      1.0161
+     ],
+     "ms": 0.04982,
+     "amdclang_ms": 0.0497
     }
    ]
   },
   "fi_silu_and_mul": {
    "library": "flashinfer",
-   "amdclang_ms": 0.09686,
-   "fallback": true,
+   "amdclang_ms": 0.09666,
+   "fallback": false,
    "chosen": {
-    "path": "amdclang",
-    "how": "the amdclang build (no verified win)",
+    "path": "import+pass",
+    "how": "stream_loads(scope=all)",
     "bit_identical": true,
-    "speedup": 1.0,
-    "ci95": null
+    "speedup": 1.44,
+    "ci95": [
+     1.4223,
+     1.458
+    ],
+    "ms": 0.06702,
+    "amdclang_ms": 0.09666,
+    "warm": {
+     "outcome": "parity",
+     "speedup": 1.0159,
+     "speedup_ci95": [
+      0.9908,
+      1.0417
+     ],
+     "reference_ms": 0.06214,
+     "candidate_ms": 0.0609
+    }
    },
    "candidates": [
     {
@@ -574,13 +1080,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9643,
+     "speedup": 0.9547,
      "ci95": [
-      0.9491,
-      0.9725
+      0.9413,
+      0.9683
      ],
-     "ms": 0.10086,
-     "amdclang_ms": 0.09686
+     "ms": 0.10138,
+     "amdclang_ms": 0.09704
     },
     {
      "path": "import+pass",
@@ -588,13 +1094,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9202,
+     "speedup": 0.9344,
      "ci95": [
-      0.9121,
-      0.9319
+      0.9219,
+      0.9471
      ],
-     "ms": 0.10392,
-     "amdclang_ms": 0.096
+     "ms": 0.1034,
+     "amdclang_ms": 0.09668
     },
     {
      "path": "import+pass",
@@ -602,26 +1108,69 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.903,
+     "speedup": 0.8988,
      "ci95": [
-      0.8959,
-      0.9129
+      0.8915,
+      0.9062
      ],
-     "ms": 0.10632,
-     "amdclang_ms": 0.09622
+     "ms": 0.10754,
+     "amdclang_ms": 0.09662
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.44,
+     "ci95": [
+      1.4223,
+      1.458
+     ],
+     "ms": 0.06702,
+     "amdclang_ms": 0.09666
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.6773,
+     "ci95": [
+      0.6712,
+      0.6835
+     ],
+     "ms": 0.14326,
+     "amdclang_ms": 0.09672
     }
    ]
   },
   "kda_step": {
    "library": "port",
-   "amdclang_ms": 0.10788,
-   "fallback": true,
+   "amdclang_ms": 0.1075,
+   "fallback": false,
    "chosen": {
-    "path": "amdclang",
-    "how": "the amdclang build (no verified win)",
+    "path": "import+pass",
+    "how": "stream_loads(scope=all)",
     "bit_identical": true,
-    "speedup": 1.0,
-    "ci95": null
+    "speedup": 1.0649,
+    "ci95": [
+     1.0534,
+     1.0765
+    ],
+    "ms": 0.10132,
+    "amdclang_ms": 0.1075,
+    "warm": {
+     "outcome": "win",
+     "speedup": 1.0464,
+     "speedup_ci95": [
+      1.0399,
+      1.053
+     ],
+     "reference_ms": 0.09204,
+     "candidate_ms": 0.08834
+    }
    },
    "candidates": [
     {
@@ -639,12 +1188,40 @@
      "verified": false,
      "outcome": "rejected",
      "reason": "parameter: coarsen: a path reaches the end of the program without passing every s_barrier, through a branch that is not workgroup-uniform"
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.0649,
+     "ci95": [
+      1.0534,
+      1.0765
+     ],
+     "ms": 0.10132,
+     "amdclang_ms": 0.1075
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 1.0,
+     "ci95": [
+      0.9932,
+      1.0069
+     ],
+     "ms": 0.10806,
+     "amdclang_ms": 0.1078
     }
    ]
   },
   "mla_decode": {
    "library": "port",
-   "amdclang_ms": 0.2654,
+   "amdclang_ms": 0.26836,
    "fallback": true,
    "chosen": {
     "path": "amdclang",
@@ -669,19 +1246,62 @@
      "verified": false,
      "outcome": "rejected",
      "reason": "parameter: coarsen: a path reaches the end of the program without passing every s_barrier, through a branch that is not workgroup-uniform"
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.4041,
+     "ci95": [
+      0.4013,
+      0.407
+     ],
+     "ms": 0.66675,
+     "amdclang_ms": 0.26836
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 0.9996,
+     "ci95": [
+      0.9986,
+      1.0006
+     ],
+     "ms": 0.2707,
+     "amdclang_ms": 0.27086
     }
    ]
   },
   "mo_active_fwd": {
    "library": "miopen",
-   "amdclang_ms": 0.10868,
-   "fallback": true,
+   "amdclang_ms": 0.10824,
+   "fallback": false,
    "chosen": {
-    "path": "amdclang",
-    "how": "the amdclang build (no verified win)",
+    "path": "import+pass",
+    "how": "stream_loads(scope=all)",
     "bit_identical": true,
-    "speedup": 1.0,
-    "ci95": null
+    "speedup": 1.2328,
+    "ci95": [
+     1.2203,
+     1.2454
+    ],
+    "ms": 0.08814,
+    "amdclang_ms": 0.10824,
+    "warm": {
+     "outcome": "win",
+     "speedup": 1.123,
+     "speedup_ci95": [
+      1.1142,
+      1.1319
+     ],
+     "reference_ms": 0.08696,
+     "candidate_ms": 0.07696
+    }
    },
    "candidates": [
     {
@@ -698,13 +1318,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9686,
+     "speedup": 0.9637,
      "ci95": [
-      0.964,
-      0.9844
+      0.9584,
+      0.9691
      ],
-     "ms": 0.1113,
-     "amdclang_ms": 0.10868
+     "ms": 0.112,
+     "amdclang_ms": 0.10856
     },
     {
      "path": "import+pass",
@@ -712,13 +1332,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9307,
+     "speedup": 0.9265,
      "ci95": [
-      0.924,
-      0.9391
+      0.9216,
+      0.9314
      ],
-     "ms": 0.1167,
-     "amdclang_ms": 0.1088
+     "ms": 0.11732,
+     "amdclang_ms": 0.10884
     },
     {
      "path": "import+pass",
@@ -726,26 +1346,69 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.875,
+     "speedup": 0.8839,
      "ci95": [
-      0.8652,
-      0.8817
+      0.876,
+      0.8919
      ],
-     "ms": 0.12346,
+     "ms": 0.12312,
+     "amdclang_ms": 0.10904
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.2328,
+     "ci95": [
+      1.2203,
+      1.2454
+     ],
+     "ms": 0.08814,
+     "amdclang_ms": 0.10824
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.4344,
+     "ci95": [
+      0.4318,
+      0.437
+     ],
+     "ms": 0.24832,
      "amdclang_ms": 0.1082
     }
    ]
   },
   "mo_adam": {
    "library": "miopen",
-   "amdclang_ms": 0.33602,
-   "fallback": true,
+   "amdclang_ms": 0.34188,
+   "fallback": false,
    "chosen": {
-    "path": "amdclang",
-    "how": "the amdclang build (no verified win)",
+    "path": "import+pass",
+    "how": "stream_loads(scope=all)",
     "bit_identical": true,
-    "speedup": 1.0,
-    "ci95": null
+    "speedup": 1.0984,
+    "ci95": [
+     1.0837,
+     1.1132
+    ],
+    "ms": 0.31021,
+    "amdclang_ms": 0.34188,
+    "warm": {
+     "outcome": "win",
+     "speedup": 1.0877,
+     "speedup_ci95": [
+      1.0815,
+      1.0939
+     ],
+     "reference_ms": 0.31762,
+     "candidate_ms": 0.29202
+    }
    },
    "candidates": [
     {
@@ -762,13 +1425,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "parity",
-     "speedup": 1.0092,
+     "speedup": 0.9874,
      "ci95": [
-      1.0042,
-      1.0165
+      0.9835,
+      0.9914
      ],
-     "ms": 0.33392,
-     "amdclang_ms": 0.33602
+     "ms": 0.34615,
+     "amdclang_ms": 0.34143
     },
     {
      "path": "import+pass",
@@ -776,40 +1439,83 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "parity",
-     "speedup": 0.9871,
+     "speedup": 1.01,
      "ci95": [
-      0.9812,
-      0.9903
+      1.0054,
+      1.0145
      ],
-     "ms": 0.35274,
-     "amdclang_ms": 0.34722
+     "ms": 0.33858,
+     "amdclang_ms": 0.34212
     },
     {
      "path": "import+pass",
      "how": "coarsen(factor=8)",
      "bit_identical": true,
      "verified": true,
-     "outcome": "loss",
-     "speedup": 0.9165,
+     "outcome": "parity",
+     "speedup": 0.996,
      "ci95": [
-      0.9134,
-      0.9183
+      0.9877,
+      1.0043
      ],
-     "ms": 0.37229,
-     "amdclang_ms": 0.34092
+     "ms": 0.34568,
+     "amdclang_ms": 0.34451
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.0984,
+     "ci95": [
+      1.0837,
+      1.1132
+     ],
+     "ms": 0.31021,
+     "amdclang_ms": 0.34188
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.812,
+     "ci95": [
+      0.804,
+      0.8201
+     ],
+     "ms": 0.41639,
+     "amdclang_ms": 0.33846
     }
    ]
   },
   "mo_bn_infer": {
    "library": "miopen",
-   "amdclang_ms": 0.08854,
-   "fallback": true,
+   "amdclang_ms": 0.08846,
+   "fallback": false,
    "chosen": {
-    "path": "amdclang",
-    "how": "the amdclang build (no verified win)",
+    "path": "import+pass",
+    "how": "stream_loads(scope=all)",
     "bit_identical": true,
-    "speedup": 1.0,
-    "ci95": null
+    "speedup": 1.2134,
+    "ci95": [
+     1.2054,
+     1.2215
+    ],
+    "ms": 0.07298,
+    "amdclang_ms": 0.08846,
+    "warm": {
+     "outcome": "parity",
+     "speedup": 1.001,
+     "speedup_ci95": [
+      0.9899,
+      1.0121
+     ],
+     "reference_ms": 0.06766,
+     "candidate_ms": 0.0674
+    }
    },
    "candidates": [
     {
@@ -826,13 +1532,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9717,
+     "speedup": 0.9738,
      "ci95": [
-      0.9644,
-      0.9801
+      0.9651,
+      0.9825
      ],
-     "ms": 0.09084,
-     "amdclang_ms": 0.08854
+     "ms": 0.09032,
+     "amdclang_ms": 0.08836
     },
     {
      "path": "import+pass",
@@ -840,13 +1546,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.8913,
+     "speedup": 0.8979,
      "ci95": [
-      0.8884,
-      0.9008
+      0.8896,
+      0.9063
      ],
-     "ms": 0.09864,
-     "amdclang_ms": 0.08808
+     "ms": 0.0989,
+     "amdclang_ms": 0.08872
     },
     {
      "path": "import+pass",
@@ -854,31 +1560,69 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.8383,
+     "speedup": 0.8518,
      "ci95": [
-      0.8335,
-      0.8449
+      0.8399,
+      0.8639
      ],
-     "ms": 0.10514,
-     "amdclang_ms": 0.08804
+     "ms": 0.10476,
+     "amdclang_ms": 0.0892
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.2134,
+     "ci95": [
+      1.2054,
+      1.2215
+     ],
+     "ms": 0.07298,
+     "amdclang_ms": 0.08846
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.4065,
+     "ci95": [
+      0.4026,
+      0.4105
+     ],
+     "ms": 0.2164,
+     "amdclang_ms": 0.08788
     }
    ]
   },
   "mo_glu_fwd": {
    "library": "miopen",
-   "amdclang_ms": 0.1769,
+   "amdclang_ms": 0.17678,
    "fallback": false,
    "chosen": {
     "path": "import+pass",
-    "how": "coarsen(factor=4)",
+    "how": "coarsen(factor=4) + stream_loads(scope=all)",
     "bit_identical": true,
-    "speedup": 1.0558,
+    "speedup": 1.2378,
     "ci95": [
-     1.0506,
-     1.0598
+     1.225,
+     1.2507
     ],
-    "ms": 0.16754,
-    "amdclang_ms": 0.1769
+    "ms": 0.14282,
+    "amdclang_ms": 0.17678,
+    "warm": {
+     "outcome": "win",
+     "speedup": 1.2048,
+     "speedup_ci95": [
+      1.1989,
+      1.2108
+     ],
+     "reference_ms": 0.16254,
+     "candidate_ms": 0.1354
+    }
    },
    "candidates": [
     {
@@ -895,13 +1639,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.0306,
+     "speedup": 1.0411,
      "ci95": [
-      1.0263,
-      1.0381
+      1.0335,
+      1.0487
      ],
-     "ms": 0.1688,
-     "amdclang_ms": 0.17488
+     "ms": 0.1685,
+     "amdclang_ms": 0.17528
     },
     {
      "path": "import+pass",
@@ -909,13 +1653,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.0558,
+     "speedup": 1.0513,
      "ci95": [
-      1.0506,
-      1.0598
+      1.0415,
+      1.0613
      ],
-     "ms": 0.16754,
-     "amdclang_ms": 0.1769
+     "ms": 0.16736,
+     "amdclang_ms": 0.17568
     },
     {
      "path": "import+pass",
@@ -923,26 +1667,83 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.0353,
+     "speedup": 1.0349,
      "ci95": [
-      1.0289,
-      1.0408
+      1.0284,
+      1.0415
      ],
-     "ms": 0.16684,
-     "amdclang_ms": 0.17294
+     "ms": 0.17148,
+     "amdclang_ms": 0.17792
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.1393,
+     "ci95": [
+      1.1299,
+      1.1487
+     ],
+     "ms": 0.15512,
+     "amdclang_ms": 0.17668
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.6684,
+     "ci95": [
+      0.6658,
+      0.6711
+     ],
+     "ms": 0.26362,
+     "amdclang_ms": 0.1758
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4) + stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.2378,
+     "ci95": [
+      1.225,
+      1.2507
+     ],
+     "ms": 0.14282,
+     "amdclang_ms": 0.17678
     }
    ]
   },
   "mo_prelu_bwd": {
    "library": "miopen",
-   "amdclang_ms": 0.19244,
-   "fallback": true,
+   "amdclang_ms": 0.19264,
+   "fallback": false,
    "chosen": {
-    "path": "amdclang",
-    "how": "the amdclang build (no verified win)",
+    "path": "import+pass",
+    "how": "stream_loads(scope=all)",
     "bit_identical": true,
-    "speedup": 1.0,
-    "ci95": null
+    "speedup": 1.1027,
+    "ci95": [
+     1.0955,
+     1.1101
+    ],
+    "ms": 0.1748,
+    "amdclang_ms": 0.19264,
+    "warm": {
+     "outcome": "win",
+     "speedup": 1.0875,
+     "speedup_ci95": [
+      1.0796,
+      1.0955
+     ],
+     "reference_ms": 0.17468,
+     "candidate_ms": 0.16024
+    }
    },
    "candidates": [
     {
@@ -959,27 +1760,27 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9709,
+     "speedup": 0.9798,
      "ci95": [
-      0.9669,
-      0.9746
+      0.9696,
+      0.99
      ],
-     "ms": 0.19862,
-     "amdclang_ms": 0.19244
+     "ms": 0.1971,
+     "amdclang_ms": 0.1936
     },
     {
      "path": "import+pass",
      "how": "coarsen(factor=4)",
      "bit_identical": true,
      "verified": true,
-     "outcome": "loss",
-     "speedup": 0.9185,
+     "outcome": "parity",
+     "speedup": 0.9869,
      "ci95": [
-      0.9165,
-      0.9243
+      0.957,
+      1.0177
      ],
-     "ms": 0.21162,
-     "amdclang_ms": 0.1945
+     "ms": 0.20582,
+     "amdclang_ms": 0.20378
     },
     {
      "path": "import+pass",
@@ -987,26 +1788,69 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9067,
+     "speedup": 0.902,
      "ci95": [
-      0.8982,
-      0.9117
+      0.8919,
+      0.9123
      ],
-     "ms": 0.21638,
-     "amdclang_ms": 0.1961
+     "ms": 0.21536,
+     "amdclang_ms": 0.19356
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.1027,
+     "ci95": [
+      1.0955,
+      1.1101
+     ],
+     "ms": 0.1748,
+     "amdclang_ms": 0.19264
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.5906,
+     "ci95": [
+      0.5854,
+      0.5959
+     ],
+     "ms": 0.33702,
+     "amdclang_ms": 0.19854
     }
    ]
   },
   "mo_reduce_sum": {
    "library": "miopen",
-   "amdclang_ms": 0.08394,
-   "fallback": true,
+   "amdclang_ms": 0.0843,
+   "fallback": false,
    "chosen": {
-    "path": "amdclang",
-    "how": "the amdclang build (no verified win)",
+    "path": "import+pass",
+    "how": "stream_loads(scope=all)",
     "bit_identical": true,
-    "speedup": 1.0,
-    "ci95": null
+    "speedup": 1.3022,
+    "ci95": [
+     1.281,
+     1.3237
+    ],
+    "ms": 0.06504,
+    "amdclang_ms": 0.0843,
+    "warm": {
+     "outcome": "parity",
+     "speedup": 0.9905,
+     "speedup_ci95": [
+      0.9879,
+      0.9932
+     ],
+     "reference_ms": 0.06308,
+     "candidate_ms": 0.06368
+    }
    },
    "candidates": [
     {
@@ -1023,13 +1867,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9819,
+     "speedup": 0.9753,
      "ci95": [
-      0.9787,
-      0.9874
+      0.9685,
+      0.9822
      ],
-     "ms": 0.08556,
-     "amdclang_ms": 0.08394
+     "ms": 0.08696,
+     "amdclang_ms": 0.08444
     },
     {
      "path": "import+pass",
@@ -1037,13 +1881,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9256,
+     "speedup": 0.9338,
      "ci95": [
-      0.9169,
-      0.9321
+      0.9262,
+      0.9415
      ],
-     "ms": 0.09098,
-     "amdclang_ms": 0.0841
+     "ms": 0.09018,
+     "amdclang_ms": 0.0843
     },
     {
      "path": "import+pass",
@@ -1051,26 +1895,69 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.8811,
+     "speedup": 0.8777,
      "ci95": [
-      0.8753,
-      0.8884
+      0.8673,
+      0.8882
      ],
-     "ms": 0.09566,
-     "amdclang_ms": 0.08444
+     "ms": 0.09584,
+     "amdclang_ms": 0.0844
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.3022,
+     "ci95": [
+      1.281,
+      1.3237
+     ],
+     "ms": 0.06504,
+     "amdclang_ms": 0.0843
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.276,
+     "ci95": [
+      0.2711,
+      0.2809
+     ],
+     "ms": 0.30805,
+     "amdclang_ms": 0.08426
     }
    ]
   },
   "mo_rope_fwd": {
    "library": "miopen",
-   "amdclang_ms": 0.11346,
-   "fallback": true,
+   "amdclang_ms": 0.11378,
+   "fallback": false,
    "chosen": {
-    "path": "amdclang",
-    "how": "the amdclang build (no verified win)",
+    "path": "import+pass",
+    "how": "stream_loads(scope=all)",
     "bit_identical": true,
-    "speedup": 1.0,
-    "ci95": null
+    "speedup": 1.0606,
+    "ci95": [
+     1.0554,
+     1.0658
+    ],
+    "ms": 0.10716,
+    "amdclang_ms": 0.11378,
+    "warm": {
+     "outcome": "loss",
+     "speedup": 0.932,
+     "speedup_ci95": [
+      0.9264,
+      0.9377
+     ],
+     "reference_ms": 0.09286,
+     "candidate_ms": 0.09976
+    }
    },
    "candidates": [
     {
@@ -1087,13 +1974,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.954,
+     "speedup": 0.95,
      "ci95": [
-      0.9491,
-      0.958
+      0.9414,
+      0.9586
      ],
-     "ms": 0.11874,
-     "amdclang_ms": 0.11346
+     "ms": 0.11928,
+     "amdclang_ms": 0.1136
     },
     {
      "path": "import+pass",
@@ -1101,13 +1988,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.8837,
+     "speedup": 0.8928,
      "ci95": [
-      0.8798,
-      0.8896
+      0.8863,
+      0.8993
      ],
-     "ms": 0.12716,
-     "amdclang_ms": 0.11272
+     "ms": 0.12666,
+     "amdclang_ms": 0.11354
     },
     {
      "path": "import+pass",
@@ -1115,26 +2002,69 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.8721,
+     "speedup": 0.8792,
      "ci95": [
-      0.8667,
-      0.8769
+      0.8673,
+      0.8913
      ],
-     "ms": 0.12998,
-     "amdclang_ms": 0.11364
+     "ms": 0.12982,
+     "amdclang_ms": 0.114
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.0606,
+     "ci95": [
+      1.0554,
+      1.0658
+     ],
+     "ms": 0.10716,
+     "amdclang_ms": 0.11378
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9544,
+     "ci95": [
+      0.9459,
+      0.9628
+     ],
+     "ms": 0.11796,
+     "amdclang_ms": 0.1124
     }
    ]
   },
   "mo_t5_layernorm": {
    "library": "miopen",
-   "amdclang_ms": 0.06516,
-   "fallback": true,
+   "amdclang_ms": 0.06562,
+   "fallback": false,
    "chosen": {
-    "path": "amdclang",
-    "how": "the amdclang build (no verified win)",
+    "path": "import+pass",
+    "how": "stream_loads(scope=all)",
     "bit_identical": true,
-    "speedup": 1.0,
-    "ci95": null
+    "speedup": 1.1537,
+    "ci95": [
+     1.1415,
+     1.1661
+    ],
+    "ms": 0.05722,
+    "amdclang_ms": 0.06562,
+    "warm": {
+     "outcome": "loss",
+     "speedup": 0.9512,
+     "speedup_ci95": [
+      0.9362,
+      0.9665
+     ],
+     "reference_ms": 0.05358,
+     "candidate_ms": 0.0564
+    }
    },
    "candidates": [
     {
@@ -1143,13 +2073,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "parity",
-     "speedup": 1.0003,
+     "speedup": 1.0025,
      "ci95": [
-      0.9957,
-      1.0068
+      0.994,
+      1.011
      ],
-     "ms": 0.0652,
-     "amdclang_ms": 0.06516
+     "ms": 0.06534,
+     "amdclang_ms": 0.06546
     },
     {
      "path": "import+pass",
@@ -1157,13 +2087,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "parity",
-     "speedup": 0.9988,
+     "speedup": 1.0038,
      "ci95": [
-      0.9918,
-      1.0037
+      1.0,
+      1.0076
      ],
-     "ms": 0.06516,
-     "amdclang_ms": 0.06526
+     "ms": 0.06512,
+     "amdclang_ms": 0.06546
     },
     {
      "path": "import+pass",
@@ -1171,13 +2101,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.8683,
+     "speedup": 0.8756,
      "ci95": [
-      0.8612,
-      0.8743
+      0.8692,
+      0.8821
      ],
-     "ms": 0.07572,
-     "amdclang_ms": 0.06558
+     "ms": 0.07502,
+     "amdclang_ms": 0.06554
     },
     {
      "path": "import+pass",
@@ -1185,13 +2115,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9482,
+     "speedup": 0.9335,
      "ci95": [
-      0.9391,
-      0.9553
+      0.9267,
+      0.9404
      ],
-     "ms": 0.0695,
-     "amdclang_ms": 0.06562
+     "ms": 0.0697,
+     "amdclang_ms": 0.06486
     },
     {
      "path": "import+pass",
@@ -1199,13 +2129,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.8889,
+     "speedup": 0.8796,
      "ci95": [
-      0.8777,
-      0.8989
+      0.8697,
+      0.8896
      ],
-     "ms": 0.07352,
-     "amdclang_ms": 0.06496
+     "ms": 0.07474,
+     "amdclang_ms": 0.06572
     },
     {
      "path": "import+pass",
@@ -1213,19 +2143,47 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.8707,
+     "speedup": 0.8754,
      "ci95": [
-      0.8661,
-      0.877
+      0.8655,
+      0.8855
      ],
-     "ms": 0.07504,
-     "amdclang_ms": 0.06546
+     "ms": 0.07482,
+     "amdclang_ms": 0.06526
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.1537,
+     "ci95": [
+      1.1415,
+      1.1661
+     ],
+     "ms": 0.05722,
+     "amdclang_ms": 0.06562
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.7488,
+     "ci95": [
+      0.7458,
+      0.7517
+     ],
+     "ms": 0.08752,
+     "amdclang_ms": 0.06536
     }
    ]
   },
   "moe_gate_topk": {
    "library": "port",
-   "amdclang_ms": 0.03184,
+   "amdclang_ms": 0.03246,
    "fallback": true,
    "chosen": {
     "path": "amdclang",
@@ -1250,235 +2208,383 @@
      "verified": false,
      "outcome": "rejected",
      "reason": "parameter: coarsen: the kernel uses indexed vector registers (s_set_gpr_idx_on)"
-    }
-   ]
-  },
-  "rb_axpy": {
-   "library": "rocblas",
-   "amdclang_ms": 0.1567,
-   "fallback": true,
-   "chosen": {
-    "path": "amdclang",
-    "how": "the amdclang build (no verified win)",
-    "bit_identical": true,
-    "speedup": 1.0,
-    "ci95": null
-   },
-   "candidates": [
-    {
-     "path": "import+pass",
-     "how": "unroll_loads(factor=4)",
-     "bit_identical": true,
-     "verified": false,
-     "outcome": "rejected",
-     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
     },
     {
      "path": "import+pass",
-     "how": "coarsen(factor=2)",
-     "bit_identical": true,
-     "verified": true,
-     "outcome": "parity",
-     "speedup": 0.9937,
-     "ci95": [
-      0.9854,
-      0.9967
-     ],
-     "ms": 0.15796,
-     "amdclang_ms": 0.1567
-    },
-    {
-     "path": "import+pass",
-     "how": "coarsen(factor=4)",
+     "how": "stream_loads(scope=all)",
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9254,
+     "speedup": 0.8665,
      "ci95": [
-      0.918,
-      0.938
+      0.8587,
+      0.8744
      ],
-     "ms": 0.1684,
-     "amdclang_ms": 0.15538
-    },
-    {
-     "path": "import+pass",
-     "how": "coarsen(factor=8)",
-     "bit_identical": true,
-     "verified": true,
-     "outcome": "loss",
-     "speedup": 0.8922,
-     "ci95": [
-      0.8845,
-      0.896
-     ],
-     "ms": 0.17608,
-     "amdclang_ms": 0.1563
-    }
-   ]
-  },
-  "rb_copy": {
-   "library": "rocblas",
-   "amdclang_ms": 0.11142,
-   "fallback": false,
-   "chosen": {
-    "path": "import+pass",
-    "how": "coarsen(factor=2)",
-    "bit_identical": true,
-    "speedup": 1.0273,
-    "ci95": [
-     1.0223,
-     1.0345
-    ],
-    "ms": 0.10794,
-    "amdclang_ms": 0.11142
-   },
-   "candidates": [
-    {
-     "path": "import+pass",
-     "how": "unroll_loads(factor=4)",
-     "bit_identical": true,
-     "verified": false,
-     "outcome": "rejected",
-     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
-    },
-    {
-     "path": "import+pass",
-     "how": "coarsen(factor=2)",
-     "bit_identical": true,
-     "verified": true,
-     "outcome": "win",
-     "speedup": 1.0273,
-     "ci95": [
-      1.0223,
-      1.0345
-     ],
-     "ms": 0.10794,
-     "amdclang_ms": 0.11142
-    },
-    {
-     "path": "import+pass",
-     "how": "coarsen(factor=4)",
-     "bit_identical": true,
-     "verified": true,
-     "outcome": "loss",
-     "speedup": 0.9709,
-     "ci95": [
-      0.966,
-      0.9781
-     ],
-     "ms": 0.11178,
-     "amdclang_ms": 0.10892
-    },
-    {
-     "path": "import+pass",
-     "how": "coarsen(factor=8)",
-     "bit_identical": true,
-     "verified": true,
-     "outcome": "loss",
-     "speedup": 0.9216,
-     "ci95": [
-      0.9146,
-      0.9285
-     ],
-     "ms": 0.11964,
-     "amdclang_ms": 0.10982
-    }
-   ]
-  },
-  "rb_dot": {
-   "library": "rocblas",
-   "amdclang_ms": 0.1376,
-   "fallback": false,
-   "chosen": {
-    "path": "import+pass",
-    "how": "throttle(workgroups_per_cu=4)",
-    "bit_identical": true,
-    "speedup": 1.0259,
-    "ci95": [
-     1.0117,
-     1.0321
-    ],
-    "ms": 0.1347,
-    "amdclang_ms": 0.1376
-   },
-   "candidates": [
-    {
-     "path": "import+pass",
-     "how": "unroll_loads(factor=4)",
-     "bit_identical": true,
-     "verified": false,
-     "outcome": "rejected",
-     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
-    },
-    {
-     "path": "import+pass",
-     "how": "coarsen(factor=2)",
-     "bit_identical": true,
-     "verified": true,
-     "outcome": "loss",
-     "speedup": 0.9515,
-     "ci95": [
-      0.9392,
-      0.9616
-     ],
-     "ms": 0.14408,
-     "amdclang_ms": 0.13756
-    },
-    {
-     "path": "import+pass",
-     "how": "coarsen(factor=4)",
-     "bit_identical": true,
-     "verified": true,
-     "outcome": "loss",
-     "speedup": 0.8317,
-     "ci95": [
-      0.8238,
-      0.8382
-     ],
-     "ms": 0.16624,
-     "amdclang_ms": 0.13756
-    },
-    {
-     "path": "import+pass",
-     "how": "coarsen(factor=8)",
-     "bit_identical": true,
-     "verified": true,
-     "outcome": "loss",
-     "speedup": 0.8642,
-     "ci95": [
-      0.8478,
-      0.8702
-     ],
-     "ms": 0.1545,
-     "amdclang_ms": 0.13324
+     "ms": 0.03772,
+     "amdclang_ms": 0.03246
     },
     {
      "path": "import+pass",
      "how": "throttle(workgroups_per_cu=4)",
      "bit_identical": true,
      "verified": true,
-     "outcome": "win",
-     "speedup": 1.0259,
+     "outcome": "parity",
+     "speedup": 0.9998,
      "ci95": [
-      1.0117,
-      1.0321
+      0.9961,
+      1.0035
      ],
-     "ms": 0.1347,
-     "amdclang_ms": 0.1376
+     "ms": 0.03184,
+     "amdclang_ms": 0.03188
+    }
+   ]
+  },
+  "rb_axpy": {
+   "library": "rocblas",
+   "amdclang_ms": 0.15554,
+   "fallback": false,
+   "chosen": {
+    "path": "import+pass",
+    "how": "stream_loads(scope=all)",
+    "bit_identical": true,
+    "speedup": 1.1134,
+    "ci95": [
+     1.1084,
+     1.1185
+    ],
+    "ms": 0.13968,
+    "amdclang_ms": 0.15554,
+    "warm": {
+     "outcome": "loss",
+     "speedup": 0.982,
+     "speedup_ci95": [
+      0.9764,
+      0.9876
+     ],
+     "reference_ms": 0.13548,
+     "candidate_ms": 0.1377
+    }
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9686,
+     "ci95": [
+      0.9565,
+      0.9809
+     ],
+     "ms": 0.15998,
+     "amdclang_ms": 0.15532
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9194,
+     "ci95": [
+      0.9072,
+      0.9318
+     ],
+     "ms": 0.16958,
+     "amdclang_ms": 0.15518
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9257,
+     "ci95": [
+      0.9183,
+      0.9331
+     ],
+     "ms": 0.1745,
+     "amdclang_ms": 0.16176
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.1134,
+     "ci95": [
+      1.1084,
+      1.1185
+     ],
+     "ms": 0.13968,
+     "amdclang_ms": 0.15554
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.929,
+     "ci95": [
+      0.9211,
+      0.9371
+     ],
+     "ms": 0.1741,
+     "amdclang_ms": 0.1621
+    }
+   ]
+  },
+  "rb_copy": {
+   "library": "rocblas",
+   "amdclang_ms": 0.10864,
+   "fallback": false,
+   "chosen": {
+    "path": "import+pass",
+    "how": "stream_loads(scope=all)",
+    "bit_identical": true,
+    "speedup": 1.1261,
+    "ci95": [
+     1.113,
+     1.1394
+    ],
+    "ms": 0.09696,
+    "amdclang_ms": 0.10864,
+    "warm": {
+     "outcome": "win",
+     "speedup": 1.0461,
+     "speedup_ci95": [
+      1.0361,
+      1.0562
+     ],
+     "reference_ms": 0.10072,
+     "candidate_ms": 0.09608
+    }
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 1.0099,
+     "ci95": [
+      1.0026,
+      1.0173
+     ],
+     "ms": 0.10732,
+     "amdclang_ms": 0.10864
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9617,
+     "ci95": [
+      0.9562,
+      0.9672
+     ],
+     "ms": 0.11264,
+     "amdclang_ms": 0.10846
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9322,
+     "ci95": [
+      0.9252,
+      0.9391
+     ],
+     "ms": 0.11964,
+     "amdclang_ms": 0.1115
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.1261,
+     "ci95": [
+      1.113,
+      1.1394
+     ],
+     "ms": 0.09696,
+     "amdclang_ms": 0.10864
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.7494,
+     "ci95": [
+      0.7431,
+      0.7558
+     ],
+     "ms": 0.14846,
+     "amdclang_ms": 0.11094
+    }
+   ]
+  },
+  "rb_dot": {
+   "library": "rocblas",
+   "amdclang_ms": 0.13524,
+   "fallback": false,
+   "chosen": {
+    "path": "import+pass",
+    "how": "stream_loads(scope=all)",
+    "bit_identical": true,
+    "speedup": 1.7043,
+    "ci95": [
+     1.6831,
+     1.7258
+    ],
+    "ms": 0.0787,
+    "amdclang_ms": 0.13524,
+    "warm": {
+     "outcome": "win",
+     "speedup": 1.1112,
+     "speedup_ci95": [
+      1.092,
+      1.1307
+     ],
+     "reference_ms": 0.09496,
+     "candidate_ms": 0.08538
+    }
+   },
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9307,
+     "ci95": [
+      0.9195,
+      0.9421
+     ],
+     "ms": 0.14762,
+     "amdclang_ms": 0.13678
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.8377,
+     "ci95": [
+      0.8266,
+      0.8488
+     ],
+     "ms": 0.1618,
+     "amdclang_ms": 0.13582
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.8579,
+     "ci95": [
+      0.8453,
+      0.8708
+     ],
+     "ms": 0.15772,
+     "amdclang_ms": 0.13754
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.7043,
+     "ci95": [
+      1.6831,
+      1.7258
+     ],
+     "ms": 0.0787,
+     "amdclang_ms": 0.13524
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 1.0234,
+     "ci95": [
+      1.0072,
+      1.0399
+     ],
+     "ms": 0.1338,
+     "amdclang_ms": 0.13662
     }
    ]
   },
   "rb_gemvn": {
    "library": "rocblas",
-   "amdclang_ms": 0.09556,
-   "fallback": true,
+   "amdclang_ms": 0.09526,
+   "fallback": false,
    "chosen": {
-    "path": "amdclang",
-    "how": "the amdclang build (no verified win)",
+    "path": "import+pass",
+    "how": "stream_loads(scope=all)",
     "bit_identical": true,
-    "speedup": 1.0,
-    "ci95": null
+    "speedup": 1.7984,
+    "ci95": [
+     1.7804,
+     1.8165
+    ],
+    "ms": 0.05276,
+    "amdclang_ms": 0.09526,
+    "warm": {
+     "outcome": "win",
+     "speedup": 1.1084,
+     "speedup_ci95": [
+      1.02,
+      1.2044
+     ],
+     "reference_ms": 0.04992,
+     "candidate_ms": 0.03998
+    }
    },
    "candidates": [
     {
@@ -1487,13 +2593,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "parity",
-     "speedup": 1.0015,
+     "speedup": 1.0007,
      "ci95": [
-      0.991,
-      1.0113
+      0.9891,
+      1.0123
      ],
-     "ms": 0.09542,
-     "amdclang_ms": 0.09556
+     "ms": 0.09508,
+     "amdclang_ms": 0.09508
     },
     {
      "path": "import+pass",
@@ -1501,13 +2607,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "parity",
-     "speedup": 0.9962,
+     "speedup": 1.0043,
      "ci95": [
-      0.9899,
-      1.003
+      0.9937,
+      1.0151
      ],
-     "ms": 0.09526,
-     "amdclang_ms": 0.09508
+     "ms": 0.09454,
+     "amdclang_ms": 0.09446
     },
     {
      "path": "import+pass",
@@ -1515,13 +2621,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "parity",
-     "speedup": 0.9989,
+     "speedup": 0.9957,
      "ci95": [
-      0.983,
-      1.0143
+      0.9867,
+      1.0047
      ],
-     "ms": 0.0955,
-     "amdclang_ms": 0.09512
+     "ms": 0.0947,
+     "amdclang_ms": 0.09466
     },
     {
      "path": "import+pass",
@@ -1530,19 +2636,62 @@
      "verified": false,
      "outcome": "rejected",
      "reason": "parameter: coarsen: a path reaches the end of the program without passing every s_barrier, through a branch that is not workgroup-uniform"
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.7984,
+     "ci95": [
+      1.7804,
+      1.8165
+     ],
+     "ms": 0.05276,
+     "amdclang_ms": 0.09526
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 1.0104,
+     "ci95": [
+      1.0014,
+      1.0195
+     ],
+     "ms": 0.09496,
+     "amdclang_ms": 0.0961
     }
    ]
   },
   "rb_gemvt": {
    "library": "rocblas",
-   "amdclang_ms": 0.08906,
-   "fallback": true,
+   "amdclang_ms": 0.08956,
+   "fallback": false,
    "chosen": {
-    "path": "amdclang",
-    "how": "the amdclang build (no verified win)",
+    "path": "import+pass",
+    "how": "stream_loads(scope=all)",
     "bit_identical": true,
-    "speedup": 1.0,
-    "ci95": null
+    "speedup": 1.8898,
+    "ci95": [
+     1.8758,
+     1.9039
+    ],
+    "ms": 0.04748,
+    "amdclang_ms": 0.08956,
+    "warm": {
+     "outcome": "win",
+     "speedup": 1.0416,
+     "speedup_ci95": [
+      1.0212,
+      1.0624
+     ],
+     "reference_ms": 0.04538,
+     "candidate_ms": 0.04308
+    }
    },
    "candidates": [
     {
@@ -1560,12 +2709,40 @@
      "verified": false,
      "outcome": "rejected",
      "reason": "parameter: coarsen: a path reaches the end of the program without passing every s_barrier, through a branch that is not workgroup-uniform"
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.8898,
+     "ci95": [
+      1.8758,
+      1.9039
+     ],
+     "ms": 0.04748,
+     "amdclang_ms": 0.08956
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 1.0031,
+     "ci95": [
+      0.9918,
+      1.0144
+     ],
+     "ms": 0.08924,
+     "amdclang_ms": 0.08938
     }
    ]
   },
   "rb_ger": {
    "library": "rocblas",
-   "amdclang_ms": 0.09412,
+   "amdclang_ms": 0.09466,
    "fallback": true,
    "chosen": {
     "path": "amdclang",
@@ -1589,13 +2766,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "parity",
-     "speedup": 1.0026,
+     "speedup": 1.0011,
      "ci95": [
-      0.9975,
-      1.0089
+      0.9961,
+      1.0061
      ],
-     "ms": 0.09414,
-     "amdclang_ms": 0.09412
+     "ms": 0.09488,
+     "amdclang_ms": 0.09466
     },
     {
      "path": "import+pass",
@@ -1603,12 +2780,12 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9731,
+     "speedup": 0.9629,
      "ci95": [
-      0.9664,
-      0.9781
+      0.9543,
+      0.9717
      ],
-     "ms": 0.0971,
+     "ms": 0.09758,
      "amdclang_ms": 0.0941
     },
     {
@@ -1617,31 +2794,69 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9304,
+     "speedup": 0.9273,
      "ci95": [
-      0.9278,
-      0.9345
+      0.9216,
+      0.9331
      ],
-     "ms": 0.10144,
-     "amdclang_ms": 0.0943
+     "ms": 0.10194,
+     "amdclang_ms": 0.09434
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9493,
+     "ci95": [
+      0.9438,
+      0.9548
+     ],
+     "ms": 0.09898,
+     "amdclang_ms": 0.09394
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.3191,
+     "ci95": [
+      0.3178,
+      0.3204
+     ],
+     "ms": 0.29526,
+     "amdclang_ms": 0.09416
     }
    ]
   },
   "rb_nrm2": {
    "library": "rocblas",
-   "amdclang_ms": 0.08564,
+   "amdclang_ms": 0.08614,
    "fallback": false,
    "chosen": {
     "path": "import+pass",
-    "how": "throttle(workgroups_per_cu=4)",
+    "how": "stream_loads(scope=all)",
     "bit_identical": true,
-    "speedup": 1.032,
+    "speedup": 1.6838,
     "ci95": [
-     1.0285,
-     1.0388
+     1.6779,
+     1.6898
     ],
-    "ms": 0.08278,
-    "amdclang_ms": 0.08564
+    "ms": 0.0511,
+    "amdclang_ms": 0.08614,
+    "warm": {
+     "outcome": "win",
+     "speedup": 1.0763,
+     "speedup_ci95": [
+      1.0422,
+      1.1115
+     ],
+     "reference_ms": 0.0505,
+     "candidate_ms": 0.04514
+    }
    },
    "candidates": [
     {
@@ -1658,13 +2873,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9299,
+     "speedup": 0.9348,
      "ci95": [
-      0.9195,
-      0.9347
+      0.9185,
+      0.9513
      ],
-     "ms": 0.09286,
-     "amdclang_ms": 0.0857
+     "ms": 0.0921,
+     "amdclang_ms": 0.08628
     },
     {
      "path": "import+pass",
@@ -1672,13 +2887,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.839,
+     "speedup": 0.815,
      "ci95": [
-      0.8331,
-      0.8452
+      0.8053,
+      0.8248
      ],
-     "ms": 0.10242,
-     "amdclang_ms": 0.0857
+     "ms": 0.1052,
+     "amdclang_ms": 0.08576
     },
     {
      "path": "import+pass",
@@ -1686,13 +2901,27 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.7792,
+     "speedup": 0.7877,
      "ci95": [
-      0.7753,
-      0.7871
+      0.7804,
+      0.7951
      ],
-     "ms": 0.11062,
-     "amdclang_ms": 0.08636
+     "ms": 0.1098,
+     "amdclang_ms": 0.08648
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.6838,
+     "ci95": [
+      1.6779,
+      1.6898
+     ],
+     "ms": 0.0511,
+     "amdclang_ms": 0.08614
     },
     {
      "path": "import+pass",
@@ -1700,31 +2929,55 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.032,
+     "speedup": 1.023,
      "ci95": [
-      1.0285,
-      1.0388
+      1.0147,
+      1.0314
      ],
-     "ms": 0.08278,
-     "amdclang_ms": 0.08564
+     "ms": 0.08382,
+     "amdclang_ms": 0.08586
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4) + stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.4853,
+     "ci95": [
+      1.4701,
+      1.5007
+     ],
+     "ms": 0.05786,
+     "amdclang_ms": 0.08614
     }
    ]
   },
   "rb_rot": {
    "library": "rocblas",
-   "amdclang_ms": 0.18518,
+   "amdclang_ms": 0.1852,
    "fallback": false,
    "chosen": {
     "path": "import+pass",
-    "how": "coarsen(factor=4)",
+    "how": "coarsen(factor=4) + stream_loads(scope=all)",
     "bit_identical": true,
-    "speedup": 1.0246,
+    "speedup": 1.0301,
     "ci95": [
-     1.0183,
-     1.0289
+     1.0247,
+     1.0355
     ],
-    "ms": 0.18084,
-    "amdclang_ms": 0.18518
+    "ms": 0.17956,
+    "amdclang_ms": 0.1852,
+    "warm": {
+     "outcome": "win",
+     "speedup": 1.0521,
+     "speedup_ci95": [
+      1.0459,
+      1.0583
+     ],
+     "reference_ms": 0.17324,
+     "candidate_ms": 0.16472
+    }
    },
    "candidates": [
     {
@@ -1741,13 +2994,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "parity",
-     "speedup": 1.0015,
+     "speedup": 1.0081,
      "ci95": [
-      0.9969,
-      1.0069
+      1.0025,
+      1.0137
      ],
-     "ms": 0.18268,
-     "amdclang_ms": 0.18326
+     "ms": 0.18566,
+     "amdclang_ms": 0.18764
     },
     {
      "path": "import+pass",
@@ -1755,13 +3008,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.0246,
+     "speedup": 1.0212,
      "ci95": [
-      1.0183,
-      1.0289
+      1.015,
+      1.0274
      ],
-     "ms": 0.18084,
-     "amdclang_ms": 0.18518
+     "ms": 0.18092,
+     "amdclang_ms": 0.18452
     },
     {
      "path": "import+pass",
@@ -1769,31 +3022,83 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9284,
+     "speedup": 0.9259,
      "ci95": [
-      0.9214,
-      0.934
+      0.9208,
+      0.931
      ],
-     "ms": 0.19638,
-     "amdclang_ms": 0.1823
+     "ms": 0.19688,
+     "amdclang_ms": 0.18262
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 1.0146,
+     "ci95": [
+      1.0065,
+      1.0228
+     ],
+     "ms": 0.18,
+     "amdclang_ms": 0.18268
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 0.9987,
+     "ci95": [
+      0.9896,
+      1.0079
+     ],
+     "ms": 0.1868,
+     "amdclang_ms": 0.18656
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4) + stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.0301,
+     "ci95": [
+      1.0247,
+      1.0355
+     ],
+     "ms": 0.17956,
+     "amdclang_ms": 0.1852
     }
    ]
   },
   "rb_scal": {
    "library": "rocblas",
-   "amdclang_ms": 0.1046,
+   "amdclang_ms": 0.1043,
    "fallback": false,
    "chosen": {
     "path": "import+pass",
-    "how": "coarsen(factor=2)",
+    "how": "coarsen(factor=2) + stream_loads(scope=all)",
     "bit_identical": true,
-    "speedup": 1.0628,
+    "speedup": 1.119,
     "ci95": [
-     1.0565,
-     1.0703
+     1.112,
+     1.1262
     ],
-    "ms": 0.09832,
-    "amdclang_ms": 0.1046
+    "ms": 0.09354,
+    "amdclang_ms": 0.1043,
+    "warm": {
+     "outcome": "win",
+     "speedup": 1.0942,
+     "speedup_ci95": [
+      1.0857,
+      1.1029
+     ],
+     "reference_ms": 0.09434,
+     "candidate_ms": 0.08632
+    }
    },
    "candidates": [
     {
@@ -1810,13 +3115,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.0628,
+     "speedup": 1.0683,
      "ci95": [
-      1.0565,
-      1.0703
+      1.0638,
+      1.0729
      ],
-     "ms": 0.09832,
-     "amdclang_ms": 0.1046
+     "ms": 0.09784,
+     "amdclang_ms": 0.10478
     },
     {
      "path": "import+pass",
@@ -1824,13 +3129,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.0463,
+     "speedup": 1.0526,
      "ci95": [
-      1.0406,
-      1.0519
+      1.0405,
+      1.0649
      ],
-     "ms": 0.0991,
-     "amdclang_ms": 0.10378
+     "ms": 0.09976,
+     "amdclang_ms": 0.10478
     },
     {
      "path": "import+pass",
@@ -1838,19 +3143,61 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.0226,
+     "speedup": 1.0225,
      "ci95": [
-      1.0173,
-      1.03
+      1.0171,
+      1.028
      ],
-     "ms": 0.1017,
-     "amdclang_ms": 0.10402
+     "ms": 0.10218,
+     "amdclang_ms": 0.1048
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.0745,
+     "ci95": [
+      1.0621,
+      1.087
+     ],
+     "ms": 0.0972,
+     "amdclang_ms": 0.10426
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.7301,
+     "ci95": [
+      0.7232,
+      0.7372
+     ],
+     "ms": 0.14282,
+     "amdclang_ms": 0.10422
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2) + stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.119,
+     "ci95": [
+      1.112,
+      1.1262
+     ],
+     "ms": 0.09354,
+     "amdclang_ms": 0.1043
     }
    ]
   },
   "rb_swap": {
    "library": "rocblas",
-   "amdclang_ms": 0.18378,
+   "amdclang_ms": 0.18352,
    "fallback": true,
    "chosen": {
     "path": "amdclang",
@@ -1874,13 +3221,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "parity",
-     "speedup": 1.0007,
+     "speedup": 1.0045,
      "ci95": [
-      0.9946,
-      1.0032
+      0.9982,
+      1.0109
      ],
-     "ms": 0.18344,
-     "amdclang_ms": 0.18378
+     "ms": 0.1826,
+     "amdclang_ms": 0.18352
     },
     {
      "path": "import+pass",
@@ -1888,13 +3235,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9296,
+     "speedup": 0.9221,
      "ci95": [
-      0.9224,
-      0.9353
+      0.902,
+      0.9427
      ],
-     "ms": 0.19576,
-     "amdclang_ms": 0.18216
+     "ms": 0.19872,
+     "amdclang_ms": 0.18156
     },
     {
      "path": "import+pass",
@@ -1902,19 +3249,47 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9001,
+     "speedup": 0.889,
      "ci95": [
-      0.8933,
-      0.9078
+      0.8838,
+      0.8942
      ],
-     "ms": 0.2014,
-     "amdclang_ms": 0.1815
+     "ms": 0.20718,
+     "amdclang_ms": 0.1841
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 1.0043,
+     "ci95": [
+      0.9829,
+      1.0262
+     ],
+     "ms": 0.18342,
+     "amdclang_ms": 0.18352
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9595,
+     "ci95": [
+      0.9519,
+      0.9672
+     ],
+     "ms": 0.18776,
+     "amdclang_ms": 0.18036
     }
    ]
   },
   "vl_fused_add_rms_norm": {
    "library": "vllm",
-   "amdclang_ms": 0.1036,
+   "amdclang_ms": 0.10514,
    "fallback": true,
    "chosen": {
     "path": "amdclang",
@@ -1938,13 +3313,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "parity",
-     "speedup": 0.994,
+     "speedup": 0.9883,
      "ci95": [
-      0.9811,
-      0.9981
+      0.9716,
+      1.0053
      ],
-     "ms": 0.10406,
-     "amdclang_ms": 0.1036
+     "ms": 0.1063,
+     "amdclang_ms": 0.10514
     },
     {
      "path": "import+pass",
@@ -1952,12 +3327,12 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.956,
+     "speedup": 0.9485,
      "ci95": [
-      0.9426,
-      0.9646
+      0.9387,
+      0.9584
      ],
-     "ms": 0.10534,
+     "ms": 0.1068,
      "amdclang_ms": 0.1009
     },
     {
@@ -1966,19 +3341,47 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9012,
+     "speedup": 0.8914,
      "ci95": [
-      0.8945,
-      0.9102
+      0.8854,
+      0.8974
      ],
-     "ms": 0.11092,
-     "amdclang_ms": 0.1003
+     "ms": 0.11262,
+     "amdclang_ms": 0.09984
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9133,
+     "ci95": [
+      0.9084,
+      0.9183
+     ],
+     "ms": 0.11254,
+     "amdclang_ms": 0.10238
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 0.996,
+     "ci95": [
+      0.9862,
+      1.0059
+     ],
+     "ms": 0.10402,
+     "amdclang_ms": 0.1037
     }
    ]
   },
   "vl_moe_align": {
    "library": "vllm",
-   "amdclang_ms": 0.04532,
+   "amdclang_ms": 0.04566,
    "fallback": true,
    "chosen": {
     "path": "amdclang",
@@ -2003,12 +3406,34 @@
      "verified": false,
      "outcome": "rejected",
      "reason": "parameter: coarsen: a path reaches the end of the program without passing every s_barrier, through a branch that is not workgroup-uniform"
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 1.0104,
+     "ci95": [
+      0.9992,
+      1.0217
+     ],
+     "ms": 0.04532,
+     "amdclang_ms": 0.04566
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: throttle: the launch already has a dynamic LDS size (4 * cdiv(E, 64) * 64 + 256); set the reservation with relaunch"
     }
    ]
   },
   "vl_rms_norm": {
    "library": "vllm",
-   "amdclang_ms": 0.11556,
+   "amdclang_ms": 0.11548,
    "fallback": true,
    "chosen": {
     "path": "amdclang",
@@ -2024,13 +3449,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "parity",
-     "speedup": 0.9898,
+     "speedup": 0.9949,
      "ci95": [
-      0.9823,
-      1.008
+      0.9795,
+      1.0105
      ],
-     "ms": 0.11654,
-     "amdclang_ms": 0.11556
+     "ms": 0.1153,
+     "amdclang_ms": 0.11548
     },
     {
      "path": "import+pass",
@@ -2038,13 +3463,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.923,
+     "speedup": 0.9229,
      "ci95": [
-      0.9158,
+      0.9147,
       0.9312
      ],
-     "ms": 0.12574,
-     "amdclang_ms": 0.11606
+     "ms": 0.1257,
+     "amdclang_ms": 0.11582
     },
     {
      "path": "import+pass",
@@ -2052,13 +3477,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.8874,
+     "speedup": 0.8829,
      "ci95": [
-      0.8819,
-      0.8909
+      0.8773,
+      0.8884
      ],
-     "ms": 0.1313,
-     "amdclang_ms": 0.11636
+     "ms": 0.13242,
+     "amdclang_ms": 0.11676
     },
     {
      "path": "import+pass",
@@ -2066,13 +3491,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9683,
+     "speedup": 0.9724,
      "ci95": [
-      0.9617,
-      0.9759
+      0.9601,
+      0.9849
      ],
-     "ms": 0.1207,
-     "amdclang_ms": 0.11734
+     "ms": 0.1205,
+     "amdclang_ms": 0.11636
     },
     {
      "path": "import+pass",
@@ -2080,13 +3505,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9575,
+     "speedup": 0.9366,
      "ci95": [
-      0.9514,
-      0.9625
+      0.9281,
+      0.9453
      ],
-     "ms": 0.12294,
-     "amdclang_ms": 0.11748
+     "ms": 0.12324,
+     "amdclang_ms": 0.11592
     },
     {
      "path": "import+pass",
@@ -2094,19 +3519,47 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9189,
+     "speedup": 0.9134,
      "ci95": [
-      0.9106,
-      0.9326
+      0.9006,
+      0.9264
      ],
-     "ms": 0.12746,
-     "amdclang_ms": 0.11728
+     "ms": 0.12714,
+     "amdclang_ms": 0.11612
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9388,
+     "ci95": [
+      0.9323,
+      0.9453
+     ],
+     "ms": 0.12364,
+     "amdclang_ms": 0.11598
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 0.9997,
+     "ci95": [
+      0.9922,
+      1.0072
+     ],
+     "ms": 0.11692,
+     "amdclang_ms": 0.11652
     }
    ]
   },
   "vl_rotary_embedding": {
    "library": "vllm",
-   "amdclang_ms": 0.11932,
+   "amdclang_ms": 0.11902,
    "fallback": true,
    "chosen": {
     "path": "amdclang",
@@ -2130,13 +3583,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9694,
+     "speedup": 0.9723,
      "ci95": [
-      0.9626,
-      0.9757
+      0.9653,
+      0.9794
      ],
-     "ms": 0.12342,
-     "amdclang_ms": 0.11932
+     "ms": 0.12268,
+     "amdclang_ms": 0.11902
     },
     {
      "path": "import+pass",
@@ -2144,13 +3597,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.8999,
+     "speedup": 0.9015,
      "ci95": [
-      0.8943,
-      0.9066
+      0.896,
+      0.9069
      ],
-     "ms": 0.13262,
-     "amdclang_ms": 0.1189
+     "ms": 0.13268,
+     "amdclang_ms": 0.11966
     },
     {
      "path": "import+pass",
@@ -2158,13 +3611,41 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.8485,
+     "speedup": 0.8538,
      "ci95": [
-      0.8436,
-      0.8522
+      0.8473,
+      0.8603
      ],
-     "ms": 0.13996,
-     "amdclang_ms": 0.11856
+     "ms": 0.13998,
+     "amdclang_ms": 0.1191
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9787,
+     "ci95": [
+      0.9697,
+      0.9877
+     ],
+     "ms": 0.1213,
+     "amdclang_ms": 0.11892
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 1.0022,
+     "ci95": [
+      0.9974,
+      1.007
+     ],
+     "ms": 0.11872,
+     "amdclang_ms": 0.1189
     }
    ]
   }
@@ -2178,8 +3659,8 @@
  "recorded": "2026-11-21",
  "summary": {
   "kernels": 36,
-  "wins": 8,
-  "fallbacks": 28,
-  "geomean": 1.009
+  "wins": 25,
+  "fallbacks": 11,
+  "geomean": 1.202
  }
 }

@@ -190,7 +190,10 @@ win is reported with its pass.
       the original binary in the verification, per-kernel analyses (`docs/kernels/`), knowledge
       base (`.claude/skills/agc-notes/kb/`), 44 sessions. `vl_moe_align` 1.55x; four more with
       about 1.02x; 16 measured at the memory floor (touch-once), without a gain.
-- [x] Customizations promoted to passes: `coarsen` (#30), `throttle` (#64). Further ones as sessions find them.
+- [x] Customizations promoted to passes: `coarsen` (#30), `throttle` (#64), `stream_loads` (#67); to a
+      template: `attention_mfma` (#71). Further ones as sessions find them.
+- [x] Placement-aware paired timing (#66); knowledge base with catalog, recipes and search (#67);
+      fusion of two tensor programs into one kernel (#73).
 - **Exit:** per-kernel table (policy and session results against amdclang, fallbacks
   reported as fallbacks) in the report and on #29.
 

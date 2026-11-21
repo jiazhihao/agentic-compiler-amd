@@ -17,21 +17,20 @@ The code is `bench/llm/sessions/<kernel>/best.s`, the launch and the verdict `re
 | `fa_attention_causal` | **1.981** (1.977 to 1.985) | within tolerance | source + edit + edit + fix_waits + fix_hazards + edit + edit + fix_waits + fix_hazards | grid [N, 1, 1], block [256, 1, 1] | State 0b098c783edb33f3 is 1.99x over the strongest amdclang build (43.9 us against 87.4 us, 240 pairs, CI 1.987 to 1.996; full battery 49/49; 128 VGPRs, same launch, no source state involved, so the whole gain is machine-level). … |
 | `mla_decode` | **1.562** (1.561 to 1.564) | within tolerance | source + edit + edit | grid [cdiv(H, 4), B, 2], block [1024, 1, 1] | State 122f40f8cef6d0a7 is 1.560x over the baseline at 240 pairs (CI 1.557 to 1.563; 1.566x at 60 pairs), battery 98/98; the previous recipe 5553e312 was 1.49x. It is built on a new source state 92815d94 (the bas … |
 | `attn_decode` | **1.552** (1.547 to 1.556) | within tolerance | source + edit | grid [Hk * G, 8, 1], block [1024, 1, 1] | State a4109addcd127ff0 (machine-IR edit of the baseline, static check clean, battery 98/98) is 1.561x over the strongest amdclang build (CI 1.557-1.565, 240 pairs; 105 us against 164 us). amdclang's key phase gives every lane its own key row, so each global_load_dwordx4 touches 64 rows 4 KB apart; … |
-| `vl_moe_align` | **1.546** (1.539 to 1.555) | yes | source + edit + edit + relaunch + edit + edit + relaunch | grid [1 + cdiv(NT + E * 63, 4096), 1, 1], block [1024, 1, 1], lds 64 * (cdiv(E, 64) * 64 + 1) + 4096 | State 4716127942de2487 is 1.538x over the strongest amdclang build (240 pairs, CI 1.530-1.544; 29.8 us against 45.8 us), bit-identical to the original binary on 78 cases, no source rewrite involved. It differs f … |
-| `rb_scal` | **1.124** (1.119 to 1.128) | yes | import + edit_ir | grid [cdiv(N, 256), 1, 1], block [64, 1, 1] | State c5620b21f742aea0 is a hand-written kernel launched as one wave per workgroup (block 64, grid cdiv(N,256)), measured 1.122x over the baseline (CI 1.1185..1.1242, 240 pairs, 92.4 us against 103.8 us). Each wave owns 1 KB contiguous of x, read as two 512 B dwordx2 loads in flight (the second through the load's offset:512) with pipelined vmcnt(1) waits; … |
+| `vl_moe_align` | **1.550** (1.542 to 1.558) | yes | source + edit + edit + relaunch + edit + edit + relaunch | grid [1 + cdiv(NT + E * 63, 4096), 1, 1], block [1024, 1, 1], lds 64 * (cdiv(E, 64) * 64 + 1) + 4096 | State 4716127942de2487 is 1.538x over the strongest amdclang build (240 pairs, CI 1.530-1.544; 29.8 us against 45.8 us), bit-identical to the original binary on 78 cases, no source rewrite involved. It differs f … |
+| `rb_scal` | **1.122** (1.118 to 1.126) | yes | import + edit_ir | grid [cdiv(N, 256), 1, 1], block [64, 1, 1] | State c5620b21f742aea0 is a hand-written kernel launched as one wave per workgroup (block 64, grid cdiv(N,256)), measured 1.122x over the baseline (CI 1.1185..1.1242, 240 pairs, 92.4 us against 103.8 us). Each wave owns 1 KB contiguous of x, read as two 512 B dwordx2 loads in flight (the second through the load's offset:512) with pipelined vmcnt(1) waits; … |
 | `fi_merge_states` | **1.122** (1.117 to 1.126) | yes | import + edit_ir + fix_waits + coarsen | grid [cdiv(P, 2), 1, 1], block [32, H, 1], args [P] | Best state d8824aa510a8974b: 1.136x over the baseline (240 pairs, CI 1.130..1.142; 0.0957 ms vs 0.1084 ms), battery 105/105. It adds a fast path to amdclang's 2x-unrolled merge loop: when at least 4 index sets r … |
 | `fi_rmsnorm` | **1.073** (1.068 to 1.077) | within tolerance | source + relaunch + edit_ir + fix_hazards | grid [B, 1, 1], block [32, cdiv(min(512, D4), 32), 1], lds 4 * cdiv(min(512, D4), 32) | Best verified state 158e86783f0ad7d4: 1.071x over the baseline (240 pairs, CI [1.066, 1.077], 0.1171 ms vs 0.1253 ms). Most of that is NOT machine-level: relaunching amdclang's unchanged code with 512 threads per workgroup instead of 1024 (8 waves, 2 rounds per thread at the bench shape; state c58877b909110425) is already ~1.05-1.06x. … |
-| `mo_glu_fwd` | **1.038** (1.035 to 1.042) | within tolerance | source + coarsen | grid [cdiv(cdiv(N, 256), 4), 1, 1], block [256, 1, 1], args [cdiv(N, 256)] | Memory-floor case: the kernel reads 537 MB and writes 268 MB once each, and the baseline already runs at headroom 1.06 (0.175 ms against a 0.164 ms floor), so 1.5x is out of reach without touching fewer bytes, which an elementwise kernel cannot do. … |
+| `mo_glu_fwd` | **1.053** (1.050 to 1.055) | within tolerance | source + coarsen | grid [cdiv(cdiv(N, 256), 4), 1, 1], block [256, 1, 1], args [cdiv(N, 256)] | Memory-floor case: the kernel reads 537 MB and writes 268 MB once each, and the baseline already runs at headroom 1.06 (0.175 ms against a 0.164 ms floor), so 1.5x is out of reach without touching fewer bytes, which an elementwise kernel cannot do. … |
 | `fi_rope` | **1.032** (1.028 to 1.036) | within tolerance | source + edit + edit + fix_hazards + edit | grid [cdiv(N, 4), cdiv(Hq + Hk, 4), 1], block [16, 4, 1] | Memory-floor case: the baseline already reads and writes every element exactly once (83.9 MB each way) and sits at headroom 1.06-1.08, so 1.5x is not reachable; the shipped state 585cffcc3a1ab1fa is 1.046x over the baseline (240 pairs, CI 1.041-1.049, 47.4 us vs 49.5 us), leaving headroom 1.02. amdclang issues the 8 global_load_dwordx4 of the 4 heads only after ~1000 instructions of powf/sincosf; … |
+| `rb_dot` | **1.031** (1.025 to 1.037) | within tolerance | source + edit_ir + fix_hazards + relaunch | grid [cdiv(N, 2048), 1, 1], block [512, 1, 1], lds 40960 | State 6c518e7f4aa338a1 is the earlier session's hand-written body (172e4fb8c0ee2e5a: scalar tile base + 32-bit lane offsets, mask-free fast path, 4 v_fmac, DPP wave reduction; 114 instructions against amdclang's 157) launched with a 40 KB LDS reservation per workgroup instead of the 32 bytes the code uses. … |
 | `fi_silu_and_mul` | **1.029** (1.024 to 1.035) | within tolerance | source + edit_ir + edit + edit + relaunch | grid [cdiv(D4, 64), B, 1], block [128, 1, 1] | Memory floor, touch-once (headroom 1.04 to 1.05): 1.5x is out of reach. Best verified state 100901bab2c367e6 is 1.0256x over the baseline (CI 1.021..1.030, 240 pairs), bit-identical to the baseline: a hand-writt … |
-| `mo_adam` | **1.025** (1.024 to 1.027) | within tolerance | source + edit_ir + edit_ir | grid [cdiv(N, (1) * 256)], block [256] | Best remains 5934ebefbb657d59: 1.025x over the strongest amdclang build (95% CI 1.0226..1.0263, 240 pairs, re-timed this session against baseline 479450ef1dc8ae54). It differs from amdclang's code by ordering: a … |
-| `rb_gemvt` | **1.024** (1.021 to 1.029) | within tolerance | source + edit + edit + fix_hazards | grid [cdiv(N, 4), 1, 1], block [1024, 1, 1] | State 03d805fc8464654e: 1.0245x over the strongest amdclang build (95% CI 1.022-1.028, 240 pairs, 87.3 us vs 89.5 us; battery 77/77). Two machine-level changes on the baseline: (1) the cross-thread reduction is … |
-| `rb_dot` | **1.023** (1.020 to 1.027) | within tolerance | source + edit_ir + fix_hazards + relaunch | grid [cdiv(N, 2048), 1, 1], block [512, 1, 1], lds 40960 | State 6c518e7f4aa338a1 is the earlier session's hand-written body (172e4fb8c0ee2e5a: scalar tile base + 32-bit lane offsets, mask-free fast path, 4 v_fmac, DPP wave reduction; 114 instructions against amdclang's 157) launched with a 40 KB LDS reservation per workgroup instead of the 32 bytes the code uses. … |
-| `rb_nrm2` | **1.022** (1.018 to 1.028) | within tolerance | source + edit_ir + edit | grid [cdiv(N, 2048), 1, 1], block [256, 1, 1], lds 32768 | rb_nrm2 is at the read floor (every element read once, baseline headroom 1.08; 1.5x is not reachable). Best state 3dcf47e375b4f914: a hand-written block-256 body (4 waves, wave j reads its whole 2 KB chunk with … |
-| `rb_copy` | **1.019** (1.017 to 1.023) | yes | import + coarsen | grid [cdiv(cdiv(N, 512), 2), 1, 1], block [256, 1, 1], args [cdiv(N, 512)] | rb_copy is at the memory floor (baseline headroom 1.05-1.07 against the copy model, each element touched exactly once: 268 MB read + 268 MB written at 4.84 TB/s), so 1.5x is out of reach; no bytes can be saved in a copy. … |
-| `moe_gate_topk` | **1.015** (1.012 to 1.021) | within tolerance | source + edit |  | Best state ea498c783e5bd552: 1.148x over the baseline (240 pairs, CI 1.146..1.151; 31.3 us against 35.9 us). Most of it is a source rewrite (state a3f1f14b4b217381, 1.116x at 60 pairs, credited to amdclang): eac … |
+| `rb_nrm2` | **1.025** (1.020 to 1.030) | within tolerance | source + edit_ir + edit | grid [cdiv(N, 2048), 1, 1], block [256, 1, 1], lds 32768 | rb_nrm2 is at the read floor (every element read once, baseline headroom 1.08; 1.5x is not reachable). Best state 3dcf47e375b4f914: a hand-written block-256 body (4 waves, wave j reads its whole 2 KB chunk with … |
+| `moe_gate_topk` | **1.024** (1.020 to 1.029) | within tolerance | source + edit |  | Best state ea498c783e5bd552: 1.148x over the baseline (240 pairs, CI 1.146..1.151; 31.3 us against 35.9 us). Most of it is a source rewrite (state a3f1f14b4b217381, 1.116x at 60 pairs, credited to amdclang): eac … |
+| `rb_gemvt` | **1.023** (1.021 to 1.026) | within tolerance | source + edit + edit + fix_hazards | grid [cdiv(N, 4), 1, 1], block [1024, 1, 1] | State 03d805fc8464654e: 1.0245x over the strongest amdclang build (95% CI 1.022-1.028, 240 pairs, 87.3 us vs 89.5 us; battery 77/77). Two machine-level changes on the baseline: (1) the cross-thread reduction is … |
+| `mo_adam` | **1.021** (1.018 to 1.024) | within tolerance | source + edit_ir + edit_ir | grid [cdiv(N, (1) * 256)], block [256] | Best remains 5934ebefbb657d59: 1.025x over the strongest amdclang build (95% CI 1.0226..1.0263, 240 pairs, re-timed this session against baseline 479450ef1dc8ae54). It differs from amdclang's code by ordering: a … |
+| `rb_copy` | **1.016** (1.011 to 1.021) | yes | import + coarsen | grid [cdiv(cdiv(N, 512), 2), 1, 1], block [256, 1, 1], args [cdiv(N, 512)] | rb_copy is at the memory floor (baseline headroom 1.05-1.07 against the copy model, each element touched exactly once: 268 MB read + 268 MB written at 4.84 TB/s), so 1.5x is out of reach; no bytes can be saved in a copy. … |
 | `rb_ger` | **1.015** (1.012 to 1.018) | yes | source + edit + edit | grid [cdiv(M, (4) * (64)), N, 1], block [(64), 1, 1] | rb_ger is at the memory floor: the baseline (loop-free, 16 bytes per lane, one 1 KB-contiguous wave per workgroup) has headroom 0.89-0.90 against the copy model (268 MB read + 268 MB written in 94 us, 5.7 TB/s), and every element of A must be read and written exactly once, so 1.5x is out of reach; x (32 KB) is re-read per column but from cache. … |
-| `mo_rope_fwd` | **1.013** (1.010 to 1.017) | within tolerance | source + relaunch | grid [cdiv(B * 2 * K, 256), 1, 1], block [64, 1, 1] | Machine-level gain: none (parity). The shipped state d5f5aa80fb92d7a5 is an amdclang build of a rewritten source plus a launch change, so its 1.68x over the shipped baseline (240 pairs, CI 1.679-1.688; 0.1116 ms vs 0.1880 ms) is credited to amdclang, not to machine-IR work. … |
 
 ## Default-policy results (LLM benchmark)
 
@@ -39,14 +38,31 @@ One pass on the strongest amdclang build, no agent: `apply("baseline", pass, par
 
 | kernel | pass | speedup (95% CI) |
 |---|---|---|
-| `fi_merge_states` | `coarsen(factor=2)` | 1.050 (1.040 to 1.063) |
-| `fi_rmsnorm` | `coarsen(factor=2)` | 1.044 (1.041 to 1.053) |
-| `mo_glu_fwd` | `coarsen(factor=4)` | 1.056 (1.051 to 1.060) |
-| `rb_copy` | `coarsen(factor=2)` | 1.027 (1.022 to 1.034) |
-| `rb_dot` | `throttle(workgroups_per_cu=4)` | 1.026 (1.012 to 1.032) |
-| `rb_nrm2` | `throttle(workgroups_per_cu=4)` | 1.032 (1.028 to 1.039) |
-| `rb_rot` | `coarsen(factor=4)` | 1.025 (1.018 to 1.029) |
-| `rb_scal` | `coarsen(factor=2)` | 1.063 (1.056 to 1.070) |
+| `fa_attention` | `attention_mfma(waves=4, ahead=1)` | 1.949 (1.942 to 1.956) |
+| `fi_gelu_tanh_and_mul` | `stream_loads(scope=all)` | 1.359 (1.346 to 1.373) |
+| `fi_merge_state` | `stream_loads(scope=all)` | 1.334 (1.321 to 1.348) |
+| `fi_merge_state_in_place` | `stream_loads(scope=all)` | 1.203 (1.196 to 1.210) |
+| `fi_merge_states` | `coarsen(factor=2) + stream_loads(scope=all)` | 1.690 (1.666 to 1.714) |
+| `fi_rmsnorm` | `coarsen(factor=2)` | 1.040 (1.034 to 1.046) |
+| `fi_rope` | `stream_loads(scope=all)` | 1.307 (1.288 to 1.326) |
+| `fi_silu_and_mul` | `stream_loads(scope=all)` | 1.440 (1.422 to 1.458) |
+| `kda_step` | `stream_loads(scope=all)` | 1.065 (1.053 to 1.077) |
+| `mo_active_fwd` | `stream_loads(scope=all)` | 1.233 (1.220 to 1.245) |
+| `mo_adam` | `stream_loads(scope=all)` | 1.098 (1.084 to 1.113) |
+| `mo_bn_infer` | `stream_loads(scope=all)` | 1.213 (1.205 to 1.222) |
+| `mo_glu_fwd` | `coarsen(factor=4) + stream_loads(scope=all)` | 1.238 (1.225 to 1.251) |
+| `mo_prelu_bwd` | `stream_loads(scope=all)` | 1.103 (1.095 to 1.110) |
+| `mo_reduce_sum` | `stream_loads(scope=all)` | 1.302 (1.281 to 1.324) |
+| `mo_rope_fwd` | `stream_loads(scope=all)` | 1.061 (1.055 to 1.066) |
+| `mo_t5_layernorm` | `stream_loads(scope=all)` | 1.154 (1.141 to 1.166) |
+| `rb_axpy` | `stream_loads(scope=all)` | 1.113 (1.108 to 1.119) |
+| `rb_copy` | `stream_loads(scope=all)` | 1.126 (1.113 to 1.139) |
+| `rb_dot` | `stream_loads(scope=all)` | 1.704 (1.683 to 1.726) |
+| `rb_gemvn` | `stream_loads(scope=all)` | 1.798 (1.780 to 1.817) |
+| `rb_gemvt` | `stream_loads(scope=all)` | 1.890 (1.876 to 1.904) |
+| `rb_nrm2` | `stream_loads(scope=all)` | 1.684 (1.678 to 1.690) |
+| `rb_rot` | `coarsen(factor=4) + stream_loads(scope=all)` | 1.030 (1.025 to 1.036) |
+| `rb_scal` | `coarsen(factor=2) + stream_loads(scope=all)` | 1.119 (1.112 to 1.126) |
 
 ## Default-policy results (corpus, `tests/kernels`)
 
