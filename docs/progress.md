@@ -21,6 +21,34 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 
 ## Log
 
+### 2026-11-21 — second round of sessions against the strongest amdclang builds (#62)
+- **Sessions.** Every one of the 36 kernels had a session against its stronger baseline, and
+  `mla_decode`, `fa_attention`, `kda_step` a third one. A session's own source rewrite is now
+  credited to amdclang: four baselines were strengthened that way (`rb_gemvn`, `kda_step`,
+  `mo_active_fwd`, `mo_rope_fwd`).
+- **Result.** 15 of 36 kernels have a verified agc gain over the strongest amdclang build
+  (policy or session), geomean 1.08 with fallbacks at 1.0 (`scripts/sessions.py table`). At or
+  above 1.5x: `fa_attention` 2.09x (rewritten on `v_mfma_f32_16x16x4_f32`), `fa_attention_causal`
+  1.99x, `mla_decode` 1.57x, `attn_decode` 1.55x. These are the kernels that re-read their
+  inputs; the gains are loads in flight, scalar loads of wave-uniform rows, fewer re-reads, MFMA.
+  Below: `rb_scal` 1.12x, `fi_merge_states` 1.11x, `fi_rmsnorm` 1.08x, eight between 1.01x and
+  1.06x. The 21 kernels without a gain touch every element once; most of their sessions measured
+  machine-level rewrites at parity and report the kernel at the memory floor. 1.5x on those is
+  not reachable by moving the same bytes.
+- **Passes, from the sessions' friction.** `unroll_loads` handles amdclang's exec-mask loops
+  (per-lane counter, guarded bulk loop) and counters that step by more than one: `row_sum`
+  1.29x, `rmsnorm` 1.25x, `layernorm` 1.17x from the pass alone, bit-identical; parity on the
+  three LLM baseline loops it applies to. `coarsen` accepts scratch spills, offset copies of the
+  kernarg pointer and workgroup-uniform early exits. `fix_waits(rewrite)` re-derives all waits.
+- **Tools.** `%rep` / `%for` in edit text, labels in edit text, block replace, registers dead
+  across a block, transform parameters and compare results in `list_states`, `source(like=)`
+  inherits flags and defines, short edit echoes; checker: vcc/exec halves as scalars, a scalar no
+  path has written is an error, nearest mnemonic, constant-bus hint.
+- **Open.** `unroll_loads` on kernels with indexed registers, loops with stores or data exits;
+  cooperation of workgroups on one output (`vl_moe_align`); LDS size from an edit; paired probes;
+  battery shapes that leave fast paths unexercised (`attn_decode`, `mo_adam`, `kda_step`,
+  `fi_rmsnorm`). The full GPU test suite has not been run on this branch.
+
 ### 2026-11-20 — stronger baseline: the strongest amdclang build per kernel (#62)
 - **What changed.** A manifest names a `baseline` (source, flags, defines, launch); the session
   imports it as state `baseline` and `bench`, the default policy and the harness measure against

@@ -2,9 +2,9 @@
  "kernel": "mla_decode",
  "launch": {
   "grid": [
-   "cdiv(H, 2)",
+   "cdiv(H, 4)",
    "B",
-   1
+   2
   ],
   "block": [
    1024,
@@ -38,141 +38,116 @@
     "lds": 0
    }
   },
-  "over_strongest_amdclang": 1.4892,
-  "over_shipped_O3": 2.5616
+  "over_strongest_amdclang": 1.5645,
+  "over_shipped_O3": 2.6724
  },
  "path": [
   "source",
-  "edit",
   "edit",
   "edit"
  ],
  "verified": {
   "outcome": "win",
-  "speedup": 1.4892,
+  "speedup": 1.5645,
   "speedup_ci95": [
-   1.4877,
-   1.4902
+   1.5636,
+   1.5661
   ],
-  "reference_ms": 0.26624,
-  "candidate_ms": 0.17875,
+  "reference_ms": 0.26522,
+  "candidate_ms": 0.16952,
   "cases": 98,
   "protocol_version": "agc-timing-amd-2",
   "pairs": 240,
   "runs": [
    {
-    "speedup": 1.4892,
+    "speedup": 1.5691,
     "ci95": [
-     1.4877,
-     1.4902
+     1.5682,
+     1.5707
     ],
     "valid": true
    },
    {
-    "speedup": 1.4925,
+    "speedup": 1.5645,
     "ci95": [
-     1.4917,
-     1.494
+     1.5636,
+     1.5661
     ],
     "valid": true
    }
   ]
  },
- "summary": "Best verified state 5553e312219ab670: 1.492x over the baseline (240 pairs, CI 1.491-1.493; 0.178 ms against 0.266 ms), just under the 1.5x target, entirely at machine level on the baseline's own code (no source state of mine is in its ancestry). Against amdclang's code it (1) reads the two wave-uniform query rows with s_load_dwordx16 into SGPRs and uses them as scalar operands of v_fmac, where amdclang issued 8 per-lane global_load_dwordx4 of identical addresses per iteration (2/3 of the key loop's vector loads); (2) keeps 16 key loads in flight per wait (9 iterations of 256 B per lane instead of 36 of 64 B); (3) in the value loop issues all 16 row loads up front into their final registers and selects the probability with op_sel on v_pk_fma, where amdclang waited after every pair of loads and shuffled with ~60 v_mov per iteration. Which case this is: not at the memory floor in the model's sense (headroom 7.3) because the kernel re-reads the KV cache once per workgroup - about 1.2 GB of key reads and 1.07 GB of value reads against 20 MB of tensors; the key phase (about 103 us of 178 us, estimated from probes) now moves that at roughly 11.7 TB/s, so further gain needs fewer re-reads, not a faster loop. Caveat: the per-phase split comes from probes of other states (key loop cut to one iteration), not from a direct measurement of this state.",
+ "summary": "State 122f40f8cef6d0a7 is 1.560x over the baseline at 240 pairs (CI 1.557 to 1.563; 1.566x at 60 pairs), battery 98/98; the previous recipe 5553e312 was 1.49x. It is built on a new source state 92815d94 (the baseline source with HB=4 heads per workgroup and NCG=2 column groups, grid [cdiv(H,4), B, 2], still 256 workgroups), whose amdclang build is a loss on its own (0.863x), so the gain over my own source state is about 1.81x (ratio of two timings against the baseline, not a direct compare). The machine-level work: (1) key loop with 16 global_load_dwordx4 per iteration (256 B = two full cache lines per lane) and the 4 query rows read as wave-uniform scalars (s_load_dwordx16 in two phases per 64 B chunk, 128 scalar-operand v_fmac per chunk) instead of amdclang's 16 per-lane query loads per 4 key loads; (2) value loop with 16 row loads issued up front from a running pointer, accumulators as (x,y)/(z,w) pairs with p selected by op_sel, LDS p reads pipelined. Case: not at the memory floor in the headroom sense (headroom 6.9) because the KV cache is re-read by every workgroup; the lever that paid was fewer re-read bytes per workgroup (each workgroup reads all keys but only half of the value columns). Probes put the key phase at about 62 % of the remaining 170 us.",
  "tried": [
   {
-   "what": "HB=2 key loop: query rows via 2x s_load_dwordx16 + 32 scalar-operand v_fmac instead of 8 per-lane global_load_dwordx4 and v_pk_fma with v_mov shuffles (4 key loads per wait kept)",
-   "state": "3f02231e49857562",
-   "outcome": "win, battery 98/98",
-   "speedup": 1.268
+   "what": "Rolling-window key phase on the HB=2 recipe: fully unrolled 36 chunks of 64 B, 4 loads reissued per chunk so 12 to 16 loads are always in flight, no loop or address arithmetic",
+   "state": "53cc2c03c942a68d",
+   "outcome": "verified, win over baseline but a loss against its parent 5553e312 (1.49x)",
+   "speedup": 1.288
   },
   {
-   "what": "On top: value loop with all 16 row loads issued up front (running address), (x,y)/(z,w) accumulator pairs with op_sel-selected p, LDS p reads pipelined 3 deep from one base; exit sums rewritten to match",
-   "state": "89b2fb3c055eb3b9",
-   "outcome": "win, battery 98/98 (only +4% over the previous state)",
-   "speedup": 1.323
-  },
-  {
-   "what": "On top: 16 key loads in flight per iteration (9 iterations), scalar q reloaded per 64 B chunk",
-   "state": "5553e312219ab670",
-   "outcome": "win, battery 98/98; 60 pairs 1.489, 240 pairs 1.492",
-   "speedup": 1.492
-  },
-  {
-   "what": "On top: 24 key loads in flight per iteration (6 iterations), using v66-69, v86-101, v114-125 as extra load registers",
+   "what": "Retry of the 24-loads-in-flight variant: liveness shows all its extra registers dead across the key loop; rerun of the battery fails identically (deterministic, about one key score wrong per head)",
    "state": "456f50a21daa83a5",
-   "outcome": "FAILS battery on the first case (out 2884/3072 mismatches, lse off 6e-3); not diagnosed, never timed",
+   "outcome": "fails battery, not timed; cause not established (not a clobbered register)",
    "speedup": null
   },
   {
-   "what": "Source: baseline text with HB=4 heads per workgroup, grid cdiv(H,4), -ffast-math (amdclang as is; 14 scratch spills outside loops)",
-   "state": "c400c01c4cf49d68",
-   "outcome": "loss, battery 98/98",
-   "speedup": 0.806
+   "what": "Source: baseline source with HB=4, NCG=2, grid z=2 (256 workgroups, each reads all keys and half of the value columns)",
+   "state": "92815d944a9a3d93",
+   "outcome": "verified, loss as an amdclang build (per-lane q loads, 15 VGPR spills to scratch outside the loops)",
+   "speedup": 0.8632
   },
   {
-   "what": "HB=4 source + machine edit: scalar q for 4 heads in two phases per chunk (x16 + 2 x8, constants s60-s67 clobbered and rematerialized after the loop), 4 key loads per wait",
-   "state": "3da5999365ad4de3",
-   "outcome": "win vs baseline, battery 98/98; 1.53x over its own source state",
-   "speedup": 1.23
+   "what": "Key loop rewrite on the HB=4/NCG=2 build: 16 key loads per iteration, scalar q for 4 heads in two phases per 64 B chunk; value loop left as amdclang wrote it",
+   "state": "fc098aafd201c604",
+   "outcome": "verified, win",
+   "speedup": 1.5222
   },
   {
-   "what": "HB=4 + 16 key loads in flight per iteration",
-   "state": "320413cb1361d3bd",
-   "outcome": "win vs baseline, battery 98/98; 1.69x over its own source state, but slower than the HB=2 line",
-   "speedup": 1.358
+   "what": "Value loop rewrite on top: 16 rows per iteration with all loads up front, pair accumulators with op_sel, pipelined LDS p reads; loop entry/exit conditions and the tail pointer adapted to 16 rows",
+   "state": "122f40f8cef6d0a7",
+   "outcome": "verified, win (1.566 at 60 pairs, 1.560 at 240 pairs)",
+   "speedup": 1.5599
   },
   {
-   "what": "PROBE HB=2 (state 89b2): key loop cut to 1 of 36 iterations",
-   "state": "68c95f6963b8d35f",
-   "outcome": "diagnostic only: 0.075 ms against 0.202 ms, so the key loop was about 127 us (63%) there",
+   "what": "PROBE: key loop cut to 1 of 9 iterations on the best state",
+   "state": "ebe863ed59e55d17",
+   "outcome": "diagnostic only: 76 us against 170 us, key phase is about 106 us",
    "speedup": null
   },
   {
-   "what": "PROBE HB=2: unrolled value loop disabled by forcing its entry mask false",
-   "state": "3c97954d0bacb386",
-   "outcome": "invalid as a phase probe: the tail loop did the work (output correct), 0.209 ms against 0.202 ms - shows the value phase is nearly insensitive to loads in flight",
-   "speedup": null
-  },
-  {
-   "what": "PROBE HB=4 (state 3204): key loop cut to 1 of 9 iterations",
-   "state": "f57debcd37d11a71",
-   "outcome": "diagnostic only: 0.116 ms against 0.196 ms, so key about 90 us and the rest about 106 us with 4 heads",
-   "speedup": null
-  },
-  {
-   "what": "Not tried: coarsen / unroll_loads passes (grid already 256 workgroups of 16 long waves; loops are masked or hand-batched), MFMA for the two GEMM-shaped phases, HB=4 value-loop rewrite, pipelined scalar loads with a second SGPR set",
-   "state": "",
-   "outcome": "not attempted (budget)",
+   "what": "PROBE: 7 of the 8 serial scalar q load pairs per iteration removed (stale q)",
+   "state": "12b3ff1e5b61fe50",
+   "outcome": "diagnostic only: 177 us against 170 us, no gain; pipelining the scalar loads would not pay",
    "speedup": null
   }
  ],
  "friction": [
-  "liveness(id, block) reports every VGPR/SGPR as live in and live out of every block (e.g. .LBB0_7 of baseline lists v0-v124 and s0-s67), so it cannot answer 'which registers are dead across this loop'. I had to infer free registers from what amdclang's own loop overwrote, and that inference was wrong once: state 456f50a21daa83a5 (24 loads into v66-69, v86-101, v114-125) fails the battery, most likely a clobbered live register. A real per-block liveness, or a static_check finding 'this edit writes a register that is read later without redefinition', would have caught it before a GPU run.",
-  "edit() ops address the parent's listing, so replacing a whole block means delete(index 1, count N-1) + replace(index 0) with the exact block length; an off-by-one (count 95 vs 94 in state 3da5999365ad4de3 .LBB0_7) refused the edit and forced resending a 320-line text. A 'replace_block' op, or a count that may run to the end of the block, would avoid it.",
-  "The edit result echoes the full ops text back; with 300-line loop bodies that doubles the size of every exchange.",
-  "No way to generate repetitive IR: the 16- and 24-load key loops are 32 near-identical v_fmac lines per chunk written out by hand (up to 240 lines). A repeat/template facility in edit text (loop over a register list) would make batching sweeps (8/16/24 loads) cheap and less error-prone.",
-  "SGPRs are the binding resource for the scalar-query lever: 32 scalars per 64 B chunk for 2 heads, only s68-s101 free, x16 loads must start on a multiple of 4 and s102+ is unusable, so 4 heads needed x16 + 2 x8 into clobbered constants (s60-s67) with rematerialization in .Lft3. A tool listing SGPRs that are dead across a given loop (constants only used elsewhere) would have saved the manual find() passes.",
-  "find() with \\b around bracketed tuples silently misses them (pattern '\\bs\\[30:31\\]\\b' matched nothing); I had to search tuples separately to confirm s[30:31] and s[14:15] were constant.",
-  "probe() cannot remove a phase safely when a fallback loop exists: masking off the unrolled value loop (state 3c97954d0bacb386) just routed the work to the tail loop. A per-block time attribution would give the phase split directly; the split I report for the best state is extrapolated from probes of other states.",
-  "bench's traffic/headroom model (20 MB, headroom 7-11) is far from this kernel's real traffic (about 2.3 GB re-read from cache across 256 workgroups); I had to work the real numbers out by hand to decide the lever."
+  "456f50a21daa83a5 passes static_check and fails the battery deterministically although liveness(5553e312, .LBB0_7) reports every register it adds as dead across the block. The only structural difference from the verified parent is 24 outstanding vector loads with s_waitcnt vmcnt(20) and vmcnt(16). I did not run the discriminating test (same code with vmcnt(0)); if waits above vmcnt(15) or more than 16 outstanding loads are a real limit, the s_waitcnt checker should say so.",
+  "static_check reports 8 to 16 undefined_read warnings on amdclang's own phi copies (.LBB0_40 / .LBB0_38, v_mov_b64 of registers written only on some paths, harmless under EXEC). They are identical before and after an edit, so a real undefined read introduced by an edit in the same registers would be hidden among them; a diff of warnings against the parent would help.",
+  "liveness: the conservative live_in/live_out lists all 128 VGPRs for every block of this kernel and is two pages of output; only the classical section and dead_across_block are usable. Registers that a block itself uses as temporaries (written before read) are not listed as free, so I derived them by reading the block.",
+  "state(id, full=True) of a 1271-instruction kernel exceeds the tool result limit and is diverted to a file; the edit action text of the parent (hundreds of lines) is echoed in full at the top of every state() call, which is most of that size.",
+  "%rep cannot index a list (register bases 22,26,...,50 then 62,...), so non-contiguous register sets need one %rep per contiguous run; a list form such as `%for D in 22 26 30 62` would have cut the value-loop edit by half.",
+  "No tool shows which SGPRs/VGPRs hold constants that are only used by code I have replaced; freeing SGPRs for a second scalar-load set needed manual searching (it turned out not to matter).",
+  "Could not go to HB=8/NCG=4 in the budget: amdclang's value loop for 4 heads already spills 15 VGPRs and needed a full hand rewrite; a transform that rewrites a 'loads + pk_fma into accumulators' loop into the all-loads-up-front form would make each new source variant cheap to try.",
+  "source(like=baseline, defines=...) cannot change HB/NCG because the baseline text uses plain #define rather than #ifndef; the whole text had to be resent."
  ],
  "lessons": [
-  "Wave-uniform rows loaded per lane are a large machine-level win when amdclang does it: in mla_decode 8 of 12 vector loads per key-loop iteration were the two query rows at identical addresses for all 64 lanes. Replacing them by 2x s_load_dwordx16 and v_fmac_f32_e64 acc, sN, vK gave 1.27x alone (0.266 -> 0.210 ms), bit-order kept.",
-  "After that, loads in flight in the key loop paid again: 4 -> 16 global_load_dwordx4 per wait gave 0.202 -> 0.178 ms on the 2-head build (1.32x -> 1.49x) and 0.217 -> 0.196 ms on the 4-head build, with one serial scalar reload (lgkmcnt(0)) per 64 B chunk in between. Per-iteration time before batching was about 1.8 us for 4 loads regardless of wave count (4096 or 2048 waves), i.e. latency-like, not bandwidth.",
-  "amdclang's interleaved (vectorize-by-2) value loop issues loads two at a time with a full wait after each pair and ~60 v_mov shuffles; issuing all 16 up front with op_sel-selected operands (no moves) gave only +4% (1.27 -> 1.32x), and the row-at-a-time tail loop ran the same phase within 4%: that phase reads 1 KB contiguous per wave from cache and is not latency-bound.",
-  "v_pk_fma_f32 with op_sel:[0,1,0] / op_sel_hi:[1,0,1] broadcasts one half of a ds_read2_b64 pair to both lanes of the packed op, so (p_h0, p_h1) read as one 64-bit LDS value serves two heads with no v_mov; ds_read2_b64 offsets (8-bit, units of 8 B) reach 2 KB from one base register.",
-  "More heads per workgroup did not beat 2 heads here even with scalar queries: HB=4 (128 workgroups) reached 1.36x against 1.49x for HB=2 (256 workgroups). Key time dropped only 103 -> 90 us for half the key bytes while the rest grew 75 -> 106 us (estimates from probes). Consistent with the note 'pick the count so workgroups about equal the 256 CUs'. amdclang's own HB=4 build is 0.81x of its HB=2 build.",
-  "SGPR budget for scalar operands: s68-s101 are typically free (34), x16 loads need a start on a multiple of 4, so two x16 sets fit (s[68:83], s[84:99]); beyond that, loop-external constants can be clobbered inside a loop and rematerialized with s_mov in the loop's exit block (done for s60-s67, passes the battery).",
-  "Do not assume a register is dead across a loop because another loop of the kernel overwrites it: using v66-69, v86-101, v114-125 as extra load targets in the key loop broke the battery (state 456f50a21daa83a5), while the subset the original loop itself wrote plus v70-v85 was fine. liveness() does not distinguish these today."
+  "mla_decode: the time per workgroup follows the bytes one workgroup (one CU, 16 waves) reads, not the total traffic. HB=4 with 128 workgroups read half the total bytes and was no faster than HB=2 with 256 workgroups (1.36x vs 1.49x). Keeping 256 workgroups and cutting bytes per workgroup paid: HB=4 with NCG=2 (all keys, half of the value columns per workgroup; 6.8 MB instead of 8.9 MB) went from 1.358x to 1.522x with the same key loop, and 1.56x with the value loop rewritten.",
+  "Loads in flight is the wrong description of what paid in the key loop. A rolling window that keeps 12 to 16 global_load_dwordx4 in flight but issues each lane's 64 B chunks one step apart measured 1.288x, the same as 4 loads per iteration, against 1.49x for 16 loads issued back to back (256 B = two whole 128 B cache lines per lane). My reading, not measured directly: with 16 waves per CU and a 32 KB L1, a line touched in two separate steps is fetched twice; issue all loads of a cache line back to back.",
+  "Serial scalar loads for a wave-uniform query row are free here: removing 7 of 8 s_load_dwordx16 pairs with their lgkmcnt(0) waits per iteration changed nothing (177 us vs 170 us, probe). Two phases of 32 SGPRs per 64 B chunk are enough for 4 heads; do not spend effort on a second SGPR set.",
+  "Value loop rewrite (all 16 row loads up front, pair accumulators with op_sel instead of v_mov shuffles, pipelined LDS reads) is worth about 3 % on this kernel (1.522x to 1.566x at HB=4; 4 % at HB=2 in the earlier session).",
+  "Split on the best state (170 us): key phase about 106 us (62 %), everything else including launch about 64 us. In the key phase the fmac work is roughly 20 % by instruction count (512 v_fmac per wave per iteration, 16 waves on 4 SIMDs); the rest is waiting for key rows at about 43 GB/s per CU.",
+  "A source variant that is a loss as an amdclang build (0.863x: per-lane query loads, scratch spills) can still be the best base for machine-level work: 1.81x came from two loop rewrites on it.",
+  "amdclang's phi copies after masked loops read registers that are only defined on some paths; when replacing a loop, check which registers the blocks after it read (mirror copies such as v45/v43/v49/v47 here) and which it expects zeroed on entry, since the even halves of pair accumulators were not initialized by the original preheader."
  ],
  "session": {
   "ok": true,
-  "cost_usd": 7.105339200000001,
-  "turns": 54,
-  "final": "The best verified state is `5553e312219ab670` at **1.492x** over the baseline (0.178 ms against 0.266 ms; 240 pairs, CI 1.491\u20131.493), just short of the 1.5x target. It passes the static check and the full battery (98/98), and it is a pure machine-level gain on the baseline's own code.\n\nWhat it does differently from amdclang:\n\n1. **Scalar query rows.** amdclang loaded the two query rows per lane, at the same address for all 64 lanes; that was 8 of the 12 vector loads in each key-loop iteration. They are now two `s_load_dwordx16` into SGPRs, used as scalar operands of `v_fmac`. This alone gave 1.27x.\n2. **16 key loads in flight per wait.** The key loop runs 9 iterations of 256 B per lane instead of 36 of 64 B. This took it from 1.32x to 1.49x.\n3. **Value loop without per-pair waits.** All 16 row loads are issued up front into their final registers, and the probability is selected with `op_sel` on `v_pk_fma`, removing about 60 `v_mov` per iteration. This added only about 4%.\n\n| State | Change | Result |\n|---|---|---|\n| `3f02231e49857562` | scalar query rows | 1.27x |\n| `89b2fb3c055eb3b9` | + value loop rewrite | 1.32x |\n| `5553e312219ab670` | + 16 key loads in flight | **1.49x** |\n| `456f50a21daa83a5` | + 24 key loads in flight | fails the battery, never timed |\n| `c400c01c4cf49d68` | source with 4 heads per workgroup, as amdclang builds it | 0.81x |\n| `320413cb1361d3bd` | 4 heads + scalar queries + 16 in flight | 1.36x |\n\n- **The failed state:** the 24-in-flight variant produced wrong `out` and `lse` on the first battery case. I did not diagnose it; the likely cause is that one of the extra registers I used as load targets is live across the key loop.\n- **Which case this is:** not the memory floor in the model's sense (headroom 7.3). The kernel re-reads the KV cache once per workgroup, about 2.3 GB of cached reads against 20 MB of tensors. The key phase is roughly 103 of the 178 \u00b5s, extrapolated from probes of other states rather than measured on this one. Further gai",
-  "seconds": 768,
-  "log": ".agc/sessions/mla_decode-0e1773b6b5/agent/20261120-231036.jsonl"
+  "cost_usd": 6.5546988,
+  "turns": 47,
+  "final": "The session ends with a verified state at **1.560x** over the baseline (240 pairs, CI 1.557\u20131.563; battery 98/98), up from the earlier recipe's 1.49x. The state to ship is `122f40f8cef6d0a7`, and the report is filed.\n\n## What the winning state does\n\n- **New source base (`92815d944a9a3d93`)**: the baseline source with 4 heads per workgroup and the value columns split over 2 workgroups (grid `[cdiv(H,4), B, 2]`, still 256 workgroups). Each workgroup reads all keys but only half the value columns. As an amdclang build it is a loss (0.863x), so it does not become a new baseline.\n- **Key loop rewrite (`fc098aafd201c604`, 1.522x)**: 16 key loads per iteration, i.e. 256 B or two whole cache lines per lane. The 4 query rows are read as scalars in two phases per 64 B chunk.\n- **Value loop rewrite (`122f40f8cef6d0a7`, 1.566x at 60 pairs)**: 16 row loads issued up front, pair accumulators selected by `op_sel`, and pipelined LDS reads of p.\n\nRelative to my own source state the gain is about 1.81x; that is a ratio of two timings against the baseline, not a direct compare.\n\n## What did not work\n\n- **Rolling window of loads** (`53cc2c03c942a68d`): keeping 12\u201316 loads in flight but issuing each lane's 64 B chunks one step apart measured 1.288x, worse than its parent's 1.49x. My reading, not measured directly, is that a cache line touched in two separate steps is fetched twice.\n- **24 loads in flight** (`456f50a21daa83a5`): still fails the battery, deterministically. It is not a clobbered register: every register it adds is dead across the key loop. The only structural difference is 24 outstanding loads with `vmcnt(20)`/`vmcnt(16)`; I did not run the test that would confirm this.\n- **Pipelining the scalar query loads**: a probe that removed 7 of the 8 serial load pairs per iteration showed no gain (177 us against 170 us), so I did not build it.\n\n## Where the time goes now\n\nThis kernel is not at the memory floor in the headroom sense (headroom 6.9), because every workgroup re-reads t",
+  "seconds": 677,
+  "log": ".agc/sessions/mla_decode-0e1773b6b5/agent/20261121-035716.jsonl"
  },
- "recorded": "2026-11-20"
+ "recorded": "2026-11-21"
 }

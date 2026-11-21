@@ -184,8 +184,8 @@ win is reported with its pass.
       shipped source. The audit showed these wins to be amdclang's own on a rewritten source.
 - [x] Stronger baseline (#62): the strongest amdclang build per kernel (restructured source,
       `-ffast-math`, own launch); sessions, policy and report measure against it.
-- [ ] Second round of sessions against the stronger baseline: machine-level gain, until 1.5x
-      or the memory floor.
+- [x] Second round of sessions against the stronger baseline: machine-level gain. 4 kernels
+      at or above 1.5x, 11 more with a gain, 21 without (memory floor or parity, explained).
 - [x] First customization promoted to a pass: `coarsen` (#30). Further ones as sessions find them.
 - **Exit:** per-kernel table (policy and session results against amdclang, fallbacks
   reported as fallbacks) in the report and on #29.

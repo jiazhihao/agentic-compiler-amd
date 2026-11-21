@@ -2,17 +2,17 @@
  "kernels": {
   "axpy": {
    "chosen": {
-    "state": "01a0fab35839c531",
+    "state": "a438edb9f3f73d39",
     "path": "import+pass",
-    "how": "coarsen(factor=8)",
+    "how": "coarsen(factor=2)",
     "bit_identical": true,
-    "speedup": 1.1055,
+    "speedup": 1.1008,
     "ci95": [
-     1.1024,
-     1.1096
+     1.0977,
+     1.1044
     ],
-    "ms": 0.1608,
-    "amdclang_ms": 0.17818
+    "ms": 0.16114,
+    "amdclang_ms": 0.1776
    },
    "fallback": false,
    "candidates": [
@@ -30,13 +30,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.0299,
+     "speedup": 1.1008,
      "ci95": [
-      1.0242,
-      1.0338
+      1.0977,
+      1.1044
      ],
-     "ms": 0.16132,
-     "amdclang_ms": 0.16632
+     "ms": 0.16114,
+     "amdclang_ms": 0.1776
     },
     {
      "path": "import+pass",
@@ -44,27 +44,27 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.1049,
+     "speedup": 1.0441,
      "ci95": [
-      1.1017,
-      1.1107
+      1.042,
+      1.0481
      ],
-     "ms": 0.15962,
-     "amdclang_ms": 0.17684
+     "ms": 0.15596,
+     "amdclang_ms": 0.16232
     },
     {
      "path": "import+pass",
      "how": "coarsen(factor=8)",
      "bit_identical": true,
      "verified": true,
-     "outcome": "win",
-     "speedup": 1.1055,
+     "outcome": "parity",
+     "speedup": 1.0175,
      "ci95": [
-      1.1024,
-      1.1096
+      1.0094,
+      1.025
      ],
-     "ms": 0.1608,
-     "amdclang_ms": 0.17818
+     "ms": 0.1616,
+     "amdclang_ms": 0.16468
     },
     {
      "path": "generate",
@@ -72,13 +72,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "parity",
-     "speedup": 0.9977,
+     "speedup": 0.9948,
      "ci95": [
-      0.9948,
-      1.004
+      0.991,
+      1.0016
      ],
-     "ms": 0.17792,
-     "amdclang_ms": 0.17778
+     "ms": 0.17672,
+     "amdclang_ms": 0.17592
     },
     {
      "path": "generate",
@@ -86,13 +86,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.0639,
+     "speedup": 1.0912,
      "ci95": [
-      1.0598,
-      1.0725
+      1.0861,
+      1.097
      ],
-     "ms": 0.15612,
-     "amdclang_ms": 0.16668
+     "ms": 0.15978,
+     "amdclang_ms": 0.17438
     },
     {
      "path": "generate",
@@ -100,13 +100,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.0975,
+     "speedup": 1.0906,
      "ci95": [
-      1.0907,
-      1.102
+      1.0854,
+      1.0983
      ],
-     "ms": 0.15912,
-     "amdclang_ms": 0.17538
+     "ms": 0.16,
+     "amdclang_ms": 0.17484
     }
    ]
   },
@@ -118,11 +118,11 @@
     "bit_identical": false,
     "speedup": 1.621,
     "ci95": [
-     1.6117,
-     1.6278
+     1.6089,
+     1.6334
     ],
-    "ms": 0.09536,
-    "amdclang_ms": 0.15468
+    "ms": 0.09556,
+    "amdclang_ms": 0.15518
    },
    "fallback": false,
    "candidates": [
@@ -140,13 +140,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.1865,
+     "speedup": 1.174,
      "ci95": [
-      1.1797,
-      1.1899
+      1.169,
+      1.1819
      ],
-     "ms": 0.1306,
-     "amdclang_ms": 0.1547
+     "ms": 0.1328,
+     "amdclang_ms": 0.15564
     },
     {
      "path": "import+pass",
@@ -154,13 +154,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.2324,
+     "speedup": 1.2333,
      "ci95": [
-      1.2232,
-      1.2381
+      1.2252,
+      1.2422
      ],
-     "ms": 0.12542,
-     "amdclang_ms": 0.1548
+     "ms": 0.1246,
+     "amdclang_ms": 0.15448
     },
     {
      "path": "import+pass",
@@ -168,13 +168,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.2416,
+     "speedup": 1.2428,
      "ci95": [
-      1.2334,
-      1.2453
+      1.2374,
+      1.2488
      ],
-     "ms": 0.12398,
-     "amdclang_ms": 0.1539
+     "ms": 0.12426,
+     "amdclang_ms": 0.15446
     },
     {
      "path": "generate",
@@ -182,13 +182,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "parity",
-     "speedup": 1.0042,
+     "speedup": 1.003,
      "ci95": [
-      0.9995,
-      1.0066
+      0.9981,
+      1.0083
      ],
-     "ms": 0.15424,
-     "amdclang_ms": 0.15506
+     "ms": 0.15396,
+     "amdclang_ms": 0.15476
     },
     {
      "path": "generate",
@@ -196,13 +196,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.5866,
+     "speedup": 1.5913,
      "ci95": [
-      1.5784,
-      1.5964
+      1.5839,
+      1.5954
      ],
-     "ms": 0.0976,
-     "amdclang_ms": 0.15504
+     "ms": 0.09726,
+     "amdclang_ms": 0.15416
     },
     {
      "path": "generate",
@@ -212,27 +212,27 @@
      "outcome": "win",
      "speedup": 1.621,
      "ci95": [
-      1.6117,
-      1.6278
+      1.6089,
+      1.6334
      ],
-     "ms": 0.09536,
-     "amdclang_ms": 0.15468
+     "ms": 0.09556,
+     "amdclang_ms": 0.15518
     }
    ]
   },
   "gelu": {
    "chosen": {
-    "state": "decd45d7c223137a",
+    "state": "09cfa15ad08999fb",
     "path": "generate",
-    "how": "elementwise(elements_per_lane=2)",
+    "how": "elementwise(elements_per_lane=4)",
     "bit_identical": false,
-    "speedup": 1.679,
+    "speedup": 1.6822,
     "ci95": [
-     1.6695,
-     1.6887
+     1.6757,
+     1.6898
     ],
-    "ms": 0.11074,
-    "amdclang_ms": 0.18576
+    "ms": 0.11014,
+    "amdclang_ms": 0.18532
    },
    "fallback": false,
    "candidates": [
@@ -250,13 +250,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.1909,
+     "speedup": 1.184,
      "ci95": [
-      1.1826,
-      1.1952
+      1.181,
+      1.1866
      ],
-     "ms": 0.15588,
-     "amdclang_ms": 0.18588
+     "ms": 0.15616,
+     "amdclang_ms": 0.1851
     },
     {
      "path": "import+pass",
@@ -264,13 +264,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.261,
+     "speedup": 1.2504,
      "ci95": [
-      1.2583,
-      1.265
+      1.2468,
+      1.2535
      ],
-     "ms": 0.14742,
-     "amdclang_ms": 0.18616
+     "ms": 0.1476,
+     "amdclang_ms": 0.18494
     },
     {
      "path": "import+pass",
@@ -278,13 +278,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.244,
+     "speedup": 1.2463,
      "ci95": [
-      1.2402,
-      1.2476
+      1.2397,
+      1.2515
      ],
-     "ms": 0.1492,
-     "amdclang_ms": 0.1855
+     "ms": 0.14914,
+     "amdclang_ms": 0.18604
     },
     {
      "path": "generate",
@@ -292,13 +292,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.1395,
+     "speedup": 1.1359,
      "ci95": [
-      1.1357,
-      1.1425
+      1.131,
+      1.1405
      ],
-     "ms": 0.16208,
-     "amdclang_ms": 0.18502
+     "ms": 0.16434,
+     "amdclang_ms": 0.18678
     },
     {
      "path": "generate",
@@ -306,13 +306,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.679,
+     "speedup": 1.6699,
      "ci95": [
-      1.6695,
-      1.6887
+      1.6623,
+      1.677
      ],
-     "ms": 0.11074,
-     "amdclang_ms": 0.18576
+     "ms": 0.10966,
+     "amdclang_ms": 0.18306
     },
     {
      "path": "generate",
@@ -320,13 +320,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.673,
+     "speedup": 1.6822,
      "ci95": [
-      1.6615,
-      1.6894
+      1.6757,
+      1.6898
      ],
-     "ms": 0.11196,
-     "amdclang_ms": 0.1874
+     "ms": 0.11014,
+     "amdclang_ms": 0.18532
     }
    ]
   },
@@ -336,13 +336,13 @@
     "path": "generate",
     "how": "gemm_mfma(tiles=2, unroll=2)",
     "bit_identical": false,
-    "speedup": 203.2935,
+    "speedup": 203.8445,
     "ci95": [
-     202.9831,
-     204.0484
+     203.3592,
+     204.2729
     ],
-    "ms": 0.0736,
-    "amdclang_ms": 14.96433
+    "ms": 0.07348,
+    "amdclang_ms": 14.97125
    },
    "fallback": false,
    "candidates": [
@@ -352,13 +352,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "parity",
-     "speedup": 0.9904,
+     "speedup": 0.9901,
      "ci95": [
-      0.989,
-      0.991
+      0.9895,
+      0.9974
      ],
-     "ms": 15.15148,
-     "amdclang_ms": 15.00016
+     "ms": 15.1364,
+     "amdclang_ms": 14.98854
     },
     {
      "path": "import+pass",
@@ -366,13 +366,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "parity",
-     "speedup": 1.0022,
+     "speedup": 1.0014,
      "ci95": [
-      1.0015,
-      1.0025
+      1.0011,
+      1.0022
      ],
-     "ms": 14.97371,
-     "amdclang_ms": 15.00529
+     "ms": 14.96959,
+     "amdclang_ms": 14.9947
     },
     {
      "path": "import+pass",
@@ -380,13 +380,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9696,
+     "speedup": 0.9712,
      "ci95": [
-      0.9692,
-      0.9703
+      0.9709,
+      0.9719
      ],
-     "ms": 15.46268,
-     "amdclang_ms": 14.98477
+     "ms": 15.4373,
+     "amdclang_ms": 14.99241
     },
     {
      "path": "import+pass",
@@ -396,11 +396,11 @@
      "outcome": "parity",
      "speedup": 1.0002,
      "ci95": [
-      1.0,
+      1.0001,
       1.0004
      ],
-     "ms": 14.96947,
-     "amdclang_ms": 14.97266
+     "ms": 14.93782,
+     "amdclang_ms": 14.94067
     },
     {
      "path": "import+pass",
@@ -408,13 +408,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "parity",
-     "speedup": 1.0003,
+     "speedup": 1.0004,
      "ci95": [
       1.0002,
-      1.0005
+      1.0006
      ],
-     "ms": 15.00423,
-     "amdclang_ms": 15.01008
+     "ms": 14.93549,
+     "amdclang_ms": 14.93984
     },
     {
      "path": "import+pass",
@@ -422,13 +422,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "parity",
-     "speedup": 1.0002,
+     "speedup": 1.0004,
      "ci95": [
-      0.9996,
-      1.0009
+      0.9999,
+      1.0006
      ],
-     "ms": 14.99113,
-     "amdclang_ms": 14.99512
+     "ms": 14.94383,
+     "amdclang_ms": 14.94823
     },
     {
      "path": "generate",
@@ -436,13 +436,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 112.5123,
+     "speedup": 112.6706,
      "ci95": [
-      112.0826,
-      112.6452
+      112.5827,
+      112.8597
      ],
-     "ms": 0.13332,
-     "amdclang_ms": 14.99513
+     "ms": 0.13286,
+     "amdclang_ms": 14.97705
     },
     {
      "path": "generate",
@@ -450,13 +450,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 118.511,
+     "speedup": 118.2658,
      "ci95": [
-      118.3166,
-      118.9024
+      117.9053,
+      118.5208
      ],
-     "ms": 0.12648,
-     "amdclang_ms": 14.99468
+     "ms": 0.12664,
+     "amdclang_ms": 14.97302
     },
     {
      "path": "generate",
@@ -464,13 +464,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 192.0087,
+     "speedup": 192.5093,
      "ci95": [
-      191.6897,
-      192.2937
+      192.1283,
+      192.7834
      ],
-     "ms": 0.07798,
-     "amdclang_ms": 14.9755
+     "ms": 0.07776,
+     "amdclang_ms": 14.96391
     },
     {
      "path": "generate",
@@ -478,13 +478,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 203.2935,
+     "speedup": 203.8445,
      "ci95": [
-      202.9831,
-      204.0484
+      203.3592,
+      204.2729
      ],
-     "ms": 0.0736,
-     "amdclang_ms": 14.96433
+     "ms": 0.07348,
+     "amdclang_ms": 14.97125
     },
     {
      "path": "generate",
@@ -492,13 +492,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 162.5786,
+     "speedup": 163.3409,
      "ci95": [
-      162.0479,
-      162.9634
+      163.1416,
+      163.8935
      ],
-     "ms": 0.09222,
-     "amdclang_ms": 14.99752
+     "ms": 0.09142,
+     "amdclang_ms": 14.93118
     },
     {
      "path": "generate",
@@ -506,13 +506,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 194.3544,
+     "speedup": 194.1858,
      "ci95": [
-      193.2,
-      195.0815
+      193.7777,
+      194.4197
      ],
-     "ms": 0.07716,
-     "amdclang_ms": 14.9949
+     "ms": 0.07686,
+     "amdclang_ms": 14.92523
     }
    ]
   },
@@ -522,13 +522,13 @@
     "path": "import+pass",
     "how": "unroll_loads(factor=16)",
     "bit_identical": true,
-    "speedup": 2.1693,
+    "speedup": 2.1863,
     "ci95": [
-     2.1665,
-     2.178
+     2.1831,
+     2.1901
     ],
-    "ms": 1.86307,
-    "amdclang_ms": 4.03996
+    "ms": 1.85452,
+    "amdclang_ms": 4.05123
    },
    "fallback": false,
    "candidates": [
@@ -538,13 +538,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 2.137,
+     "speedup": 2.1563,
      "ci95": [
-      2.1339,
-      2.1439
+      2.1507,
+      2.1622
      ],
-     "ms": 1.89035,
-     "amdclang_ms": 4.04108
+     "ms": 1.87601,
+     "amdclang_ms": 4.04434
     },
     {
      "path": "import+pass",
@@ -552,13 +552,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 2.1562,
+     "speedup": 2.1769,
      "ci95": [
-      2.1508,
-      2.1624
+      2.1679,
+      2.184
      ],
-     "ms": 1.87901,
-     "amdclang_ms": 4.0511
+     "ms": 1.86211,
+     "amdclang_ms": 4.05034
     },
     {
      "path": "import+pass",
@@ -566,13 +566,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 2.1693,
+     "speedup": 2.1863,
      "ci95": [
-      2.1665,
-      2.178
+      2.1831,
+      2.1901
      ],
-     "ms": 1.86307,
-     "amdclang_ms": 4.03996
+     "ms": 1.85452,
+     "amdclang_ms": 4.05123
     },
     {
      "path": "import+pass",
@@ -580,13 +580,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.0165,
+     "speedup": 1.0178,
      "ci95": [
-      1.0158,
-      1.0172
+      1.017,
+      1.0183
      ],
-     "ms": 3.99124,
-     "amdclang_ms": 4.05672
+     "ms": 3.97708,
+     "amdclang_ms": 4.04764
     },
     {
      "path": "import+pass",
@@ -594,13 +594,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9454,
+     "speedup": 0.946,
      "ci95": [
-      0.9448,
-      0.9459
+      0.9455,
+      0.9467
      ],
-     "ms": 4.28334,
-     "amdclang_ms": 4.0484
+     "ms": 4.27283,
+     "amdclang_ms": 4.04278
     },
     {
      "path": "import+pass",
@@ -608,13 +608,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.8396,
+     "speedup": 0.8402,
      "ci95": [
-      0.8391,
-      0.8403
+      0.8398,
+      0.8411
      ],
-     "ms": 4.81875,
-     "amdclang_ms": 4.04796
+     "ms": 4.82282,
+     "amdclang_ms": 4.0519
     }
    ]
   },
@@ -643,7 +643,7 @@
      "bit_identical": true,
      "verified": false,
      "outcome": "rejected",
-     "reason": "parameter: coarsen: a path reaches the end of the program without passing every s_barrier"
+     "reason": "parameter: coarsen: a path reaches the end of the program without passing every s_barrier, through a branch that is not workgroup-uniform"
     }
    ]
   },
@@ -653,13 +653,13 @@
     "path": "generate",
     "how": "rowwise(unroll=4)",
     "bit_identical": false,
-    "speedup": 1.5108,
+    "speedup": 1.5087,
     "ci95": [
-     1.506,
-     1.5146
+     1.5048,
+     1.5126
     ],
-    "ms": 0.30854,
-    "amdclang_ms": 0.46609
+    "ms": 0.3081,
+    "amdclang_ms": 0.46473
    },
    "fallback": false,
    "candidates": [
@@ -667,9 +667,43 @@
      "path": "import+pass",
      "how": "unroll_loads(factor=4)",
      "bit_identical": true,
-     "verified": false,
-     "outcome": "rejected",
-     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_2: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_22: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_42: the back edge is not `s_cbranch_scc0` on a counter compare"
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.1746,
+     "ci95": [
+      1.1708,
+      1.1793
+     ],
+     "ms": 0.39487,
+     "amdclang_ms": 0.46345
+    },
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.1338,
+     "ci95": [
+      1.1304,
+      1.138
+     ],
+     "ms": 0.41029,
+     "amdclang_ms": 0.46535
+    },
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=16)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 1.005,
+     "ci95": [
+      1.0024,
+      1.0089
+     ],
+     "ms": 0.44989,
+     "amdclang_ms": 0.45259
     },
     {
      "path": "import+pass",
@@ -677,13 +711,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9662,
+     "speedup": 0.9674,
      "ci95": [
       0.9642,
-      0.9693
+      0.969
      ],
-     "ms": 0.48335,
-     "amdclang_ms": 0.46695
+     "ms": 0.47987,
+     "amdclang_ms": 0.46345
     },
     {
      "path": "import+pass",
@@ -691,13 +725,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9358,
+     "speedup": 0.941,
      "ci95": [
-      0.9315,
-      0.939
+      0.9387,
+      0.9437
      ],
-     "ms": 0.49905,
-     "amdclang_ms": 0.46657
+     "ms": 0.49419,
+     "amdclang_ms": 0.46423
     },
     {
      "path": "import+pass",
@@ -705,13 +739,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9368,
+     "speedup": 0.9384,
      "ci95": [
-      0.9345,
-      0.9387
+      0.9346,
+      0.9411
      ],
-     "ms": 0.49733,
-     "amdclang_ms": 0.46591
+     "ms": 0.49553,
+     "amdclang_ms": 0.46551
     },
     {
      "path": "generate",
@@ -719,13 +753,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.3245,
+     "speedup": 1.3264,
      "ci95": [
-      1.3215,
-      1.3272
+      1.3239,
+      1.3299
      ],
-     "ms": 0.35135,
-     "amdclang_ms": 0.46543
+     "ms": 0.34882,
+     "amdclang_ms": 0.46327
     },
     {
      "path": "generate",
@@ -733,13 +767,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.4249,
+     "speedup": 1.4305,
      "ci95": [
-      1.4208,
-      1.4306
+      1.4257,
+      1.437
      ],
-     "ms": 0.32713,
-     "amdclang_ms": 0.46647
+     "ms": 0.32539,
+     "amdclang_ms": 0.46553
     },
     {
      "path": "generate",
@@ -747,13 +781,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.5108,
+     "speedup": 1.5087,
      "ci95": [
-      1.506,
-      1.5146
+      1.5048,
+      1.5126
      ],
-     "ms": 0.30854,
-     "amdclang_ms": 0.46609
+     "ms": 0.3081,
+     "amdclang_ms": 0.46473
     }
    ]
   },
@@ -763,13 +797,13 @@
     "path": "import+pass",
     "how": "unroll_loads(factor=16)",
     "bit_identical": true,
-    "speedup": 2.792,
+    "speedup": 2.7864,
     "ci95": [
-     2.7869,
-     2.8008
+     2.7798,
+     2.7951
     ],
-    "ms": 0.20102,
-    "amdclang_ms": 0.56165
+    "ms": 0.20004,
+    "amdclang_ms": 0.55667
    },
    "fallback": false,
    "candidates": [
@@ -779,13 +813,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 2.1262,
+     "speedup": 2.2185,
      "ci95": [
-      2.1166,
-      2.1414
+      2.189,
+      2.2624
      ],
-     "ms": 0.26494,
-     "amdclang_ms": 0.56249
+     "ms": 0.25198,
+     "amdclang_ms": 0.55883
     },
     {
      "path": "import+pass",
@@ -793,13 +827,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 2.5395,
+     "speedup": 2.5902,
      "ci95": [
-      2.5081,
-      2.5596
+      2.5819,
+      2.6061
      ],
-     "ms": 0.2232,
-     "amdclang_ms": 0.56597
+     "ms": 0.21608,
+     "amdclang_ms": 0.56035
     },
     {
      "path": "import+pass",
@@ -807,13 +841,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "win",
-     "speedup": 2.792,
+     "speedup": 2.7864,
      "ci95": [
-      2.7869,
-      2.8008
+      2.7798,
+      2.7951
      ],
-     "ms": 0.20102,
-     "amdclang_ms": 0.56165
+     "ms": 0.20004,
+     "amdclang_ms": 0.55667
     },
     {
      "path": "import+pass",
@@ -821,13 +855,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.5157,
+     "speedup": 0.5179,
      "ci95": [
-      0.5152,
-      0.5165
+      0.5171,
+      0.5187
      ],
-     "ms": 1.08112,
-     "amdclang_ms": 0.55749
+     "ms": 1.08261,
+     "amdclang_ms": 0.56055
     },
     {
      "path": "import+pass",
@@ -835,13 +869,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.2639,
+     "speedup": 0.262,
      "ci95": [
-      0.2633,
-      0.2644
+      0.2617,
+      0.2626
      ],
-     "ms": 2.13708,
-     "amdclang_ms": 0.56385
+     "ms": 2.12627,
+     "amdclang_ms": 0.55733
     },
     {
      "path": "import+pass",
@@ -849,13 +883,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.1337,
+     "speedup": 0.1339,
      "ci95": [
-      0.1336,
-      0.1339
+      0.1338,
+      0.134
      ],
-     "ms": 4.21386,
-     "amdclang_ms": 0.56375
+     "ms": 4.21226,
+     "amdclang_ms": 0.56361
     }
    ]
   },
@@ -865,13 +899,13 @@
     "path": "generate",
     "how": "rowwise(unroll=4)",
     "bit_identical": false,
-    "speedup": 1.4858,
+    "speedup": 1.454,
     "ci95": [
-     1.4798,
-     1.4901
+     1.4484,
+     1.4576
     ],
-    "ms": 0.25264,
-    "amdclang_ms": 0.37521
+    "ms": 0.24606,
+    "amdclang_ms": 0.35716
    },
    "fallback": false,
    "candidates": [
@@ -879,9 +913,43 @@
      "path": "import+pass",
      "how": "unroll_loads(factor=4)",
      "bit_identical": true,
-     "verified": false,
-     "outcome": "rejected",
-     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_2: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_22: the back edge is not `s_cbranch_scc0` on a counter compare"
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.2513,
+     "ci95": [
+      1.2476,
+      1.2547
+     ],
+     "ms": 0.30018,
+     "amdclang_ms": 0.37583
+    },
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.1732,
+     "ci95": [
+      1.1694,
+      1.1767
+     ],
+     "ms": 0.31915,
+     "amdclang_ms": 0.37441
+    },
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=16)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 1.0009,
+     "ci95": [
+      0.9993,
+      1.0028
+     ],
+     "ms": 0.37515,
+     "amdclang_ms": 0.37593
     },
     {
      "path": "import+pass",
@@ -889,13 +957,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9818,
+     "speedup": 0.9765,
      "ci95": [
-      0.9776,
-      0.9844
+      0.9738,
+      0.9827
      ],
-     "ms": 0.38249,
-     "amdclang_ms": 0.37495
+     "ms": 0.38405,
+     "amdclang_ms": 0.37517
     },
     {
      "path": "import+pass",
@@ -903,13 +971,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9486,
+     "speedup": 0.9541,
      "ci95": [
-      0.9469,
-      0.9502
+      0.9522,
+      0.9559
      ],
-     "ms": 0.39567,
-     "amdclang_ms": 0.37503
+     "ms": 0.39285,
+     "amdclang_ms": 0.37481
     },
     {
      "path": "import+pass",
@@ -917,13 +985,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9464,
+     "speedup": 0.9527,
      "ci95": [
-      0.9451,
-      0.9489
+      0.9505,
+      0.9541
      ],
-     "ms": 0.39603,
-     "amdclang_ms": 0.37489
+     "ms": 0.39481,
+     "amdclang_ms": 0.37571
     },
     {
      "path": "generate",
@@ -931,13 +999,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.2811,
+     "speedup": 1.2864,
      "ci95": [
-      1.2743,
-      1.2864
+      1.2795,
+      1.2932
      ],
-     "ms": 0.29306,
-     "amdclang_ms": 0.37488
+     "ms": 0.29236,
+     "amdclang_ms": 0.37561
     },
     {
      "path": "generate",
@@ -945,13 +1013,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.3982,
+     "speedup": 1.4248,
      "ci95": [
-      1.395,
-      1.4025
+      1.4193,
+      1.4273
      ],
-     "ms": 0.2585,
-     "amdclang_ms": 0.36199
+     "ms": 0.26294,
+     "amdclang_ms": 0.37457
     },
     {
      "path": "generate",
@@ -959,13 +1027,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.4858,
+     "speedup": 1.454,
      "ci95": [
-      1.4798,
-      1.4901
+      1.4484,
+      1.4576
      ],
-     "ms": 0.25264,
-     "amdclang_ms": 0.37521
+     "ms": 0.24606,
+     "amdclang_ms": 0.35716
     }
    ]
   },
@@ -986,21 +1054,21 @@
      "bit_identical": true,
      "verified": false,
      "outcome": "rejected",
-     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_2: the back edge is not `s_cbranch_scc0` on a counter compare"
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_2: the lanes that are done do not come from one vector compare"
     },
     {
      "path": "import+pass",
      "how": "coarsen(factor=2)",
      "bit_identical": true,
      "verified": true,
-     "outcome": "parity",
-     "speedup": 0.9853,
+     "outcome": "loss",
+     "speedup": 0.9877,
      "ci95": [
-      0.9822,
-      0.9913
+      0.9846,
+      0.9898
      ],
-     "ms": 0.19258,
-     "amdclang_ms": 0.18958
+     "ms": 0.19648,
+     "amdclang_ms": 0.19384
     },
     {
      "path": "import+pass",
@@ -1008,13 +1076,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9633,
+     "speedup": 0.9505,
      "ci95": [
-      0.9599,
-      0.9663
+      0.9471,
+      0.9526
      ],
-     "ms": 0.1997,
-     "amdclang_ms": 0.19202
+     "ms": 0.20394,
+     "amdclang_ms": 0.19352
     },
     {
      "path": "import+pass",
@@ -1022,13 +1090,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9573,
+     "speedup": 0.9458,
      "ci95": [
-      0.9542,
-      0.9606
+      0.9426,
+      0.9483
      ],
-     "ms": 0.2003,
-     "amdclang_ms": 0.1918
+     "ms": 0.20536,
+     "amdclang_ms": 0.19384
     }
    ]
   },
@@ -1038,13 +1106,13 @@
     "path": "generate",
     "how": "rowwise(unroll=4)",
     "bit_identical": false,
-    "speedup": 1.2707,
+    "speedup": 1.3026,
     "ci95": [
-     1.2579,
-     1.2762
+     1.2874,
+     1.3107
     ],
-    "ms": 0.13958,
-    "amdclang_ms": 0.17678
+    "ms": 0.13676,
+    "amdclang_ms": 0.17742
    },
    "fallback": false,
    "candidates": [
@@ -1052,9 +1120,43 @@
      "path": "import+pass",
      "how": "unroll_loads(factor=4)",
      "bit_identical": true,
-     "verified": false,
-     "outcome": "rejected",
-     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_2: the back edge is not `s_cbranch_scc0` on a counter compare"
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.2932,
+     "ci95": [
+      1.286,
+      1.2981
+     ],
+     "ms": 0.14026,
+     "amdclang_ms": 0.1815
+    },
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.2362,
+     "ci95": [
+      1.2317,
+      1.2385
+     ],
+     "ms": 0.14766,
+     "amdclang_ms": 0.18206
+    },
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=16)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 0.9993,
+     "ci95": [
+      0.9964,
+      1.0015
+     ],
+     "ms": 0.18086,
+     "amdclang_ms": 0.18086
     },
     {
      "path": "import+pass",
@@ -1062,13 +1164,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9842,
+     "speedup": 0.9715,
      "ci95": [
-      0.9808,
-      0.9877
+      0.9671,
+      0.9748
      ],
-     "ms": 0.1799,
-     "amdclang_ms": 0.17686
+     "ms": 0.18672,
+     "amdclang_ms": 0.18114
     },
     {
      "path": "import+pass",
@@ -1076,13 +1178,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9479,
+     "speedup": 0.9504,
      "ci95": [
-      0.9448,
-      0.9515
+      0.9485,
+      0.9524
      ],
-     "ms": 0.18842,
-     "amdclang_ms": 0.1783
+     "ms": 0.19166,
+     "amdclang_ms": 0.18216
     },
     {
      "path": "import+pass",
@@ -1090,13 +1192,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9405,
+     "speedup": 0.9368,
      "ci95": [
-      0.9361,
-      0.9435
+      0.9323,
+      0.9412
      ],
-     "ms": 0.18922,
-     "amdclang_ms": 0.17768
+     "ms": 0.19362,
+     "amdclang_ms": 0.18104
     },
     {
      "path": "generate",
@@ -1104,13 +1206,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.2221,
+     "speedup": 1.2304,
      "ci95": [
-      1.2127,
-      1.239
+      1.2169,
+      1.2378
      ],
-     "ms": 0.14818,
-     "amdclang_ms": 0.18118
+     "ms": 0.14758,
+     "amdclang_ms": 0.18044
     },
     {
      "path": "generate",
@@ -1118,13 +1220,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.2355,
+     "speedup": 1.2438,
      "ci95": [
-      1.2259,
-      1.2444
+      1.2324,
+      1.2516
      ],
-     "ms": 0.14664,
-     "amdclang_ms": 0.18088
+     "ms": 0.14524,
+     "amdclang_ms": 0.1808
     },
     {
      "path": "generate",
@@ -1132,13 +1234,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.2707,
+     "speedup": 1.3026,
      "ci95": [
-      1.2579,
-      1.2762
+      1.2874,
+      1.3107
      ],
-     "ms": 0.13958,
-     "amdclang_ms": 0.17678
+     "ms": 0.13676,
+     "amdclang_ms": 0.17742
     }
    ]
   },
@@ -1148,13 +1250,13 @@
     "path": "generate",
     "how": "rowwise(unroll=4)",
     "bit_identical": false,
-    "speedup": 1.3097,
+    "speedup": 1.3454,
     "ci95": [
-     1.3042,
-     1.3178
+     1.342,
+     1.3508
     ],
-    "ms": 0.31784,
-    "amdclang_ms": 0.41667
+    "ms": 0.3164,
+    "amdclang_ms": 0.42649
    },
    "fallback": false,
    "candidates": [
@@ -1162,9 +1264,43 @@
      "path": "import+pass",
      "how": "unroll_loads(factor=4)",
      "bit_identical": true,
-     "verified": false,
-     "outcome": "rejected",
-     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_3: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_7: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_28: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_48: the back edge is not `s_cbranch_"
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 0.9971,
+     "ci95": [
+      0.9961,
+      1.0012
+     ],
+     "ms": 0.42733,
+     "amdclang_ms": 0.42687
+    },
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 1.0008,
+     "ci95": [
+      0.9982,
+      1.0021
+     ],
+     "ms": 0.42825,
+     "amdclang_ms": 0.42823
+    },
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=16)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 1.0011,
+     "ci95": [
+      0.9983,
+      1.0035
+     ],
+     "ms": 0.42925,
+     "amdclang_ms": 0.42939
     },
     {
      "path": "import+pass",
@@ -1172,13 +1308,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9566,
+     "speedup": 0.9586,
      "ci95": [
-      0.9549,
-      0.9594
+      0.9578,
+      0.9605
      ],
-     "ms": 0.44413,
-     "amdclang_ms": 0.42487
+     "ms": 0.44797,
+     "amdclang_ms": 0.42941
     },
     {
      "path": "import+pass",
@@ -1186,13 +1322,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9213,
+     "speedup": 0.9186,
      "ci95": [
-      0.9191,
-      0.9227
+      0.9174,
+      0.9206
      ],
-     "ms": 0.46393,
-     "amdclang_ms": 0.42713
+     "ms": 0.46633,
+     "amdclang_ms": 0.42837
     },
     {
      "path": "import+pass",
@@ -1200,13 +1336,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9103,
+     "speedup": 0.911,
      "ci95": [
-      0.909,
-      0.9117
+      0.9097,
+      0.9139
      ],
-     "ms": 0.45633,
-     "amdclang_ms": 0.41551
+     "ms": 0.47155,
+     "amdclang_ms": 0.42989
     },
     {
      "path": "generate",
@@ -1214,13 +1350,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.2138,
+     "speedup": 1.2301,
      "ci95": [
-      1.2099,
-      1.2175
+      1.2248,
+      1.2354
      ],
-     "ms": 0.34369,
-     "amdclang_ms": 0.41697
+     "ms": 0.3481,
+     "amdclang_ms": 0.42749
     },
     {
      "path": "generate",
@@ -1228,13 +1364,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.2759,
+     "speedup": 1.3159,
      "ci95": [
-      1.2707,
-      1.2806
+      1.3094,
+      1.3179
      ],
-     "ms": 0.32629,
-     "amdclang_ms": 0.41625
+     "ms": 0.32642,
+     "amdclang_ms": 0.42873
     },
     {
      "path": "generate",
@@ -1242,13 +1378,13 @@
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 1.3097,
+     "speedup": 1.3454,
      "ci95": [
-      1.3042,
-      1.3178
+      1.342,
+      1.3508
      ],
-     "ms": 0.31784,
-     "amdclang_ms": 0.41667
+     "ms": 0.3164,
+     "amdclang_ms": 0.42649
     }
    ]
   },
@@ -1260,7 +1396,7 @@
     "bit_identical": false,
     "speedup": null,
     "ci95": null,
-    "ms": 0.3173
+    "ms": 0.31962
    },
    "fallback": false,
    "candidates": [
@@ -1272,7 +1408,7 @@
      "outcome": "no_baseline",
      "speedup": null,
      "ci95": null,
-     "ms": 0.34088,
+     "ms": 0.34574,
      "amdclang_ms": null
     },
     {
@@ -1283,7 +1419,7 @@
      "outcome": "no_baseline",
      "speedup": null,
      "ci95": null,
-     "ms": 0.3279,
+     "ms": 0.32464,
      "amdclang_ms": null
     },
     {
@@ -1294,7 +1430,7 @@
      "outcome": "no_baseline",
      "speedup": null,
      "ci95": null,
-     "ms": 0.3173,
+     "ms": 0.31962,
      "amdclang_ms": null
     }
    ]
@@ -1324,13 +1460,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.8786,
+     "speedup": 0.8522,
      "ci95": [
-      0.8748,
-      0.8848
+      0.8453,
+      0.8557
      ],
-     "ms": 0.12908,
-     "amdclang_ms": 0.11384
+     "ms": 0.13674,
+     "amdclang_ms": 0.1165
     },
     {
      "path": "import+pass",
@@ -1338,13 +1474,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.8975,
+     "speedup": 0.8749,
      "ci95": [
-      0.892,
-      0.9028
+      0.8705,
+      0.8826
      ],
-     "ms": 0.13044,
-     "amdclang_ms": 0.11734
+     "ms": 0.13532,
+     "amdclang_ms": 0.11878
     },
     {
      "path": "import+pass",
@@ -1352,13 +1488,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.8827,
+     "speedup": 0.8583,
      "ci95": [
-      0.8768,
-      0.8861
+      0.8515,
+      0.8633
      ],
-     "ms": 0.13054,
-     "amdclang_ms": 0.11522
+     "ms": 0.1365,
+     "amdclang_ms": 0.11704
     }
    ]
   }
@@ -1369,13 +1505,13 @@
   "rocm": "7.14.60850"
  },
  "baseline": "amdclang -O3",
- "recorded": "2026-11-20",
+ "recorded": "2026-11-21",
  "summary": {
   "kernels": 14,
   "with_baseline": 13,
   "wins": 10,
   "fallbacks": 3,
-  "geomean": 2.082,
-  "geomean_without_mfma_gemm": 1.422
+  "geomean": 2.088,
+  "geomean_without_mfma_gemm": 1.425
  }
 }
