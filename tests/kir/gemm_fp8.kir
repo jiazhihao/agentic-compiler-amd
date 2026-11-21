@@ -1,0 +1,99 @@
+kir func gemm_fp8(%A: ptr<u8>, %B: ptr<u8>, %C: ptr<f32>, %M: i32, %N: i32, %K: i32) {
+  %bid_x: u32 = bid.x
+  %bdim_x: u32 = bdim.x
+  %t: u32 = mul %bid_x, %bdim_x
+  %tid_x: u32 = tid.x
+  %t0: u32 = add %t, %tid_x
+  %n: i32 = cast %t0
+  %bid_y: u32 = bid.y
+  %bdim_y: u32 = bdim.y
+  %t2: u32 = mul %bid_y, %bdim_y
+  %tid_y: u32 = tid.y
+  %t3: u32 = add %t2, %tid_y
+  %m: i32 = cast %t3
+  %t5: i1 = ge %m, %M
+  %t6: i1 = ge %n, %N
+  %c: i1 = or %t5, %t6
+  if %c @if0 {
+  }
+  merge %t7: i1 = true:i1, false:i1
+  %t8: i1 = not %t7
+  if %t8 @if1 {
+    %t9: u64 = cast %m
+    %t10: u64 = cast %K
+    %t11: u64 = mul %t9, %t10
+    %t12: i64 = cast %t11
+    %p: ptr<u8> = gep %A, %t12
+    %t13: u64 = cast %n
+    %t14: u64 = cast %K
+    %t15: u64 = mul %t13, %t14
+    %t16: i64 = cast %t15
+    %p17: ptr<u8> = gep %B, %t16
+    loop @loop0 {
+      carry %k: i32 = 0:i32, %t63 -> %k64
+      carry %acc: f32 = 0.0:f32, %t62 -> %acc65
+      %t18: i1 = lt %k, %K
+      while %t18
+      %t19: i64 = cast %k
+      %p20: ptr<u8> = gep %p, %t19
+      %v: u8 = load %p20 @load0
+      %t21: i32 = cast %v
+      %t22: i32 = shr %t21, 3:i32
+      %e: i32 = and %t22, 15:i32
+      %t24: i32 = cast %v
+      %f: i32 = and %t24, 7:i32
+      %t26: i1 = eq %e, 0:i32
+      if %t26 @if2 {
+        %t27: f32 = cast %f
+        %ldexp: f32 = ldexp %t27, -9:i32
+      } else {
+        %t28: i32 = add[nsw=true] 8:i32, %f
+        %t29: f32 = cast %t28
+        %t30: i32 = sub[nsw=true] %e, 10:i32
+        %ldexp31: f32 = ldexp %t29, %t30
+      }
+      merge %t32: f32 = %ldexp, %ldexp31
+      %t33: i32 = cast %v
+      %t34: i32 = and %t33, 128:i32
+      %t35: i1 = ne %t34, 0:i32
+      %t36: f32 = neg %t32
+      %t37: f32 = select %t35, %t36, %t32
+      %t38: i64 = cast %k
+      %p39: ptr<u8> = gep %p17, %t38
+      %v40: u8 = load %p39 @load1
+      %t41: i32 = cast %v40
+      %t42: i32 = shr %t41, 3:i32
+      %e44: i32 = and %t42, 15:i32
+      %t45: i32 = cast %v40
+      %f47: i32 = and %t45, 7:i32
+      %t48: i1 = eq %e44, 0:i32
+      if %t48 @if3 {
+        %t49: f32 = cast %f47
+        %ldexp50: f32 = ldexp %t49, -9:i32
+      } else {
+        %t51: i32 = add[nsw=true] 8:i32, %f47
+        %t52: f32 = cast %t51
+        %t53: i32 = sub[nsw=true] %e44, 10:i32
+        %ldexp54: f32 = ldexp %t52, %t53
+      }
+      merge %t55: f32 = %ldexp50, %ldexp54
+      %t56: i32 = cast %v40
+      %t57: i32 = and %t56, 128:i32
+      %t58: i1 = ne %t57, 0:i32
+      %t59: f32 = neg %t55
+      %t60: f32 = select %t58, %t59, %t55
+      %t61: f32 = mul %t37, %t60
+      %t62: f32 = add %acc, %t61
+      %t63: i32 = add[nsw=true] %k, 1:i32
+    }
+    %t66: u64 = cast %m
+    %t67: u64 = cast %N
+    %t68: u64 = mul %t66, %t67
+    %t69: u64 = cast %n
+    %t70: u64 = add %t68, %t69
+    %t71: i64 = cast %t70
+    %p72: ptr<f32> = gep %C, %t71
+    store %p72, %acc65 @store0
+  }
+  merge %t73: i1 = false:i1, %t7
+}

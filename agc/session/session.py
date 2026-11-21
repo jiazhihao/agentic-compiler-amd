@@ -895,21 +895,28 @@ class Session:
         return self._put(None, c.module, {"name": "generate", "template": c.template, "params": c.params, "launch": c.launch})
 
     # ---- agc's own lowering from HIP (roadmap phase 2) ------------------------------------------
-    def lower(self, overrides: dict | None = None, note: str = "") -> dict:
-        """The manifest's HIP source through agc's own lowering (Clang parses; kir → wir → mir) → a new root
-        state. `overrides` picks alternatives of lowering decisions: `{"if0.branch.skip_empty": "none"}` for
+    def lower(self, overrides: dict | None = None, note: str = "", text: str = "", file: str | None = None) -> dict:
+        """The manifest's HIP source, or a rewritten one (`text`: the same entry name and parameters), through
+        agc's own lowering (Clang parses; kir → wir → mir) → a new root state. `overrides` picks alternatives of lowering decisions: `{"if0.branch.skip_empty": "none"}` for
         one site, `{"fp.contract": "off"}` for every site that takes that decision. The result carries the
         plan: every decision taken, its alternatives, and which were overridden."""
         from .. import lower as own
         from ..frontend import FrontendError
         from ..gen.builder import GenError
         from ..kir.ir import IRError
-        if self.manifest.source is None:
+        if self.manifest.source is None and not text:
             raise SessionError("parameter", "this manifest has no HIP source to lower", suggestion="generate() compiles its tensor program")
         if overrides is not None and not isinstance(overrides, dict):
             raise SessionError("parameter", "overrides is an object {decision or site.decision: alternative}")
+        if text:                                             # a rewritten source: kept with the session
+            import hashlib
+            d = self.store.root / "src"
+            d.mkdir(parents=True, exist_ok=True)
+            p = d / f"own-{hashlib.sha256(text.encode()).hexdigest()[:12]}.hip"
+            p.write_text(text)
+            file = str(p)
         try:
-            r = own.compile_hip(self.manifest, overrides)
+            r = own.compile_hip(self.manifest, overrides, source=file)
         except FrontendError as e:
             raise SessionError("frontend", e.message, values={"unsupported": e.items[:20]},
                                suggestion="the supported subset: agc.frontend.SUPPORTED; `ref` (amdclang's build) remains available") from None
@@ -922,10 +929,12 @@ class Session:
             raise SessionError("internal", f"the lowering failed its own check: {e}",
                                suggestion="a bug in agc's lowering, not in the kernel; `ref` (amdclang's build) remains available") from None
         action = {"name": "lower", "overrides": r.overrides, "strict": True}
+        if file:
+            action["file"] = file
         if note:
             action["note"] = note
         st = self._put(None, r.module, action)
-        self.store.put_result(st["id"], "lowering", {"plan": r.plan, "kir": r.kir, "wir": r.wir, "overrides": r.overrides})
+        self.store.put_result(st["id"], "lowering", {"plan": r.plan, "kir": r.kir, "wir": r.wir, "overrides": r.overrides, "file": file})
         return {**st, "overrides": r.overrides, "decisions": len(r.plan),
                 "overridden": [f"{e['site']}.{e['decision']}={e['chosen']}" for e in r.plan if e["by"] == "override"]}
 
@@ -983,7 +992,7 @@ class Session:
         defaults.update({e["decision"]: e["default"] for e in data["plan"]})
         merged = {**data["overrides"], **changes}
         merged = {k: v for k, v in merged.items() if defaults.get(k, object()) != v}
-        return self.lower(merged, note)
+        return self.lower(merged, note, file=data.get("file"))
 
     def ir(self, ref: str, level: str = "wir") -> dict:
         """The program of a lowered state above the assembly: `kir` (one thread's program, with the decision

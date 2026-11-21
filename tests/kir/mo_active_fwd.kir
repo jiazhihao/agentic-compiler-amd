@@ -1,0 +1,93 @@
+kir func mo_active_fwd(%bot: ptr<f32>, %top: ptr<f32>, %map_size_aligned: i32, %gamma: f32, %beta: f32, %alpha: f32) {
+  %response: loc<f32> = local[name=response3, bytes=16]
+  %data: loc<f32> = local[name=data2, bytes=16]
+  %bid_x: u32 = bid.x
+  %t: u32 = mul %bid_x, 256:u32
+  %tid_x: u32 = tid.x
+  %tid: u32 = add %t, %tid_x
+  %index: u32 = mul %tid, 4:u32
+  %t2: u32 = cast %map_size_aligned
+  %t3: i1 = ge %tid, %t2
+  if %t3 @if0 {
+  }
+  merge %t4: i1 = true:i1, false:i1
+  %t5: i1 = not %t4
+  if %t5 @if1 {
+    %p: loc<u8> = bitcast %data
+    %p6: loc<u8> = gep %p, 0:i64
+    %t7: i64 = cast %index
+    %p8: ptr<f32> = gep %bot, %t7
+    %p9: ptr<u8> = bitcast %p8
+    %p10: ptr<u8> = gep %p9, 0:i64
+    %p11: ptr<f32> = bitcast %p10
+    %v: f32 = load %p11 @load0
+    %p12: loc<f32> = bitcast %p6
+    store %p12, %v @store0
+    %p13: ptr<u8> = gep %p10, 4:i64
+    %p14: ptr<f32> = bitcast %p13
+    %v15: f32 = load %p14 @load1
+    %p16: loc<u8> = gep %p6, 4:i64
+    %p17: loc<f32> = bitcast %p16
+    store %p17, %v15 @store1
+    %p18: ptr<u8> = gep %p10, 8:i64
+    %p19: ptr<f32> = bitcast %p18
+    %v20: f32 = load %p19 @load2
+    %p21: loc<u8> = gep %p6, 8:i64
+    %p22: loc<f32> = bitcast %p21
+    store %p22, %v20 @store2
+    %p23: ptr<u8> = gep %p10, 12:i64
+    %p24: ptr<f32> = bitcast %p23
+    %v25: f32 = load %p24 @load3
+    %p26: loc<u8> = gep %p6, 12:i64
+    %p27: loc<f32> = bitcast %p26
+    store %p27, %v25 @store3
+    loop @loop0 {
+      carry %i: u32 = 0:u32, %t41 -> %i42
+      %t28: u64 = cast %i
+      %t29: i1 = lt %t28, 4:u64
+      while %t29
+      %t30: i64 = cast %i
+      %p31: loc<f32> = gep %response, %t30
+      %t32: i64 = cast %i
+      %p33: loc<f32> = gep %data, %t32
+      %v34: f32 = load %p33 @load4
+      %t35: i64 = cast %i
+      %p36: loc<f32> = gep %data, %t35
+      %v37: f32 = load %p36 @load5
+      %t38: i1 = gt %v37, 0.0:f32
+      %t39: f32 = select %t38, 1.0:f32, %alpha
+      %t40: f32 = mul %v34, %t39
+      store %p31, %t40 @store4
+      %t41: u32 = add %i, 1:u32
+    }
+    %t43: i64 = cast %index
+    %p44: ptr<f32> = gep %top, %t43
+    %p45: ptr<u8> = bitcast %p44
+    %p46: ptr<u8> = gep %p45, 0:i64
+    %p47: loc<u8> = bitcast %response
+    %p48: loc<u8> = gep %p47, 0:i64
+    %p49: loc<f32> = bitcast %p48
+    %v50: f32 = load %p49 @load6
+    %p51: ptr<f32> = bitcast %p46
+    store %p51, %v50 @store5
+    %p52: loc<u8> = gep %p48, 4:i64
+    %p53: loc<f32> = bitcast %p52
+    %v54: f32 = load %p53 @load7
+    %p55: ptr<u8> = gep %p46, 4:i64
+    %p56: ptr<f32> = bitcast %p55
+    store %p56, %v54 @store6
+    %p57: loc<u8> = gep %p48, 8:i64
+    %p58: loc<f32> = bitcast %p57
+    %v59: f32 = load %p58 @load8
+    %p60: ptr<u8> = gep %p46, 8:i64
+    %p61: ptr<f32> = bitcast %p60
+    store %p61, %v59 @store7
+    %p62: loc<u8> = gep %p48, 12:i64
+    %p63: loc<f32> = bitcast %p62
+    %v64: f32 = load %p63 @load9
+    %p65: ptr<u8> = gep %p46, 12:i64
+    %p66: ptr<f32> = bitcast %p65
+    store %p66, %v64 @store8
+  }
+  merge %t67: i1 = false:i1, %t4
+}

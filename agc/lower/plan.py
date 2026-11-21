@@ -23,6 +23,9 @@ DECISIONS: dict[str, dict] = {
     "math.tanh": {"level": "kir", "site": "call", "kb": "D4",
                   "doc": "`tanh`: `exact`, the device library's algorithm as amdclang inlines it (within 1.3 units in the last "
                          "place)", "ulp": {"exact": 1.3}},
+    "math.log": {"level": "kir", "site": "call", "kb": "D4",
+                 "doc": "`log`: `hw`, `log2(x) * ln 2` on `v_log_f32` (the sequence amdclang emits is not transcribed yet: "
+                        "the result is not bit-identical to amdclang's, within a few units in the last place)"},
     "math.sqrt": {"level": "mir", "site": "sqrt", "kb": "D4",
                   "doc": "square root: `exact`, correctly rounded (`v_sqrt_f32` and a one-step correction, as amdclang); or "
                          "`hw`, `v_sqrt_f32` alone: within one unit in the last place for operands above 2^-96, wrong below "

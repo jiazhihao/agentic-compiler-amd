@@ -7,7 +7,8 @@ have no kind (every value is per thread); `wir` values are `u` (uniform over the
 per lane).
 
 Types: `i1`, `i8`..`i64`, `u8`..`u64`, `f16`, `bf16`, `f32`, `f64`, `ptr<T>` (a pointer into a
-global tensor), `lds<T>` (a pointer into the workgroup's shared memory).
+global tensor), `lds<T>` (a pointer into the workgroup's shared memory), `loc<T>` (a pointer into a
+thread's own local object; `kir/locals.py` turns such objects back into values).
 """
 from __future__ import annotations
 
@@ -45,6 +46,10 @@ class Type:
         return self.kind == "ptr" and self.name == "lds"
 
     @property
+    def is_local(self) -> bool:
+        return self.kind == "ptr" and self.name == "loc"
+
+    @property
     def is_int(self) -> bool:
         return self.kind == "int"
 
@@ -72,7 +77,7 @@ class Type:
         return 8 if self.is_ptr else 1 if self.is_bool else self.bits // 8
 
 
-_T = re.compile(r"^(?:(i1)|([iu])(8|16|32|64)|(f16|bf16|f32|f64)|ptr<(.+)>|([iuf]\d+)x(\d+)|lds<(.+)>)$")
+_T = re.compile(r"^(?:(i1)|([iu])(8|16|32|64)|(f16|bf16|f32|f64)|ptr<(.+)>|([iuf]\d+)x(\d+)|(lds|loc)<(.+)>)$")
 _FLOAT_BITS = {"f16": 16, "bf16": 16, "f32": 32, "f64": 64}
 
 
@@ -92,7 +97,7 @@ def T(text: "str | Type") -> Type:
         e = T(m.group(6))
         return Type("vec", e.bits * int(m.group(7)), elem=e, count=int(m.group(7)))
     if m.group(8):
-        return Type("ptr", 64, elem=T(m.group(8)), name="lds")
+        return Type("ptr", 64, elem=T(m.group(9)), name=m.group(8))
     return Type("ptr", 64, elem=T(m.group(5)))
 
 

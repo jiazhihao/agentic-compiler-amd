@@ -1,0 +1,179 @@
+kir func rb_dot(%n: i32, %x: ptr<f32>, %y: ptr<f32>, %workspace: ptr<f32>, %out: ptr<f32>) {
+  %index105: loc<i32> = local[name=index18, bytes=4]
+  %self99: loc<i32> = local[name=self17, bytes=4]
+  %index48: loc<i32> = local[name=index11, bytes=4]
+  %self43: loc<i32> = local[name=self10, bytes=4]
+  %psums: lds<f32> = shared[name=psums4, bytes=256]
+  %bid_x: u32 = bid.x
+  %t: u32 = mul %bid_x, 512:u32
+  %tid_x: u32 = tid.x
+  %t0: u32 = add %t, %tid_x
+  %i0_2: i32 = cast %t0
+  %gdim_x: u32 = gdim.x
+  %t3: u32 = mul 512:u32, %gdim_x
+  %inc: i32 = cast %t3
+  loop @loop0 {
+    carry %j: i32 = 0:i32, %t13 -> %j15
+    carry %i: i32 = %i0_2, %t14 -> %i16
+    carry %sum: f32 = 0.0:f32, %t12 -> %sum17
+    %t5: i1 = lt %j, 4:i32
+    %t6: i1 = lt %i, %n
+    %c: i1 = and %t5, %t6
+    while %c
+    %t7: i64 = cast %i
+    %p: ptr<f32> = gep %y, %t7
+    %v: f32 = load %p @load0
+    %t8: i64 = cast %i
+    %p9: ptr<f32> = gep %x, %t8
+    %v10: f32 = load %p9 @load1
+    %t11: f32 = mul %v, %v10
+    %t12: f32 = add %sum, %t11
+    %t13: i32 = add[nsw=true] %j, 1:i32
+    %t14: i32 = add[nsw=true] %i, %inc
+  }
+  %tid_x18: u32 = tid.x
+  %t19: u32 = div %tid_x18, 64:u32
+  %wavefront: i32 = cast %t19
+  %tid_x21: u32 = tid.x
+  %t22: u32 = rem %tid_x21, 64:u32
+  %wavelet: i32 = cast %t22
+  %t24: i1 = eq %wavefront, 0:i32
+  if %t24 @if0 {
+    %t25: i64 = cast %wavelet
+    %p26: lds<f32> = gep %psums, %t25
+    store %p26, 0.0:f32 @store0
+  }
+  barrier
+  loop @loop1 {
+    carry %ax: u32 = 64:u32, %t28 -> %ax32
+    carry %v27: i32 = 0:i32, %v31 -> %v27_33
+    carry %stay: i1 = true:i1, %t29 -> %stay34
+    while %stay
+    %t28: u32 = shr %ax, 1:u32
+    %t29: i1 = ne %t28, 0:u32
+    if %t29 @if1 {
+      %t30: i32 = add[nsw=true] %v27, 1:i32
+    }
+    merge %v31: i32 = %t30, %v27
+  }
+  %t35: i32 = sub[nsw=true] %v27_33, 1:i32
+  %offset: i32 = shl 1:i32, %t35
+  loop @loop2 {
+    carry %i37: i32 = 0:i32, %t63 -> %i37_64
+    carry %val: f32 = %sum17, %t61 -> %val65
+    carry %offset38: i32 = %offset, %t62 -> %offset38_66
+    %t39: i1 = lt %i37, %v27_33
+    while %t39
+    %t40: i32 = bitcast %val
+    %t41: u32 = cast %offset38
+    %lane: u32 = laneid
+    %self: i32 = cast %lane
+    store %self43, %self @store1
+    %v44: i32 = load %self43 @load2
+    %t45: u32 = cast %v44
+    %t46: u32 = add %t45, %t41
+    %index: i32 = cast %t46
+    store %index48, %index @store2
+    %v49: i32 = load %self43 @load3
+    %t50: i32 = and %v49, 63:i32
+    %t51: u32 = cast %t50
+    %t52: u32 = add %t51, %t41
+    %t53: i32 = cast %t52
+    %t54: i1 = ge %t53, 64:i32
+    %v55: i32 = load %self43 @load4
+    %v56: i32 = load %index48 @load5
+    %t57: i32 = select %t54, %v55, %v56
+    store %index48, %t57 @store3
+    %v58: i32 = load %index48 @load6
+    %t59: i32 = shl %v58, 2:i32
+    %other: i32 = waveread %t40, %t59
+    %t60: f32 = bitcast %other
+    %t61: f32 = add %val, %t60
+    %t62: i32 = shr %offset38, 1:i32
+    %t63: i32 = add[nsw=true] %i37, 1:i32
+  }
+  %t67: i1 = eq %wavelet, 0:i32
+  if %t67 @if2 {
+    %t68: i64 = cast %wavefront
+    %p69: lds<f32> = gep %psums, %t68
+    store %p69, %val65 @store4
+  }
+  barrier
+  %tid_x70: u32 = tid.x
+  %t71: i1 = lt %tid_x70, 8:u32
+  if %t71 @if3 {
+    %t72: i64 = cast %wavelet
+    %p73: lds<f32> = gep %psums, %t72
+    %v74: f32 = load %p73 @load7
+  }
+  merge %t75: f32 = %v74, 0.0:f32
+  %t76: i1 = eq %wavefront, 0:i32
+  if %t76 @if4 {
+    loop @loop3 {
+      carry %ax77: u32 = 8:u32, %t80 -> %ax77_84
+      carry %v78: i32 = 0:i32, %v83 -> %v78_85
+      carry %stay79: i1 = true:i1, %t81 -> %stay79_86
+      while %stay79
+      %t80: u32 = shr %ax77, 1:u32
+      %t81: i1 = ne %t80, 0:u32
+      if %t81 @if5 {
+        %t82: i32 = add[nsw=true] %v78, 1:i32
+      }
+      merge %v83: i32 = %t82, %v78
+    }
+    %t87: i32 = sub[nsw=true] %v78_85, 1:i32
+    %offset89: i32 = shl 1:i32, %t87
+    loop @loop4 {
+      carry %i90: i32 = 0:i32, %t121 -> %i90_122
+      carry %val91: f32 = %t75, %t119 -> %val91_123
+      carry %offset92: i32 = %offset89, %t120 -> %offset92_124
+      %t93: i1 = lt %i90, %v78_85
+      while %t93
+      %t94: i32 = bitcast %val91
+      %t95: u32 = cast %offset92
+      %lane96: u32 = laneid
+      %self98: i32 = cast %lane96
+      store %self99, %self98 @store5
+      %v100: i32 = load %self99 @load8
+      %t101: u32 = cast %v100
+      %t102: u32 = add %t101, %t95
+      %index104: i32 = cast %t102
+      store %index105, %index104 @store6
+      %v106: i32 = load %self99 @load9
+      %t107: i32 = and %v106, 63:i32
+      %t108: u32 = cast %t107
+      %t109: u32 = add %t108, %t95
+      %t110: i32 = cast %t109
+      %t111: i1 = ge %t110, 64:i32
+      %v112: i32 = load %self99 @load10
+      %v113: i32 = load %index105 @load11
+      %t114: i32 = select %t111, %v112, %v113
+      store %index105, %t114 @store7
+      %v115: i32 = load %index105 @load12
+      %t116: i32 = shl %v115, 2:i32
+      %other117: i32 = waveread %t94, %t116
+      %t118: f32 = bitcast %other117
+      %t119: f32 = add %val91, %t118
+      %t120: i32 = shr %offset92, 1:i32
+      %t121: i32 = add[nsw=true] %i90, 1:i32
+    }
+  }
+  merge %val125: f32 = %val91_123, %t75
+  merge %ax126: u32 = %ax77_84, %ax32
+  merge %v127: i32 = %v78_85, %v27_33
+  %tid_x128: u32 = tid.x
+  %t129: i1 = eq %tid_x128, 0:u32
+  if %t129 @if6 {
+    %gdim_x130: u32 = gdim.x
+    %t131: i1 = eq %gdim_x130, 1:u32
+    if %t131 @if7 {
+      %p132: ptr<f32> = gep %out, 0:i64
+      store %p132, %val125 @store8
+    } else {
+      %bid_x133: u32 = bid.x
+      %t134: i64 = cast %bid_x133
+      %p135: ptr<f32> = gep %workspace, %t134
+      store %p135, %val125 @store9
+    }
+  }
+}

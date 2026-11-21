@@ -28,6 +28,7 @@ valu:
   trunc: {f32: v_trunc_f32}
   exp2: {f32: v_exp_f32}                 # 2^x
   log2: {f32: v_log_f32}
+  rsqrt: {f32: v_rsq_f32}
   sqrt.hw: {f32: v_sqrt_f32}             # about one unit in the last place; the exact form corrects it
   ldexp: {f32: v_ldexp_f32}              # dst = src0 * 2^src1
   bfi: {x32: v_bfi_b32, f32: v_bfi_b32}  # dst = (mask & src1) | (~mask & src2)
@@ -125,6 +126,9 @@ control:
   cond_to_mask: s_cselect_b64            # a lane mask (all lanes or none) from the scalar condition code
   barrier: s_barrier
   readlane: v_readlane_b32               # one lane of a VGPR into an SGPR
+  lane_read: ds_bpermute_b32             # dst = data of the lane whose index * 4 is in addr (0: that lane is not running)
+  lane_count_lo: v_mbcnt_lo_u32_b32      # with mask -1 and then lane_count_hi: the lane's index (as amdclang's __lane_id)
+  lane_count_hi: v_mbcnt_hi_u32_b32
   end: s_endpgm
 
 # Combining the 64 lanes of a wave without memory: each step is the operation's DPP form reading a permutation

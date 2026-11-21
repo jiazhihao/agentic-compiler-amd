@@ -1,0 +1,191 @@
+kir func fi_silu_and_mul(%out: ptr<f32>, %input: ptr<f32>, %d: i32) {
+  %out_vec: loc<u8> = local[name=out_vec8, bytes=16]
+  %y_vec: loc<u8> = local[name=y_vec6, bytes=16]
+  %x_vec: loc<u8> = local[name=x_vec4, bytes=16]
+  %bid_x: u32 = bid.x
+  %t: i64 = cast %bid_x
+  %tid_x: u32 = tid.x
+  %thread_idx: i64 = cast %tid_x
+  %bdim_x: u32 = bdim.x
+  %stride: i64 = cast %bdim_x
+  %t2: i64 = mul[nsw=true] %t, 2:i64
+  %t3: i64 = cast %d
+  %offset: i64 = mul[nsw=true] %t2, %t3
+  %idx: u32 = cast %thread_idx
+  loop @loop0 {
+    carry %idx6: u32 = %idx, %t153 -> %idx6_154
+    %t7: u32 = cast %d
+    %t8: u32 = div %t7, 4:u32
+    %t9: i1 = lt %idx6, %t8
+    while %t9
+    %p: loc<u8> = gep %x_vec, 0:i64
+    %p10: loc<u8> = gep %y_vec, 0:i64
+    %p11: loc<u8> = gep %out_vec, 0:i64
+    %p12: ptr<f32> = gep %input, %offset
+    %t13: u32 = mul %idx6, 4:u32
+    %t14: i64 = cast %t13
+    %p15: ptr<f32> = gep %p12, %t14
+    loop @loop1 {
+      carry %i: u64 = 0:u64, %t44 -> %i45
+      %t16: i1 = lt %i, 1:u64
+      while %t16
+      %p17: loc<u8> = gep %x_vec, 0:i64
+      %p18: loc<u8> = gep %p17, 0:i64
+      %t19: i64 = cast %i
+      %t20: i64 = mul %t19, 16:i64
+      %p21: loc<u8> = gep %p18, %t20
+      %p22: ptr<u8> = bitcast %p15
+      %p23: ptr<u8> = gep %p22, 0:i64
+      %t24: i64 = cast %i
+      %t25: i64 = mul %t24, 16:i64
+      %p26: ptr<u8> = gep %p23, %t25
+      %p27: ptr<f32> = bitcast %p26
+      %v: f32 = load %p27 @load0
+      %p28: loc<f32> = bitcast %p21
+      store %p28, %v @store0
+      %p29: ptr<u8> = gep %p26, 4:i64
+      %p30: ptr<f32> = bitcast %p29
+      %v31: f32 = load %p30 @load1
+      %p32: loc<u8> = gep %p21, 4:i64
+      %p33: loc<f32> = bitcast %p32
+      store %p33, %v31 @store1
+      %p34: ptr<u8> = gep %p26, 8:i64
+      %p35: ptr<f32> = bitcast %p34
+      %v36: f32 = load %p35 @load2
+      %p37: loc<u8> = gep %p21, 8:i64
+      %p38: loc<f32> = bitcast %p37
+      store %p38, %v36 @store2
+      %p39: ptr<u8> = gep %p26, 12:i64
+      %p40: ptr<f32> = bitcast %p39
+      %v41: f32 = load %p40 @load3
+      %p42: loc<u8> = gep %p21, 12:i64
+      %p43: loc<f32> = bitcast %p42
+      store %p43, %v41 @store3
+      %t44: u64 = add %i, 1:u64
+    }
+    %p46: ptr<f32> = gep %input, %offset
+    %t47: i64 = cast %d
+    %p48: ptr<f32> = gep %p46, %t47
+    %t49: u32 = mul %idx6, 4:u32
+    %t50: i64 = cast %t49
+    %p51: ptr<f32> = gep %p48, %t50
+    loop @loop2 {
+      carry %i52: u64 = 0:u64, %t82 -> %i52_83
+      %t53: i1 = lt %i52, 1:u64
+      while %t53
+      %p54: loc<u8> = gep %y_vec, 0:i64
+      %p55: loc<u8> = gep %p54, 0:i64
+      %t56: i64 = cast %i52
+      %t57: i64 = mul %t56, 16:i64
+      %p58: loc<u8> = gep %p55, %t57
+      %p59: ptr<u8> = bitcast %p51
+      %p60: ptr<u8> = gep %p59, 0:i64
+      %t61: i64 = cast %i52
+      %t62: i64 = mul %t61, 16:i64
+      %p63: ptr<u8> = gep %p60, %t62
+      %p64: ptr<f32> = bitcast %p63
+      %v65: f32 = load %p64 @load4
+      %p66: loc<f32> = bitcast %p58
+      store %p66, %v65 @store4
+      %p67: ptr<u8> = gep %p63, 4:i64
+      %p68: ptr<f32> = bitcast %p67
+      %v69: f32 = load %p68 @load5
+      %p70: loc<u8> = gep %p58, 4:i64
+      %p71: loc<f32> = bitcast %p70
+      store %p71, %v69 @store5
+      %p72: ptr<u8> = gep %p63, 8:i64
+      %p73: ptr<f32> = bitcast %p72
+      %v74: f32 = load %p73 @load6
+      %p75: loc<u8> = gep %p58, 8:i64
+      %p76: loc<f32> = bitcast %p75
+      store %p76, %v74 @store6
+      %p77: ptr<u8> = gep %p63, 12:i64
+      %p78: ptr<f32> = bitcast %p77
+      %v79: f32 = load %p78 @load7
+      %p80: loc<u8> = gep %p58, 12:i64
+      %p81: loc<f32> = bitcast %p80
+      store %p81, %v79 @store7
+      %t82: u64 = add %i52, 1:u64
+    }
+    loop @loop3 {
+      carry %i84: u32 = 0:u32, %t111 -> %i84_112
+      %t85: i1 = lt %i84, 4:u32
+      while %t85
+      %t86: u64 = cast %i84
+      %p87: loc<u8> = gep %out_vec, 0:i64
+      %p88: loc<u8> = gep %p87, 0:i64
+      %p89: loc<f32> = bitcast %p88
+      %t90: i64 = cast %t86
+      %p91: loc<f32> = gep %p89, %t90
+      %t92: u64 = cast %i84
+      %p93: loc<u8> = gep %x_vec, 0:i64
+      %p94: loc<u8> = gep %p93, 0:i64
+      %p95: loc<f32> = bitcast %p94
+      %t96: i64 = cast %t92
+      %p97: loc<f32> = gep %p95, %t96
+      %v98: f32 = load %p97 @load8
+      %v99: f32 = load %p97 @load9
+      %t100: f32 = neg %v99
+      %exp: f32 = exp %t100
+      %t101: f32 = add 1.0:f32, %exp
+      %t102: f32 = div %v98, %t101 @div0
+      %t103: u64 = cast %i84
+      %p104: loc<u8> = gep %y_vec, 0:i64
+      %p105: loc<u8> = gep %p104, 0:i64
+      %p106: loc<f32> = bitcast %p105
+      %t107: i64 = cast %t103
+      %p108: loc<f32> = gep %p106, %t107
+      %v109: f32 = load %p108 @load10
+      %t110: f32 = mul %t102, %v109
+      store %p91, %t110 @store8
+      %t111: u32 = add %i84, 1:u32
+    }
+    %t113: i64 = cast %d
+    %t114: i64 = mul[nsw=true] %t, %t113
+    %p115: ptr<f32> = gep %out, %t114
+    %t116: u32 = mul %idx6, 4:u32
+    %t117: i64 = cast %t116
+    %p118: ptr<f32> = gep %p115, %t117
+    loop @loop4 {
+      carry %i119: u64 = 0:u64, %t149 -> %i119_150
+      %t120: i1 = lt %i119, 1:u64
+      while %t120
+      %p121: ptr<u8> = bitcast %p118
+      %p122: ptr<u8> = gep %p121, 0:i64
+      %t123: i64 = cast %i119
+      %t124: i64 = mul %t123, 16:i64
+      %p125: ptr<u8> = gep %p122, %t124
+      %p126: loc<u8> = gep %out_vec, 0:i64
+      %p127: loc<u8> = gep %p126, 0:i64
+      %t128: i64 = cast %i119
+      %t129: i64 = mul %t128, 16:i64
+      %p130: loc<u8> = gep %p127, %t129
+      %p131: loc<f32> = bitcast %p130
+      %v132: f32 = load %p131 @load11
+      %p133: ptr<f32> = bitcast %p125
+      store %p133, %v132 @store9
+      %p134: loc<u8> = gep %p130, 4:i64
+      %p135: loc<f32> = bitcast %p134
+      %v136: f32 = load %p135 @load12
+      %p137: ptr<u8> = gep %p125, 4:i64
+      %p138: ptr<f32> = bitcast %p137
+      store %p138, %v136 @store10
+      %p139: loc<u8> = gep %p130, 8:i64
+      %p140: loc<f32> = bitcast %p139
+      %v141: f32 = load %p140 @load13
+      %p142: ptr<u8> = gep %p125, 8:i64
+      %p143: ptr<f32> = bitcast %p142
+      store %p143, %v141 @store11
+      %p144: loc<u8> = gep %p130, 12:i64
+      %p145: loc<f32> = bitcast %p144
+      %v146: f32 = load %p145 @load14
+      %p147: ptr<u8> = gep %p125, 12:i64
+      %p148: ptr<f32> = bitcast %p147
+      store %p148, %v146 @store12
+      %t149: u64 = add %i119, 1:u64
+    }
+    %t151: i64 = cast %idx6
+    %t152: i64 = add[nsw=true] %t151, %stride
+    %t153: u32 = cast %t152
+  }
+}

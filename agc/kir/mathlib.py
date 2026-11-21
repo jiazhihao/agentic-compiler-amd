@@ -32,7 +32,8 @@ LOG2E_HI, LOG2E_LO = _f(0x3FB8AA3B), _f(0x32A5705F)
 EXP_UNDERFLOW, EXP_OVERFLOW = _f(0xC2CE8ED0), _f(0x42B17218)       # exp(x) is 0 below -103.97 and inf above 88.72
 TANH_SMALL = _f(0x3F200000)                                        # 0.625
 TANH_POLY = [_f(0xBBBAC73D), _f(0x3CA908C9), _f(0xBD5C1C4E), _f(0x3E088382), _f(0xBEAAAA99)]
-ALTERNATIVES = {"exp": ["exact", "hw"], "tanh": ["exact"]}
+LN2 = _f(0x3F317218)
+ALTERNATIVES = {"exp": ["exact", "hw"], "tanh": ["exact"], "log": ["hw"]}       # `log` has no amdclang-identical form yet
 
 
 class _B:
@@ -109,6 +110,8 @@ def expand(f: Func, plan) -> Func:
                 if s.name == "exp":
                     v = (exp_exact if how == "exact" else exp_hw)(b, s.args[0])
                     out.append(Op("bitcast", [v], s.result, loc=s.loc))
+                elif s.name == "log":                        # log x = log2 x * ln 2
+                    out.append(Op("mul", [b("log2", [s.args[0]]), LN2], s.result, loc=s.loc))
                 else:
                     tanh_exact(b, s.args[0], namer, s.result)
                 continue

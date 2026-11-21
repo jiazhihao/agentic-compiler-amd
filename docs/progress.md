@@ -23,8 +23,47 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 | M12 Control flow, loops, loop decisions | #81 | PR #82 open |
 | M13 Shared memory, barriers, division, reductions | #83 | PR #84 open |
 | M14 Math and numerics | #85 | PR open |
+| M15 Frontend breadth | #87 | PR open |
 
 ## Log
+
+### 2026-11-21 — M15: frontend breadth (#87)
+- **What.** The frontend now reads the C++ the benchmark is written in. Records, arrays and address-taken
+  variables are objects in `kir` (`local`, `loc<T>`; layouts come from Clang's `-fdump-record-layouts`), and
+  `agc/kir/locals.py` promotes every object back to values (through regions and loops, with selections for an
+  element chosen at run time) before the wave lowering. References, member functions, constructors, function
+  objects, overloaded operators, default arguments, enumerations, aliases, global constants, `constexpr` loops,
+  member templates, `extern __shared__ T x[]`, HIP's `float4` family and the compiler's vector types are
+  lowered; `agc/frontend/objects.py` holds the object model. `__shfl_*` and `__lane_id` become `waveread` and
+  `laneid` (`ds_bpermute_b32`, `v_mbcnt_*`), with their semantics (0 from a lane that does not run the read) in
+  both interpreters. `log`, `log2`, `exp2`, `rsqrt` are added (machine forms).
+- **Telling instantiations apart.** Clang's node ids are addresses and change from run to run, and the frontend
+  reads one function per run. With address randomization off and the AST's memory taken from the system a page
+  at a time (`MALLOC_MMAP_THRESHOLD_`), the offset of a node in its page is the same in every run: that offset
+  picks the instantiation a call refers to among those with one name and signature (`rocblas_wavefront_reduce<8|16|32|64>`).
+- **Lowering.** A wave branches on any uniform condition (a per-lane compare and `s_and_b64` with `exec` when
+  there is no scalar compare, as amdclang does); uniform addresses are scalar arithmetic; `bool` and byte
+  arguments; boolean merges in branch regions; a load inside a region that holds a barrier is per lane. The
+  safety gates are differential: what the source's own order has (amdclang compiles it the same way) passes,
+  what agc's schedule adds is refused. `lower(text=...)` takes a rewritten source; `replan` keeps it.
+- **Bugs found on the way.** Substitution maps keyed by object identity reused the identity of a freed value
+  (a float add got an integer constant): replaced values are now kept alive. A `T& __restrict__` parameter was
+  taken by value (its writes were lost; the CPU check against the reference caught it). Lambdas' `return`s made
+  enclosing loops per-lane.
+- **Coverage** (`tests/baselines/own-gfx950.json`, default plan, full battery): 45 of 50 kernels pass the
+  frontend, **40 pass the battery** (20 before), 30 bit-identical to amdclang `-O3`. The ten that pass within
+  tolerance but not bit for bit: three are bit-identical with `fp.contract: off` (`gemm_tiled`, `fi_rmsnorm`,
+  `rb_gemvn`); two need amdclang's per-site choice of fusion (`rb_gemvt`, `vl_rotary_embedding`); five call
+  `exp2f` or `logf`, whose amdclang sequences are not transcribed.
+- **Speed over amdclang `-O3`, default plan, no decision changed:** geomean 0.849 over the 40, as measured.
+  At 0.97 or better: 20 kernels. Below 0.90: `mla_decode` 0.16, `attn_decode` 0.28, `moe_gate_topk` 0.41,
+  `rb_gemvn` 0.60, `vl_rotary_embedding` 0.75, `gemm_tiled` 0.75, `rb_ger` 0.80, `mo_rope_fwd` 0.80,
+  `softmax` 0.80. The new kernels are large inlined bodies where the missing optimizer shows (no GVN across
+  regions, no address strength reduction, objects promoted without cleanup of the selections): M16's list.
+- **Open.** Ten kernels: `fa_attention`, `fa_attention_causal` (out of scalar registers; no spilling),
+  `fi_fused_add_rmsnorm` (LDS address as a value), `mo_t5_layernorm` (`u64` to `float`), `mo_bn_infer`,
+  `mo_adam` (`double` math), `fi_rope` (`pow`, `sincos`, `memcpy`), `vl_fused_add_rms_norm`, `vl_rms_norm`,
+  `vl_moe_align` (hipcub; `atomicAdd`). The `-ffast-math` comparison is not made. All moved to M16.
 
 ### 2026-11-21 — M14: math and numerics (#85)
 - **What.** Math calls are single `kir` operations after the frontend (`exp`, `tanh`, `sqrt`, `abs`, `max`,

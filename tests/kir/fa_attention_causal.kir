@@ -1,0 +1,211 @@
+kir func fa_attention(%Q: ptr<f32>, %K: ptr<f32>, %V: ptr<f32>, %out: ptr<f32>, %lse: ptr<f32>, %n_q: i32, %n_k: i32, %scale: f32, %causal: i32) {
+  %o: loc<f32> = local[name=o5, bytes=4]
+  %s_red: lds<f32> = shared[name=s_red4, bytes=256]
+  %s_p: lds<f32> = shared[name=s_p3, bytes=256]
+  %bid_x: u32 = bid.x
+  %t: i32 = cast %bid_x
+  %t0: i1 = ne %causal, 0:i32
+  if %t0 @if0 {
+    %t1: i32 = add[nsw=true] %t, 1:i32
+    %min: i32 = min %t1, %n_k
+  }
+  merge %t2: i32 = %min, %n_k
+  %t3: u64 = cast %t
+  %t4: u64 = mul %t3, 64:u64
+  %t5: i64 = cast %t4
+  %p: ptr<f32> = gep %Q, %t5
+  %t6: u64 = cast %t
+  %t7: u64 = mul %t6, 64:u64
+  %t8: i64 = cast %t7
+  %p9: ptr<f32> = gep %out, %t8
+  %t10: i64 = cast %t
+  %p11: ptr<f32> = gep %lse, %t10
+  %tid_x: u32 = tid.x
+  %tid: i32 = cast %tid_x
+  loop @loop0 {
+    carry %r: i32 = 0:i32, %t16 -> %r17
+    %t13: i1 = lt %r, 1:i32
+    while %t13
+    %t14: i64 = cast %r
+    %p15: loc<f32> = gep %o, %t14
+    store %p15, 0.0:f32 @store0
+    %t16: i32 = add[nsw=true] %r, 1:i32
+  }
+  loop @loop1 {
+    carry %base: i32 = 0:i32, %t132 -> %base133
+    carry %l: f32 = 0.0:f32, %t98 -> %l134
+    carry %m: f32 = -inf:f32, %max63 -> %m135
+    %t18: i1 = lt %base, %t2
+    while %t18
+    %j: i32 = add[nsw=true] %base, %tid
+    %t20: i1 = lt %j, %t2
+    if %t20 @if1 {
+      %t21: u64 = cast %j
+      %t22: u64 = mul %t21, 64:u64
+      %t23: i64 = cast %t22
+      %p24: ptr<f32> = gep %K, %t23
+      loop @loop2 {
+        carry %i: i32 = 0:i32, %t33 -> %i34
+        carry %s: f32 = 0.0:f32, %t32 -> %s35
+        %t25: i1 = lt %i, 64:i32
+        while %t25
+        %t26: i64 = cast %i
+        %p27: ptr<f32> = gep %p, %t26
+        %v: f32 = load %p27 @load0
+        %t28: i64 = cast %i
+        %p29: ptr<f32> = gep %p24, %t28
+        %v30: f32 = load %p29 @load1
+        %t31: f32 = mul %v, %v30
+        %t32: f32 = add %s, %t31
+        %t33: i32 = add[nsw=true] %i, 1:i32
+      }
+      %t36: f32 = mul %s35, %scale
+    }
+    merge %s37: f32 = %t36, -inf:f32
+    %tid_x38: u32 = tid.x
+    %t39: i64 = cast %tid_x38
+    %p40: lds<f32> = gep %s_red, %t39
+    store %p40, %s37 @store1
+    barrier
+    loop @loop3 {
+      carry %s41: i32 = 32:i32, %t59 -> %s41_60
+      %t42: i1 = gt %s41, 0:i32
+      while %t42
+      %tid_x43: u32 = tid.x
+      %t44: u32 = cast %s41
+      %t45: i1 = lt %tid_x43, %t44
+      if %t45 @if2 {
+        %tid_x46: u32 = tid.x
+        %t47: i64 = cast %tid_x46
+        %p48: lds<f32> = gep %s_red, %t47
+        %tid_x49: u32 = tid.x
+        %t50: i64 = cast %tid_x49
+        %p51: lds<f32> = gep %s_red, %t50
+        %v52: f32 = load %p51 @load2
+        %tid_x53: u32 = tid.x
+        %t54: u32 = cast %s41
+        %t55: u32 = add %tid_x53, %t54
+        %t56: i64 = cast %t55
+        %p57: lds<f32> = gep %s_red, %t56
+        %v58: f32 = load %p57 @load3
+        %max: f32 = max %v52, %v58
+        store %p48, %max @store2
+      }
+      barrier
+      %t59: i32 = shr %s41, 1:i32
+    }
+    %p61: lds<f32> = gep %s_red, 0:i64
+    %v62: f32 = load %p61 @load4
+    barrier
+    %max63: f32 = max %m, %v62
+    %t64: i1 = lt %j, %t2
+    if %t64 @if3 {
+      %t65: f32 = sub %s37, %max63
+      %exp: f32 = exp %t65
+    }
+    merge %t66: f32 = %exp, 0.0:f32
+    %t67: i64 = cast %tid
+    %p68: lds<f32> = gep %s_p, %t67
+    store %p68, %t66 @store3
+    %tid_x69: u32 = tid.x
+    %t70: i64 = cast %tid_x69
+    %p71: lds<f32> = gep %s_red, %t70
+    store %p71, %t66 @store4
+    barrier
+    loop @loop4 {
+      carry %s72: i32 = 32:i32, %t91 -> %s72_92
+      %t73: i1 = gt %s72, 0:i32
+      while %t73
+      %tid_x74: u32 = tid.x
+      %t75: u32 = cast %s72
+      %t76: i1 = lt %tid_x74, %t75
+      if %t76 @if4 {
+        %tid_x77: u32 = tid.x
+        %t78: i64 = cast %tid_x77
+        %p79: lds<f32> = gep %s_red, %t78
+        %tid_x80: u32 = tid.x
+        %t81: i64 = cast %tid_x80
+        %p82: lds<f32> = gep %s_red, %t81
+        %v83: f32 = load %p82 @load5
+        %tid_x84: u32 = tid.x
+        %t85: u32 = cast %s72
+        %t86: u32 = add %tid_x84, %t85
+        %t87: i64 = cast %t86
+        %p88: lds<f32> = gep %s_red, %t87
+        %v89: f32 = load %p88 @load6
+        %t90: f32 = add %v83, %v89
+        store %p79, %t90 @store5
+      }
+      barrier
+      %t91: i32 = shr %s72, 1:i32
+    }
+    %p93: lds<f32> = gep %s_red, 0:i64
+    %v94: f32 = load %p93 @load7
+    barrier
+    %t95: f32 = sub %m, %max63
+    %exp96: f32 = exp %t95
+    %t97: f32 = mul %l, %exp96
+    %t98: f32 = add %t97, %v94
+    %t99: i32 = sub[nsw=true] %t2, %base
+    %min100: i32 = min 64:i32, %t99
+    loop @loop5 {
+      carry %r101: i32 = 0:i32, %t130 -> %r101_131
+      %t102: i1 = lt %r101, 1:i32
+      while %t102
+      %t103: i32 = mul[nsw=true] %r101, 64:i32
+      %c: i32 = add[nsw=true] %tid, %t103
+      loop @loop6 {
+        carry %t105: i32 = 0:i32, %t120 -> %t105_121
+        carry %acc: f32 = 0.0:f32, %t119 -> %acc122
+        %t106: i1 = lt %t105, %min100
+        while %t106
+        %t107: i64 = cast %t105
+        %p108: lds<f32> = gep %s_p, %t107
+        %v109: f32 = load %p108 @load8
+        %t110: i32 = add[nsw=true] %base, %t105
+        %t111: u64 = cast %t110
+        %t112: u64 = mul %t111, 64:u64
+        %t113: u64 = cast %c
+        %t114: u64 = add %t112, %t113
+        %t115: i64 = cast %t114
+        %p116: ptr<f32> = gep %V, %t115
+        %v117: f32 = load %p116 @load9
+        %t118: f32 = mul %v109, %v117
+        %t119: f32 = add %acc, %t118
+        %t120: i32 = add[nsw=true] %t105, 1:i32
+      }
+      %t123: i64 = cast %r101
+      %p124: loc<f32> = gep %o, %t123
+      %t125: i64 = cast %r101
+      %p126: loc<f32> = gep %o, %t125
+      %v127: f32 = load %p126 @load10
+      %t128: f32 = mul %v127, %exp96
+      %t129: f32 = add %t128, %acc122
+      store %p124, %t129 @store6
+      %t130: i32 = add[nsw=true] %r101, 1:i32
+    }
+    barrier
+    %t132: i32 = add[nsw=true] %base, 64:i32
+  }
+  loop @loop7 {
+    carry %r136: i32 = 0:i32, %t146 -> %r136_147
+    %t137: i1 = lt %r136, 1:i32
+    while %t137
+    %t138: i32 = mul[nsw=true] %r136, 64:i32
+    %t139: i32 = add[nsw=true] %tid, %t138
+    %t140: i64 = cast %t139
+    %p141: ptr<f32> = gep %p9, %t140
+    %t142: i64 = cast %r136
+    %p143: loc<f32> = gep %o, %t142
+    %v144: f32 = load %p143 @load11
+    %t145: f32 = div %v144, %l134 @div0
+    store %p141, %t145 @store7
+    %t146: i32 = add[nsw=true] %r136, 1:i32
+  }
+  %t148: i1 = eq %tid, 0:i32
+  if %t148 @if5 {
+    %log: f32 = log %l134
+    %t149: f32 = add %m135, %log
+    store %p11, %t149 @store8
+  }
+}

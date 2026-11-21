@@ -276,9 +276,26 @@ class Selector:
         n, r = s.name, s.result
         if n == "arg":
             mn = self.t.data["memory"]["kernarg"][8 if self.wide(r.type) else 4]
-            self.b.emit(mn, self.new(r), self.t.limit("kernarg_pointer"), s.attrs["offset"])
-            if s.attrs["size"] < 4:
-                raise LowerError(f"a {s.attrs['size']}-byte scalar argument")
+            at, size = s.attrs["offset"], s.attrs["size"]
+            if r.type.is_bool:                           # a `bool`: its byte, as a lane mask (all lanes or none)
+                i32, tmp = Type("int", 32), self.b.s()
+                self.b.emit(mn, tmp, self.t.limit("kernarg_pointer"), at - at % 4)
+                if at % 4:
+                    self.b.emit(self.t.salu("shr", i32), tmp, tmp, 8 * (at % 4))
+                self.b.emit(self.t.salu("and", i32), tmp, tmp, 0xFF)
+                self.b.emit(self.t.salu("ne", i32), tmp, 0)
+                self.b.emit(self.t.control("cond_to_mask"), self.new(r), -1, 0)
+                return
+            dst = self.new(r)
+            self.b.emit(mn, dst, self.t.limit("kernarg_pointer"), at - at % 4 if size < 4 else at)
+            if size < 4:                                 # a byte or a short: the part of its aligned dword
+                i32 = Type("int", 32)
+                if at % 4:
+                    self.b.emit(self.t.salu("shr", i32), dst, dst, 8 * (at % 4))
+                if r.type.is_int and r.type.signed:
+                    self.b.emit(self.t.salu(f"sext{8 * size}", i32), dst, dst)
+                else:
+                    self.b.emit(self.t.salu("and", i32), dst, dst, (1 << (8 * size)) - 1)
         elif n == "hidden":
             name = "hidden_" + s.attrs["field"]
             off, size = next((o, sz) for k, o, sz in abi.HIDDEN_ARGS if k == name)
@@ -290,6 +307,13 @@ class Selector:
                 self.b.emit(self.t.salu("shr", r.type), dst, dst, 8 * (at % 4))
             if size < 4 and at % 4 + size < 4:
                 self.b.emit(self.t.salu("and", r.type), dst, dst, (1 << (8 * size)) - 1)
+        elif n == "lane.id":
+            dst = self.new(r)
+            self.b.emit(self.t.control("lane_count_lo"), dst, -1, 0)
+            self.b.emit(self.t.control("lane_count_hi"), dst, -1, dst)
+        elif n == "lane.read":
+            at, x = self.to_v(self.src(s.args[1])), self.to_v(self.src(s.args[0]))
+            self.b.emit(self.t.control("lane_read"), self.new(r), at, x)
         elif n == "lane.reduce":
             rd = self.t.data["reduce_dpp"]
             mn = self.t.valu(s.attrs["op"], r.type)
@@ -310,7 +334,7 @@ class Selector:
         elif n == "region":
             self.loc[id(r)] = None                       # a handle, not a register
             self.regions[id(r)] = self.lds_bytes         # the region's byte offset in the workgroup's LDS
-            self.lds_bytes += -(-s.attrs["bytes"] // 4) * 4
+            self.lds_bytes += -(-s.attrs["bytes"] // 4) * 4   # (a dynamic region has 0 bytes here: the launch sizes it)
         elif n == "barrier":
             self.b.emit(self.t.control("barrier"))
         elif n in ("load", "store") and s.args[0].type.is_lds:
@@ -506,7 +530,7 @@ class Selector:
             else:
                 self.vop2(self.t.valu("sub", t), self.new(r), Imm("0"), self.src(a[0]))
             return
-        if n in ("not", "rcp", "rndne", "floor", "trunc", "exp2", "log2"):
+        if n in ("not", "rcp", "rndne", "floor", "trunc", "exp2", "log2", "rsqrt"):
             mn = self.t.valu(n, t)
             if mn is None:
                 raise LowerError(f"no per-lane `{n}` on {t} yet", s.site)
@@ -731,6 +755,25 @@ class Selector:
 
     def memory(self, s: Op) -> None:
         n = s.name
+        if n == "ptradd" and s.result.kind == "u":           # a uniform address: scalar arithmetic
+            base, idx, scale, off = s.args[0], s.args[1], s.attrs["scale"], s.attrs["off"]
+            i32 = Type("int", 32)
+            dst = self.new(s.result)
+            if isinstance(idx, Const):
+                c = Const(int(idx.value) * scale + off, Type("int", 64, True))
+                self.b.emit(self.t.salu("add", i32), Builder.part(dst, 0), self.src(base, 0), self.src(c, 0))
+                self.b.emit(self.t.salu("addc", i32), Builder.part(dst, 1), self.src(base, 1), self.src(c, 1))
+                return
+            if scale & (scale - 1):
+                raise LowerError(f"an index scaled by {scale}", s.site)
+            self.b.emit(self.t.salu("shl", Type("int", 64)), dst, self.src(idx), scale.bit_length() - 1)
+            self.b.emit(self.t.salu("add", i32), Builder.part(dst, 0), Builder.part(dst, 0), self.src(base, 0))
+            self.b.emit(self.t.salu("addc", i32), Builder.part(dst, 1), Builder.part(dst, 1), self.src(base, 1))
+            if off:
+                c = Const(off, Type("int", 64, True))
+                self.b.emit(self.t.salu("add", i32), Builder.part(dst, 0), Builder.part(dst, 0), self.src(c, 0))
+                self.b.emit(self.t.salu("addc", i32), Builder.part(dst, 1), Builder.part(dst, 1), self.src(c, 1))
+            return
         if n == "ptradd":
             reg, off = self.address(s)
             if off:
@@ -738,8 +781,6 @@ class Selector:
                 self.vop3(self.t.valu("lshl_add", Type("int", 64)), r2, reg, Imm("0"), Imm(str(off)) if off in self.inline_int
                           else self.v64(Const(off, Type("int", 64, True))))
                 reg = r2
-            if s.result.kind == "u":
-                raise LowerError("a uniform address computed from an index", s.site)
             self.loc[id(s.result)] = reg
             return
         elem = s.args[0].type.elem
@@ -971,11 +1012,28 @@ class Selector:
         """Set the scalar condition code from a uniform integer comparison."""
         c = self.pending.get(id(cond))
         if c is None:
-            raise LowerError("a branch on a condition that is not a uniform integer comparison", site)
+            # a boolean held as a lane mask (the same in every lane): "some running lane says yes"
+            self.b.emit(self.t.control("mask_and"), self.b.s(2), self.mask(cond), "exec")
+            self.use(cond)
+            return
         a, b, name = c.args[0], c.args[1], c.name
         if isinstance(a, Const):
             a, b, name = b, a, _FLIP[name]
-        self.b.emit(self.t.salu(name, a.type), self.src(a), self.src(b))
+        if a.type.is_int and a.type.bits == 32 and self.t.salu(name, a.type):
+            self.b.emit(self.t.salu(name, a.type), self.src(a), self.src(b))
+        else:
+            # no scalar compare for this type: every lane computes the same answer, and the condition code is
+            # "some running lane says yes" (amdclang: v_cmp, s_and_b64 with exec, a branch on the result)
+            wide = self.wide(a.type)
+            oa = self.v64(a) if wide else self.to_v(self.src(a))
+            ob = self.src(b) if not isinstance(b, Const) or self.is_inline(b) else (self.v64(b) if wide else self.to_v(self.src(b)))
+            if self.is_s(ob) and wide:
+                ob = self.v64(b)
+            mn = self.t.valu(name, a.type)
+            if mn is None:
+                raise LowerError(f"no compare `{name}` on {a.type}", site)
+            self.b.emit(mn + "_e64", "vcc", oa, ob)
+            self.b.emit(self.t.control("mask_and"), self.b.s(2), "vcc", "exec")
         self.use(a), self.use(b), self.use(cond)
 
     # ---- regions -------------------------------------------------------------------------------
@@ -1053,6 +1111,10 @@ class Selector:
         def copies(side: str):
             for m, d in zip(s.merges, dsts):
                 x = getattr(m, side)
+                if m.result.type.is_bool:                    # a lane mask
+                    self.copy(d, m.result, x)
+                    self.use(x)
+                    continue
                 wide = self.wide(m.result.type)
                 for h in ((0, 1) if wide else (None,)):
                     dd = d if h is None else Builder.part(d, h)

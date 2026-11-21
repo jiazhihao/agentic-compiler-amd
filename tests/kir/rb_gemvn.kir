@@ -1,0 +1,800 @@
+kir func rb_gemvn(%m: i32, %n: i32, %alpha: f32, %A: ptr<f32>, %lda: i32, %x: ptr<f32>, %beta: f32, %y: ptr<f32>) {
+  %res_x: loc<f32> = local[name=res_x5, bytes=16]
+  %res_A: loc<f32> = local[name=res_A4, bytes=16]
+  %sdata: lds<f32> = shared[name=sdata3, bytes=16384]
+  %bdim_x: u32 = bdim.x
+  %bdim_y: u32 = bdim.y
+  %t: u32 = mul %bdim_x, %bdim_y
+  %bdim_z: u32 = bdim.z
+  %t0: u32 = mul %t, %bdim_z
+  %num_threads: i32 = cast %t0
+  %t2: i1 = ne 1024:i32, %num_threads
+  if %t2 @if0 {
+  }
+  merge %t3: i1 = true:i1, false:i1
+  %t4: i1 = not %t3
+  if %t4 @if1 {
+    %t5: i1 = ne %alpha, 0.0:f32
+    %t6: i1 = not %t5
+    %t7: i1 = eq %beta, 1.0:f32
+    %c: i1 = and %t6, %t7
+    if %c @if2 {
+    }
+    merge %t8: i1 = true:i1, false:i1
+    %t9: i1 = not %t8
+    if %t9 @if3 {
+      %tid_x: u32 = tid.x
+      %tid_y: u32 = tid.y
+      %t10: u32 = mul %tid_y, 64:u32
+      %t11: u32 = add %tid_x, %t10
+      %thread_id: i32 = cast %t11
+      %t13: i1 = ne %alpha, 0.0:f32
+      %t14: i1 = not %t13
+      if %t14 @if4 {
+        %t15: i1 = lt %thread_id, 256:i32
+        if %t15 @if5 {
+          %bid_x: u32 = bid.x
+          %t16: u32 = mul %bid_x, 64:u32
+          %t17: u32 = mul %t16, 4:u32
+          %t18: u32 = cast %thread_id
+          %t19: u32 = add %t17, %t18
+          %ind: i64 = cast %t19
+          %t21: i64 = cast %m
+          %t22: i1 = lt %ind, %t21
+          if %t22 @if6 {
+            %p: ptr<f32> = gep %y, %ind
+            %t23: i1 = ne %beta, 0.0:f32
+            if %t23 @if7 {
+              %p24: ptr<f32> = gep %y, %ind
+              %v: f32 = load %p24 @load0
+              %t25: f32 = mul %beta, %v
+            }
+            merge %t26: f32 = %t25, 0.0:f32
+            store %p, %t26 @store0
+          }
+        }
+      }
+      merge %t27: i1 = true:i1, false:i1
+      %t28: i1 = not %t27
+      if %t28 @if8 {
+        %tid_x29: u32 = tid.x
+        %tx: i32 = cast %tid_x29
+        %tid_y31: u32 = tid.y
+        %ty: i32 = cast %tid_y31
+        %p33: loc<f32> = gep %res_A, 0:i64
+        %p34: loc<f32> = gep %res_A, 1:i64
+        %p35: loc<f32> = gep %res_A, 2:i64
+        %p36: loc<f32> = gep %res_A, 3:i64
+        store %p36, 0.0:f32 @store1
+        %p37: loc<f32> = gep %res_A, 3:i64
+        %v38: f32 = load %p37 @load1
+        store %p35, %v38 @store2
+        %p39: loc<f32> = gep %res_A, 2:i64
+        %v40: f32 = load %p39 @load2
+        store %p34, %v40 @store3
+        %p41: loc<f32> = gep %res_A, 1:i64
+        %v42: f32 = load %p41 @load3
+        store %p33, %v42 @store4
+        %bid_x43: u32 = bid.x
+        %t44: u32 = mul %bid_x43, 64:u32
+        %t45: u32 = mul %t44, 4:u32
+        %t46: u32 = cast %tx
+        %t47: u32 = add %t45, %t46
+        %t48: i32 = cast %t47
+        %n_tail: i32 = rem %n, 64:i32
+        %t50: i32 = mul[nsw=true] %ty, 4:i32
+        loop @loop0 {
+          carry %col: i32 = %t50, %t284 -> %col285
+          %t51: i32 = sub[nsw=true] %n, %n_tail
+          %t52: i1 = lt %col, %t51
+          while %t52
+          %p53: loc<f32> = gep %res_x, 0:i64
+          %t54: i32 = add[nsw=true] %col, 0:i32
+          %t55: i64 = cast %t54
+          %p56: ptr<f32> = gep %x, %t55
+          %v57: f32 = load %p56 @load4
+          store %p53, %v57 @store5
+          %p58: loc<f32> = gep %res_x, 1:i64
+          %t59: i32 = add[nsw=true] %col, 1:i32
+          %t60: i64 = cast %t59
+          %p61: ptr<f32> = gep %x, %t60
+          %v62: f32 = load %p61 @load5
+          store %p58, %v62 @store6
+          %p63: loc<f32> = gep %res_x, 2:i64
+          %t64: i32 = add[nsw=true] %col, 2:i32
+          %t65: i64 = cast %t64
+          %p66: ptr<f32> = gep %x, %t65
+          %v67: f32 = load %p66 @load6
+          store %p63, %v67 @store7
+          %p68: loc<f32> = gep %res_x, 3:i64
+          %t69: i32 = add[nsw=true] %col, 3:i32
+          %t70: i64 = cast %t69
+          %p71: ptr<f32> = gep %x, %t70
+          %v72: f32 = load %p71 @load7
+          store %p68, %v72 @store8
+          %t73: i1 = lt %t48, %m
+          if %t73 @if9 {
+            %p74: loc<f32> = gep %res_A, 0:i64
+            %v75: f32 = load %p74 @load8
+            %t76: i32 = add[nsw=true] %col, 0:i32
+            %t77: i32 = mul[nsw=true] %t76, %lda
+            %t78: i32 = add[nsw=true] %t48, %t77
+            %t79: i64 = cast %t78
+            %p80: ptr<f32> = gep %A, %t79
+            %v81: f32 = load %p80 @load9
+            %p82: loc<f32> = gep %res_x, 0:i64
+            %v83: f32 = load %p82 @load10
+            %t84: f32 = mul %v81, %v83
+            %t85: f32 = add %v75, %t84
+            store %p74, %t85 @store9
+            %p86: loc<f32> = gep %res_A, 0:i64
+            %v87: f32 = load %p86 @load11
+            %t88: i32 = add[nsw=true] %col, 1:i32
+            %t89: i32 = mul[nsw=true] %t88, %lda
+            %t90: i32 = add[nsw=true] %t48, %t89
+            %t91: i64 = cast %t90
+            %p92: ptr<f32> = gep %A, %t91
+            %v93: f32 = load %p92 @load12
+            %p94: loc<f32> = gep %res_x, 1:i64
+            %v95: f32 = load %p94 @load13
+            %t96: f32 = mul %v93, %v95
+            %t97: f32 = add %v87, %t96
+            store %p86, %t97 @store10
+            %p98: loc<f32> = gep %res_A, 0:i64
+            %v99: f32 = load %p98 @load14
+            %t100: i32 = add[nsw=true] %col, 2:i32
+            %t101: i32 = mul[nsw=true] %t100, %lda
+            %t102: i32 = add[nsw=true] %t48, %t101
+            %t103: i64 = cast %t102
+            %p104: ptr<f32> = gep %A, %t103
+            %v105: f32 = load %p104 @load15
+            %p106: loc<f32> = gep %res_x, 2:i64
+            %v107: f32 = load %p106 @load16
+            %t108: f32 = mul %v105, %v107
+            %t109: f32 = add %v99, %t108
+            store %p98, %t109 @store11
+            %p110: loc<f32> = gep %res_A, 0:i64
+            %v111: f32 = load %p110 @load17
+            %t112: i32 = add[nsw=true] %col, 3:i32
+            %t113: i32 = mul[nsw=true] %t112, %lda
+            %t114: i32 = add[nsw=true] %t48, %t113
+            %t115: i64 = cast %t114
+            %p116: ptr<f32> = gep %A, %t115
+            %v117: f32 = load %p116 @load18
+            %p118: loc<f32> = gep %res_x, 3:i64
+            %v119: f32 = load %p118 @load19
+            %t120: f32 = mul %v117, %v119
+            %t121: f32 = add %v111, %t120
+            store %p110, %t121 @store12
+            %t122: i32 = add[nsw=true] %t48, 64:i32
+            %t123: i1 = lt %t122, %m
+            if %t123 @if10 {
+              %p124: loc<f32> = gep %res_A, 1:i64
+              %v125: f32 = load %p124 @load20
+              %t126: i32 = add[nsw=true] %t48, 64:i32
+              %t127: i32 = add[nsw=true] %col, 0:i32
+              %t128: i32 = mul[nsw=true] %t127, %lda
+              %t129: i32 = add[nsw=true] %t126, %t128
+              %t130: i64 = cast %t129
+              %p131: ptr<f32> = gep %A, %t130
+              %v132: f32 = load %p131 @load21
+              %p133: loc<f32> = gep %res_x, 0:i64
+              %v134: f32 = load %p133 @load22
+              %t135: f32 = mul %v132, %v134
+              %t136: f32 = add %v125, %t135
+              store %p124, %t136 @store13
+              %p137: loc<f32> = gep %res_A, 1:i64
+              %v138: f32 = load %p137 @load23
+              %t139: i32 = add[nsw=true] %t48, 64:i32
+              %t140: i32 = add[nsw=true] %col, 1:i32
+              %t141: i32 = mul[nsw=true] %t140, %lda
+              %t142: i32 = add[nsw=true] %t139, %t141
+              %t143: i64 = cast %t142
+              %p144: ptr<f32> = gep %A, %t143
+              %v145: f32 = load %p144 @load24
+              %p146: loc<f32> = gep %res_x, 1:i64
+              %v147: f32 = load %p146 @load25
+              %t148: f32 = mul %v145, %v147
+              %t149: f32 = add %v138, %t148
+              store %p137, %t149 @store14
+              %p150: loc<f32> = gep %res_A, 1:i64
+              %v151: f32 = load %p150 @load26
+              %t152: i32 = add[nsw=true] %t48, 64:i32
+              %t153: i32 = add[nsw=true] %col, 2:i32
+              %t154: i32 = mul[nsw=true] %t153, %lda
+              %t155: i32 = add[nsw=true] %t152, %t154
+              %t156: i64 = cast %t155
+              %p157: ptr<f32> = gep %A, %t156
+              %v158: f32 = load %p157 @load27
+              %p159: loc<f32> = gep %res_x, 2:i64
+              %v160: f32 = load %p159 @load28
+              %t161: f32 = mul %v158, %v160
+              %t162: f32 = add %v151, %t161
+              store %p150, %t162 @store15
+              %p163: loc<f32> = gep %res_A, 1:i64
+              %v164: f32 = load %p163 @load29
+              %t165: i32 = add[nsw=true] %t48, 64:i32
+              %t166: i32 = add[nsw=true] %col, 3:i32
+              %t167: i32 = mul[nsw=true] %t166, %lda
+              %t168: i32 = add[nsw=true] %t165, %t167
+              %t169: i64 = cast %t168
+              %p170: ptr<f32> = gep %A, %t169
+              %v171: f32 = load %p170 @load30
+              %p172: loc<f32> = gep %res_x, 3:i64
+              %v173: f32 = load %p172 @load31
+              %t174: f32 = mul %v171, %v173
+              %t175: f32 = add %v164, %t174
+              store %p163, %t175 @store16
+              %t176: i32 = add[nsw=true] %t48, 128:i32
+              %t177: i1 = lt %t176, %m
+              if %t177 @if11 {
+                %p178: loc<f32> = gep %res_A, 2:i64
+                %v179: f32 = load %p178 @load32
+                %t180: i32 = add[nsw=true] %t48, 128:i32
+                %t181: i32 = add[nsw=true] %col, 0:i32
+                %t182: i32 = mul[nsw=true] %t181, %lda
+                %t183: i32 = add[nsw=true] %t180, %t182
+                %t184: i64 = cast %t183
+                %p185: ptr<f32> = gep %A, %t184
+                %v186: f32 = load %p185 @load33
+                %p187: loc<f32> = gep %res_x, 0:i64
+                %v188: f32 = load %p187 @load34
+                %t189: f32 = mul %v186, %v188
+                %t190: f32 = add %v179, %t189
+                store %p178, %t190 @store17
+                %p191: loc<f32> = gep %res_A, 2:i64
+                %v192: f32 = load %p191 @load35
+                %t193: i32 = add[nsw=true] %t48, 128:i32
+                %t194: i32 = add[nsw=true] %col, 1:i32
+                %t195: i32 = mul[nsw=true] %t194, %lda
+                %t196: i32 = add[nsw=true] %t193, %t195
+                %t197: i64 = cast %t196
+                %p198: ptr<f32> = gep %A, %t197
+                %v199: f32 = load %p198 @load36
+                %p200: loc<f32> = gep %res_x, 1:i64
+                %v201: f32 = load %p200 @load37
+                %t202: f32 = mul %v199, %v201
+                %t203: f32 = add %v192, %t202
+                store %p191, %t203 @store18
+                %p204: loc<f32> = gep %res_A, 2:i64
+                %v205: f32 = load %p204 @load38
+                %t206: i32 = add[nsw=true] %t48, 128:i32
+                %t207: i32 = add[nsw=true] %col, 2:i32
+                %t208: i32 = mul[nsw=true] %t207, %lda
+                %t209: i32 = add[nsw=true] %t206, %t208
+                %t210: i64 = cast %t209
+                %p211: ptr<f32> = gep %A, %t210
+                %v212: f32 = load %p211 @load39
+                %p213: loc<f32> = gep %res_x, 2:i64
+                %v214: f32 = load %p213 @load40
+                %t215: f32 = mul %v212, %v214
+                %t216: f32 = add %v205, %t215
+                store %p204, %t216 @store19
+                %p217: loc<f32> = gep %res_A, 2:i64
+                %v218: f32 = load %p217 @load41
+                %t219: i32 = add[nsw=true] %t48, 128:i32
+                %t220: i32 = add[nsw=true] %col, 3:i32
+                %t221: i32 = mul[nsw=true] %t220, %lda
+                %t222: i32 = add[nsw=true] %t219, %t221
+                %t223: i64 = cast %t222
+                %p224: ptr<f32> = gep %A, %t223
+                %v225: f32 = load %p224 @load42
+                %p226: loc<f32> = gep %res_x, 3:i64
+                %v227: f32 = load %p226 @load43
+                %t228: f32 = mul %v225, %v227
+                %t229: f32 = add %v218, %t228
+                store %p217, %t229 @store20
+                %t230: i32 = add[nsw=true] %t48, 192:i32
+                %t231: i1 = lt %t230, %m
+                if %t231 @if12 {
+                  %p232: loc<f32> = gep %res_A, 3:i64
+                  %v233: f32 = load %p232 @load44
+                  %t234: i32 = add[nsw=true] %t48, 192:i32
+                  %t235: i32 = add[nsw=true] %col, 0:i32
+                  %t236: i32 = mul[nsw=true] %t235, %lda
+                  %t237: i32 = add[nsw=true] %t234, %t236
+                  %t238: i64 = cast %t237
+                  %p239: ptr<f32> = gep %A, %t238
+                  %v240: f32 = load %p239 @load45
+                  %p241: loc<f32> = gep %res_x, 0:i64
+                  %v242: f32 = load %p241 @load46
+                  %t243: f32 = mul %v240, %v242
+                  %t244: f32 = add %v233, %t243
+                  store %p232, %t244 @store21
+                  %p245: loc<f32> = gep %res_A, 3:i64
+                  %v246: f32 = load %p245 @load47
+                  %t247: i32 = add[nsw=true] %t48, 192:i32
+                  %t248: i32 = add[nsw=true] %col, 1:i32
+                  %t249: i32 = mul[nsw=true] %t248, %lda
+                  %t250: i32 = add[nsw=true] %t247, %t249
+                  %t251: i64 = cast %t250
+                  %p252: ptr<f32> = gep %A, %t251
+                  %v253: f32 = load %p252 @load48
+                  %p254: loc<f32> = gep %res_x, 1:i64
+                  %v255: f32 = load %p254 @load49
+                  %t256: f32 = mul %v253, %v255
+                  %t257: f32 = add %v246, %t256
+                  store %p245, %t257 @store22
+                  %p258: loc<f32> = gep %res_A, 3:i64
+                  %v259: f32 = load %p258 @load50
+                  %t260: i32 = add[nsw=true] %t48, 192:i32
+                  %t261: i32 = add[nsw=true] %col, 2:i32
+                  %t262: i32 = mul[nsw=true] %t261, %lda
+                  %t263: i32 = add[nsw=true] %t260, %t262
+                  %t264: i64 = cast %t263
+                  %p265: ptr<f32> = gep %A, %t264
+                  %v266: f32 = load %p265 @load51
+                  %p267: loc<f32> = gep %res_x, 2:i64
+                  %v268: f32 = load %p267 @load52
+                  %t269: f32 = mul %v266, %v268
+                  %t270: f32 = add %v259, %t269
+                  store %p258, %t270 @store23
+                  %p271: loc<f32> = gep %res_A, 3:i64
+                  %v272: f32 = load %p271 @load53
+                  %t273: i32 = add[nsw=true] %t48, 192:i32
+                  %t274: i32 = add[nsw=true] %col, 3:i32
+                  %t275: i32 = mul[nsw=true] %t274, %lda
+                  %t276: i32 = add[nsw=true] %t273, %t275
+                  %t277: i64 = cast %t276
+                  %p278: ptr<f32> = gep %A, %t277
+                  %v279: f32 = load %p278 @load54
+                  %p280: loc<f32> = gep %res_x, 3:i64
+                  %v281: f32 = load %p280 @load55
+                  %t282: f32 = mul %v279, %v281
+                  %t283: f32 = add %v272, %t282
+                  store %p271, %t283 @store24
+                }
+              }
+            }
+          }
+          %t284: i32 = add[nsw=true] %col, 64:i32
+        }
+        %t286: i1 = gt %n_tail, 0:i32
+        if %t286 @if13 {
+          %p287: loc<f32> = gep %res_x, 0:i64
+          %p288: loc<f32> = gep %res_x, 1:i64
+          %p289: loc<f32> = gep %res_x, 2:i64
+          %p290: loc<f32> = gep %res_x, 3:i64
+          store %p290, 0.0:f32 @store25
+          %p291: loc<f32> = gep %res_x, 3:i64
+          %v292: f32 = load %p291 @load56
+          store %p289, %v292 @store26
+          %p293: loc<f32> = gep %res_x, 2:i64
+          %v294: f32 = load %p293 @load57
+          store %p288, %v294 @store27
+          %p295: loc<f32> = gep %res_x, 1:i64
+          %v296: f32 = load %p295 @load58
+          store %p287, %v296 @store28
+          %t297: i32 = add[nsw=true] %col285, 0:i32
+          %t298: i1 = lt %t297, %n
+          if %t298 @if14 {
+            %p299: loc<f32> = gep %res_x, 0:i64
+            %t300: i32 = add[nsw=true] %col285, 0:i32
+            %t301: i64 = cast %t300
+            %p302: ptr<f32> = gep %x, %t301
+            %v303: f32 = load %p302 @load59
+            store %p299, %v303 @store29
+            %t304: i32 = add[nsw=true] %col285, 1:i32
+            %t305: i1 = lt %t304, %n
+            if %t305 @if15 {
+              %p306: loc<f32> = gep %res_x, 1:i64
+              %t307: i32 = add[nsw=true] %col285, 1:i32
+              %t308: i64 = cast %t307
+              %p309: ptr<f32> = gep %x, %t308
+              %v310: f32 = load %p309 @load60
+              store %p306, %v310 @store30
+              %t311: i32 = add[nsw=true] %col285, 2:i32
+              %t312: i1 = lt %t311, %n
+              if %t312 @if16 {
+                %p313: loc<f32> = gep %res_x, 2:i64
+                %t314: i32 = add[nsw=true] %col285, 2:i32
+                %t315: i64 = cast %t314
+                %p316: ptr<f32> = gep %x, %t315
+                %v317: f32 = load %p316 @load61
+                store %p313, %v317 @store31
+                %t318: i32 = add[nsw=true] %col285, 3:i32
+                %t319: i1 = lt %t318, %n
+                if %t319 @if17 {
+                  %p320: loc<f32> = gep %res_x, 3:i64
+                  %t321: i32 = add[nsw=true] %col285, 3:i32
+                  %t322: i64 = cast %t321
+                  %p323: ptr<f32> = gep %x, %t322
+                  %v324: f32 = load %p323 @load62
+                  store %p320, %v324 @store32
+                }
+              }
+            }
+          }
+          %t325: i1 = lt %t48, %m
+          if %t325 @if18 {
+            %p326: loc<f32> = gep %res_A, 0:i64
+            %v327: f32 = load %p326 @load63
+            %t328: i32 = add[nsw=true] %col285, 0:i32
+            %t329: i32 = mul[nsw=true] %t328, %lda
+            %t330: i32 = add[nsw=true] %col285, 0:i32
+            %t331: i1 = lt %t330, %n
+            %t332: i32 = cast %t331
+            %t333: i32 = mul[nsw=true] %t329, %t332
+            %t334: i32 = add[nsw=true] %t48, %t333
+            %t335: i64 = cast %t334
+            %p336: ptr<f32> = gep %A, %t335
+            %v337: f32 = load %p336 @load64
+            %p338: loc<f32> = gep %res_x, 0:i64
+            %v339: f32 = load %p338 @load65
+            %t340: f32 = mul %v337, %v339
+            %t341: f32 = add %v327, %t340
+            store %p326, %t341 @store33
+            %p342: loc<f32> = gep %res_A, 0:i64
+            %v343: f32 = load %p342 @load66
+            %t344: i32 = add[nsw=true] %col285, 1:i32
+            %t345: i32 = mul[nsw=true] %t344, %lda
+            %t346: i32 = add[nsw=true] %col285, 1:i32
+            %t347: i1 = lt %t346, %n
+            %t348: i32 = cast %t347
+            %t349: i32 = mul[nsw=true] %t345, %t348
+            %t350: i32 = add[nsw=true] %t48, %t349
+            %t351: i64 = cast %t350
+            %p352: ptr<f32> = gep %A, %t351
+            %v353: f32 = load %p352 @load67
+            %p354: loc<f32> = gep %res_x, 1:i64
+            %v355: f32 = load %p354 @load68
+            %t356: f32 = mul %v353, %v355
+            %t357: f32 = add %v343, %t356
+            store %p342, %t357 @store34
+            %p358: loc<f32> = gep %res_A, 0:i64
+            %v359: f32 = load %p358 @load69
+            %t360: i32 = add[nsw=true] %col285, 2:i32
+            %t361: i32 = mul[nsw=true] %t360, %lda
+            %t362: i32 = add[nsw=true] %col285, 2:i32
+            %t363: i1 = lt %t362, %n
+            %t364: i32 = cast %t363
+            %t365: i32 = mul[nsw=true] %t361, %t364
+            %t366: i32 = add[nsw=true] %t48, %t365
+            %t367: i64 = cast %t366
+            %p368: ptr<f32> = gep %A, %t367
+            %v369: f32 = load %p368 @load70
+            %p370: loc<f32> = gep %res_x, 2:i64
+            %v371: f32 = load %p370 @load71
+            %t372: f32 = mul %v369, %v371
+            %t373: f32 = add %v359, %t372
+            store %p358, %t373 @store35
+            %p374: loc<f32> = gep %res_A, 0:i64
+            %v375: f32 = load %p374 @load72
+            %t376: i32 = add[nsw=true] %col285, 3:i32
+            %t377: i32 = mul[nsw=true] %t376, %lda
+            %t378: i32 = add[nsw=true] %col285, 3:i32
+            %t379: i1 = lt %t378, %n
+            %t380: i32 = cast %t379
+            %t381: i32 = mul[nsw=true] %t377, %t380
+            %t382: i32 = add[nsw=true] %t48, %t381
+            %t383: i64 = cast %t382
+            %p384: ptr<f32> = gep %A, %t383
+            %v385: f32 = load %p384 @load73
+            %p386: loc<f32> = gep %res_x, 3:i64
+            %v387: f32 = load %p386 @load74
+            %t388: f32 = mul %v385, %v387
+            %t389: f32 = add %v375, %t388
+            store %p374, %t389 @store36
+            %t390: i32 = add[nsw=true] %t48, 64:i32
+            %t391: i1 = lt %t390, %m
+            if %t391 @if19 {
+              %p392: loc<f32> = gep %res_A, 1:i64
+              %v393: f32 = load %p392 @load75
+              %t394: i32 = add[nsw=true] %t48, 64:i32
+              %t395: i32 = add[nsw=true] %col285, 0:i32
+              %t396: i32 = mul[nsw=true] %t395, %lda
+              %t397: i32 = add[nsw=true] %col285, 0:i32
+              %t398: i1 = lt %t397, %n
+              %t399: i32 = cast %t398
+              %t400: i32 = mul[nsw=true] %t396, %t399
+              %t401: i32 = add[nsw=true] %t394, %t400
+              %t402: i64 = cast %t401
+              %p403: ptr<f32> = gep %A, %t402
+              %v404: f32 = load %p403 @load76
+              %p405: loc<f32> = gep %res_x, 0:i64
+              %v406: f32 = load %p405 @load77
+              %t407: f32 = mul %v404, %v406
+              %t408: f32 = add %v393, %t407
+              store %p392, %t408 @store37
+              %p409: loc<f32> = gep %res_A, 1:i64
+              %v410: f32 = load %p409 @load78
+              %t411: i32 = add[nsw=true] %t48, 64:i32
+              %t412: i32 = add[nsw=true] %col285, 1:i32
+              %t413: i32 = mul[nsw=true] %t412, %lda
+              %t414: i32 = add[nsw=true] %col285, 1:i32
+              %t415: i1 = lt %t414, %n
+              %t416: i32 = cast %t415
+              %t417: i32 = mul[nsw=true] %t413, %t416
+              %t418: i32 = add[nsw=true] %t411, %t417
+              %t419: i64 = cast %t418
+              %p420: ptr<f32> = gep %A, %t419
+              %v421: f32 = load %p420 @load79
+              %p422: loc<f32> = gep %res_x, 1:i64
+              %v423: f32 = load %p422 @load80
+              %t424: f32 = mul %v421, %v423
+              %t425: f32 = add %v410, %t424
+              store %p409, %t425 @store38
+              %p426: loc<f32> = gep %res_A, 1:i64
+              %v427: f32 = load %p426 @load81
+              %t428: i32 = add[nsw=true] %t48, 64:i32
+              %t429: i32 = add[nsw=true] %col285, 2:i32
+              %t430: i32 = mul[nsw=true] %t429, %lda
+              %t431: i32 = add[nsw=true] %col285, 2:i32
+              %t432: i1 = lt %t431, %n
+              %t433: i32 = cast %t432
+              %t434: i32 = mul[nsw=true] %t430, %t433
+              %t435: i32 = add[nsw=true] %t428, %t434
+              %t436: i64 = cast %t435
+              %p437: ptr<f32> = gep %A, %t436
+              %v438: f32 = load %p437 @load82
+              %p439: loc<f32> = gep %res_x, 2:i64
+              %v440: f32 = load %p439 @load83
+              %t441: f32 = mul %v438, %v440
+              %t442: f32 = add %v427, %t441
+              store %p426, %t442 @store39
+              %p443: loc<f32> = gep %res_A, 1:i64
+              %v444: f32 = load %p443 @load84
+              %t445: i32 = add[nsw=true] %t48, 64:i32
+              %t446: i32 = add[nsw=true] %col285, 3:i32
+              %t447: i32 = mul[nsw=true] %t446, %lda
+              %t448: i32 = add[nsw=true] %col285, 3:i32
+              %t449: i1 = lt %t448, %n
+              %t450: i32 = cast %t449
+              %t451: i32 = mul[nsw=true] %t447, %t450
+              %t452: i32 = add[nsw=true] %t445, %t451
+              %t453: i64 = cast %t452
+              %p454: ptr<f32> = gep %A, %t453
+              %v455: f32 = load %p454 @load85
+              %p456: loc<f32> = gep %res_x, 3:i64
+              %v457: f32 = load %p456 @load86
+              %t458: f32 = mul %v455, %v457
+              %t459: f32 = add %v444, %t458
+              store %p443, %t459 @store40
+              %t460: i32 = add[nsw=true] %t48, 128:i32
+              %t461: i1 = lt %t460, %m
+              if %t461 @if20 {
+                %p462: loc<f32> = gep %res_A, 2:i64
+                %v463: f32 = load %p462 @load87
+                %t464: i32 = add[nsw=true] %t48, 128:i32
+                %t465: i32 = add[nsw=true] %col285, 0:i32
+                %t466: i32 = mul[nsw=true] %t465, %lda
+                %t467: i32 = add[nsw=true] %col285, 0:i32
+                %t468: i1 = lt %t467, %n
+                %t469: i32 = cast %t468
+                %t470: i32 = mul[nsw=true] %t466, %t469
+                %t471: i32 = add[nsw=true] %t464, %t470
+                %t472: i64 = cast %t471
+                %p473: ptr<f32> = gep %A, %t472
+                %v474: f32 = load %p473 @load88
+                %p475: loc<f32> = gep %res_x, 0:i64
+                %v476: f32 = load %p475 @load89
+                %t477: f32 = mul %v474, %v476
+                %t478: f32 = add %v463, %t477
+                store %p462, %t478 @store41
+                %p479: loc<f32> = gep %res_A, 2:i64
+                %v480: f32 = load %p479 @load90
+                %t481: i32 = add[nsw=true] %t48, 128:i32
+                %t482: i32 = add[nsw=true] %col285, 1:i32
+                %t483: i32 = mul[nsw=true] %t482, %lda
+                %t484: i32 = add[nsw=true] %col285, 1:i32
+                %t485: i1 = lt %t484, %n
+                %t486: i32 = cast %t485
+                %t487: i32 = mul[nsw=true] %t483, %t486
+                %t488: i32 = add[nsw=true] %t481, %t487
+                %t489: i64 = cast %t488
+                %p490: ptr<f32> = gep %A, %t489
+                %v491: f32 = load %p490 @load91
+                %p492: loc<f32> = gep %res_x, 1:i64
+                %v493: f32 = load %p492 @load92
+                %t494: f32 = mul %v491, %v493
+                %t495: f32 = add %v480, %t494
+                store %p479, %t495 @store42
+                %p496: loc<f32> = gep %res_A, 2:i64
+                %v497: f32 = load %p496 @load93
+                %t498: i32 = add[nsw=true] %t48, 128:i32
+                %t499: i32 = add[nsw=true] %col285, 2:i32
+                %t500: i32 = mul[nsw=true] %t499, %lda
+                %t501: i32 = add[nsw=true] %col285, 2:i32
+                %t502: i1 = lt %t501, %n
+                %t503: i32 = cast %t502
+                %t504: i32 = mul[nsw=true] %t500, %t503
+                %t505: i32 = add[nsw=true] %t498, %t504
+                %t506: i64 = cast %t505
+                %p507: ptr<f32> = gep %A, %t506
+                %v508: f32 = load %p507 @load94
+                %p509: loc<f32> = gep %res_x, 2:i64
+                %v510: f32 = load %p509 @load95
+                %t511: f32 = mul %v508, %v510
+                %t512: f32 = add %v497, %t511
+                store %p496, %t512 @store43
+                %p513: loc<f32> = gep %res_A, 2:i64
+                %v514: f32 = load %p513 @load96
+                %t515: i32 = add[nsw=true] %t48, 128:i32
+                %t516: i32 = add[nsw=true] %col285, 3:i32
+                %t517: i32 = mul[nsw=true] %t516, %lda
+                %t518: i32 = add[nsw=true] %col285, 3:i32
+                %t519: i1 = lt %t518, %n
+                %t520: i32 = cast %t519
+                %t521: i32 = mul[nsw=true] %t517, %t520
+                %t522: i32 = add[nsw=true] %t515, %t521
+                %t523: i64 = cast %t522
+                %p524: ptr<f32> = gep %A, %t523
+                %v525: f32 = load %p524 @load97
+                %p526: loc<f32> = gep %res_x, 3:i64
+                %v527: f32 = load %p526 @load98
+                %t528: f32 = mul %v525, %v527
+                %t529: f32 = add %v514, %t528
+                store %p513, %t529 @store44
+                %t530: i32 = add[nsw=true] %t48, 192:i32
+                %t531: i1 = lt %t530, %m
+                if %t531 @if21 {
+                  %p532: loc<f32> = gep %res_A, 3:i64
+                  %v533: f32 = load %p532 @load99
+                  %t534: i32 = add[nsw=true] %t48, 192:i32
+                  %t535: i32 = add[nsw=true] %col285, 0:i32
+                  %t536: i32 = mul[nsw=true] %t535, %lda
+                  %t537: i32 = add[nsw=true] %col285, 0:i32
+                  %t538: i1 = lt %t537, %n
+                  %t539: i32 = cast %t538
+                  %t540: i32 = mul[nsw=true] %t536, %t539
+                  %t541: i32 = add[nsw=true] %t534, %t540
+                  %t542: i64 = cast %t541
+                  %p543: ptr<f32> = gep %A, %t542
+                  %v544: f32 = load %p543 @load100
+                  %p545: loc<f32> = gep %res_x, 0:i64
+                  %v546: f32 = load %p545 @load101
+                  %t547: f32 = mul %v544, %v546
+                  %t548: f32 = add %v533, %t547
+                  store %p532, %t548 @store45
+                  %p549: loc<f32> = gep %res_A, 3:i64
+                  %v550: f32 = load %p549 @load102
+                  %t551: i32 = add[nsw=true] %t48, 192:i32
+                  %t552: i32 = add[nsw=true] %col285, 1:i32
+                  %t553: i32 = mul[nsw=true] %t552, %lda
+                  %t554: i32 = add[nsw=true] %col285, 1:i32
+                  %t555: i1 = lt %t554, %n
+                  %t556: i32 = cast %t555
+                  %t557: i32 = mul[nsw=true] %t553, %t556
+                  %t558: i32 = add[nsw=true] %t551, %t557
+                  %t559: i64 = cast %t558
+                  %p560: ptr<f32> = gep %A, %t559
+                  %v561: f32 = load %p560 @load103
+                  %p562: loc<f32> = gep %res_x, 1:i64
+                  %v563: f32 = load %p562 @load104
+                  %t564: f32 = mul %v561, %v563
+                  %t565: f32 = add %v550, %t564
+                  store %p549, %t565 @store46
+                  %p566: loc<f32> = gep %res_A, 3:i64
+                  %v567: f32 = load %p566 @load105
+                  %t568: i32 = add[nsw=true] %t48, 192:i32
+                  %t569: i32 = add[nsw=true] %col285, 2:i32
+                  %t570: i32 = mul[nsw=true] %t569, %lda
+                  %t571: i32 = add[nsw=true] %col285, 2:i32
+                  %t572: i1 = lt %t571, %n
+                  %t573: i32 = cast %t572
+                  %t574: i32 = mul[nsw=true] %t570, %t573
+                  %t575: i32 = add[nsw=true] %t568, %t574
+                  %t576: i64 = cast %t575
+                  %p577: ptr<f32> = gep %A, %t576
+                  %v578: f32 = load %p577 @load106
+                  %p579: loc<f32> = gep %res_x, 2:i64
+                  %v580: f32 = load %p579 @load107
+                  %t581: f32 = mul %v578, %v580
+                  %t582: f32 = add %v567, %t581
+                  store %p566, %t582 @store47
+                  %p583: loc<f32> = gep %res_A, 3:i64
+                  %v584: f32 = load %p583 @load108
+                  %t585: i32 = add[nsw=true] %t48, 192:i32
+                  %t586: i32 = add[nsw=true] %col285, 3:i32
+                  %t587: i32 = mul[nsw=true] %t586, %lda
+                  %t588: i32 = add[nsw=true] %col285, 3:i32
+                  %t589: i1 = lt %t588, %n
+                  %t590: i32 = cast %t589
+                  %t591: i32 = mul[nsw=true] %t587, %t590
+                  %t592: i32 = add[nsw=true] %t585, %t591
+                  %t593: i64 = cast %t592
+                  %p594: ptr<f32> = gep %A, %t593
+                  %v595: f32 = load %p594 @load109
+                  %p596: loc<f32> = gep %res_x, 3:i64
+                  %v597: f32 = load %p596 @load110
+                  %t598: f32 = mul %v595, %v597
+                  %t599: f32 = add %v584, %t598
+                  store %p583, %t599 @store48
+                }
+              }
+            }
+          }
+        }
+        %t600: i32 = mul[nsw=true] %ty, 64:i32
+        %t601: i32 = mul[nsw=true] %t600, 4:i32
+        %t602: i32 = add[nsw=true] %tx, %t601
+        %t603: i64 = cast %t602
+        %p604: lds<f32> = gep %sdata, %t603
+        %p605: loc<f32> = gep %res_A, 0:i64
+        %v606: f32 = load %p605 @load111
+        store %p604, %v606 @store49
+        %t607: i32 = add[nsw=true] %tx, 64:i32
+        %t608: i32 = mul[nsw=true] %ty, 64:i32
+        %t609: i32 = mul[nsw=true] %t608, 4:i32
+        %t610: i32 = add[nsw=true] %t607, %t609
+        %t611: i64 = cast %t610
+        %p612: lds<f32> = gep %sdata, %t611
+        %p613: loc<f32> = gep %res_A, 1:i64
+        %v614: f32 = load %p613 @load112
+        store %p612, %v614 @store50
+        %t615: i32 = add[nsw=true] %tx, 128:i32
+        %t616: i32 = mul[nsw=true] %ty, 64:i32
+        %t617: i32 = mul[nsw=true] %t616, 4:i32
+        %t618: i32 = add[nsw=true] %t615, %t617
+        %t619: i64 = cast %t618
+        %p620: lds<f32> = gep %sdata, %t619
+        %p621: loc<f32> = gep %res_A, 2:i64
+        %v622: f32 = load %p621 @load113
+        store %p620, %v622 @store51
+        %t623: i32 = add[nsw=true] %tx, 192:i32
+        %t624: i32 = mul[nsw=true] %ty, 64:i32
+        %t625: i32 = mul[nsw=true] %t624, 4:i32
+        %t626: i32 = add[nsw=true] %t623, %t625
+        %t627: i64 = cast %t626
+        %p628: lds<f32> = gep %sdata, %t627
+        %p629: loc<f32> = gep %res_A, 3:i64
+        %v630: f32 = load %p629 @load114
+        store %p628, %v630 @store52
+        barrier
+        %t631: i1 = lt %thread_id, 256:i32
+        if %t631 @if22 {
+          loop @loop1 {
+            carry %i: i32 = 1:i32, %t642 -> %i643
+            %t632: i1 = lt %i, 16:i32
+            while %t632
+            %t633: i64 = cast %thread_id
+            %p634: lds<f32> = gep %sdata, %t633
+            %v635: f32 = load %p634 @load115
+            %t636: i32 = mul[nsw=true] 256:i32, %i
+            %t637: i32 = add[nsw=true] %thread_id, %t636
+            %t638: i64 = cast %t637
+            %p639: lds<f32> = gep %sdata, %t638
+            %v640: f32 = load %p639 @load116
+            %t641: f32 = add %v635, %v640
+            store %p634, %t641 @store53
+            %t642: i32 = add[nsw=true] %i, 1:i32
+          }
+          %bid_x644: u32 = bid.x
+          %t645: u32 = mul %bid_x644, 64:u32
+          %t646: u32 = mul %t645, 4:u32
+          %t647: u32 = cast %thread_id
+          %t648: u32 = add %t646, %t647
+          %t649: i32 = cast %t648
+          %t650: i1 = lt %t649, %m
+          if %t650 @if23 {
+            %t651: i64 = cast %t649
+            %p652: ptr<f32> = gep %y, %t651
+            %t653: i1 = ne %beta, 0.0:f32
+            if %t653 @if24 {
+              %t654: i64 = cast %thread_id
+              %p655: lds<f32> = gep %sdata, %t654
+              %v656: f32 = load %p655 @load117
+              %t657: f32 = mul %alpha, %v656
+              %t658: i64 = cast %t649
+              %p659: ptr<f32> = gep %y, %t658
+              %v660: f32 = load %p659 @load118
+              %t661: f32 = mul %beta, %v660
+              %t662: f32 = add %t657, %t661
+            } else {
+              %t663: i64 = cast %thread_id
+              %p664: lds<f32> = gep %sdata, %t663
+              %v665: f32 = load %p664 @load119
+              %t666: f32 = mul %alpha, %v665
+            }
+            merge %t667: f32 = %t662, %t666
+            store %p652, %t667 @store54
+          }
+        }
+        merge %ind668: i32 = %t649, %t48
+      }
+      merge %t669: i1 = false:i1, %t27
+    }
+    merge %t670: i1 = false:i1, %t8
+  }
+  merge %t671: i1 = %t670, %t3
+}

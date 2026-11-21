@@ -1,0 +1,42 @@
+kir func mo_prelu_bwd(%input: ptr<f32>, %weight: ptr<f32>, %output_grad: ptr<f32>, %input_grad: ptr<f32>, %weight_grad_collector: ptr<f32>, %N: u64) {
+  %bid_x: u32 = bid.x
+  %bdim_x: u32 = bdim.x
+  %t: u32 = mul %bid_x, %bdim_x
+  %tid_x: u32 = tid.x
+  %t0: u32 = add %t, %tid_x
+  %gid: u64 = cast %t0
+  %t2: i1 = ge %gid, %N
+  if %t2 @if0 {
+  }
+  merge %t3: i1 = true:i1, false:i1
+  %t4: i1 = not %t3
+  if %t4 @if1 {
+    %t5: i64 = cast %gid
+    %p: ptr<f32> = gep %input, %t5
+    %v: f32 = load %p @load0
+    %t6: i64 = cast %gid
+    %p7: ptr<f32> = gep %output_grad, %t6
+    %v8: f32 = load %p7 @load1
+    %c: i1 = ne %input_grad, 0:ptr<f32>
+    if %c @if2 {
+      %p9: ptr<f32> = gep %weight, 0:i64
+      %v10: f32 = load %p9 @load2
+      %t11: i1 = gt %v, 0.0:f32
+      %t12: f32 = mul %v10, %v8
+      %input_grad_v: f32 = select %t11, %v8, %t12
+      %t14: i64 = cast %gid
+      %p15: ptr<f32> = gep %input_grad, %t14
+      store %p15, %input_grad_v @store0
+    }
+    %c16: i1 = ne %weight_grad_collector, 0:ptr<f32>
+    if %c16 @if3 {
+      %t17: i64 = cast %gid
+      %p18: ptr<f32> = gep %weight_grad_collector, %t17
+      %t19: i1 = gt %v, 0.0:f32
+      %t20: f32 = mul %v, %v8
+      %t21: f32 = select %t19, 0.0:f32, %t20
+      store %p18, %t21 @store1
+    }
+  }
+  merge %t22: i1 = false:i1, %t3
+}

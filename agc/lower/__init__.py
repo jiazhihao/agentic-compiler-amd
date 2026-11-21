@@ -42,6 +42,13 @@ def normalize(f: Func, plan: Plan) -> Func:
     as the plan says, decision sites named. Sites are stable: they depend on the source only."""
     simplify(f)
     unroll_constant_loops(f)
+    from ..kir import locals as local_objects
+    left = local_objects.promote(f)                        # structs, arrays, address-taken variables: back to values
+    if left:
+        unroll_constant_loops(f)
+        left = local_objects.promote(f)
+    if left:
+        raise LowerError("a thread-local object stays in memory, which the lowering does not provide: " + "; ".join(left[:4]))
     if plan.choose("kernel", "fp.contract", ["on", "off"]) == "on":
         contract(f)
     from ..kir import mathlib
@@ -108,12 +115,15 @@ def lower_kir(f: Func, overrides: dict | None = None, arch: str = "gfx950", plan
 
 
 def compile_hip(m: Manifest, overrides: dict | None = None, source: str | None = None, flags: list | None = None) -> Lowered:
-    """The manifest's HIP source through agc's own path. Raises `FrontendError`, `LowerError` or `PlanError`."""
+    """The manifest's HIP source (or another text of the same kernel, `source`: its includes are found next to
+    the manifest's source) through agc's own path. Raises `FrontendError`, `LowerError` or `PlanError`."""
+    from pathlib import Path
     from ..frontend import lower_hip
     src = source or m.source
     if src is None:
         raise LowerError(f"manifest {m.name} has no HIP source")
-    f = lower_hip(src, m.entry, flags=[*m.hip_flags, *(flags or [])], mcpu=m.arch)
+    dirs = (Path(m.source).resolve().parent,) if source and m.source else ()
+    f = lower_hip(src, m.entry, flags=[*m.hip_flags, *(flags or [])], mcpu=m.arch, include_dirs=dirs)
     check_signature(m, f)
     return lower_kir(f, overrides, m.arch)
 

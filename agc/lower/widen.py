@@ -19,7 +19,7 @@ its own allocation (design D17; amdclang needs `__restrict__` to know it).
 from __future__ import annotations
 
 from ..kir.ir import Const, Func, If, Loop, Namer, Op, Value, results, vec
-from ..kir.passes import _dce
+from ..kir.passes import _dce, _put
 from ..wir import ops as wops
 from .plan import Plan
 
@@ -253,7 +253,7 @@ def forward_loads(w: Func) -> Func:
                     key = (a.base, a.index, a.scale, a.off, str(s.args[0].type.elem))
                     if s.name == "load":
                         if key in avail:
-                            subst[id(s.result)] = avail[key][1]
+                            _put(subst, s.result, avail[key][1])
                             continue
                         avail[key] = (a, s.result)
                     else:

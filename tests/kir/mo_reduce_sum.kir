@@ -1,0 +1,133 @@
+kir func mo_reduce_sum(%input: ptr<f32>, %output: ptr<f32>, %N: u64) {
+  %tmp80: loc<f32> = local[name=tmp21, bytes=4]
+  %index66: loc<i32> = local[name=index20, bytes=4]
+  %self60: loc<i32> = local[name=self19, bytes=4]
+  %tmp53: loc<u8> = local[name=tmp17, bytes=1]
+  %val50: loc<f32> = local[name=val15, bytes=4]
+  %tmp34: loc<f32> = local[name=tmp12, bytes=4]
+  %index21: loc<i32> = local[name=index11, bytes=4]
+  %self16: loc<i32> = local[name=self10, bytes=4]
+  %tmp: loc<u8> = local[name=tmp8, bytes=1]
+  %val: loc<f32> = local[name=val6, bytes=4]
+  %shared: lds<f32> = shared[name=shared4, bytes=16]
+  %bid_x: u32 = bid.x
+  %bdim_x: u32 = bdim.x
+  %t: u32 = mul %bid_x, %bdim_x
+  %tid_x: u32 = tid.x
+  %t0: u32 = add %t, %tid_x
+  %gid: u64 = cast %t0
+  %t2: i1 = lt %gid, %N
+  if %t2 @if0 {
+    %t3: i64 = cast %gid
+    %p: ptr<f32> = gep %input, %t3
+    %v: f32 = load %p @load0
+  }
+  merge %t4: f32 = %v, 0.0:f32
+  %tid_x5: u32 = tid.x
+  %t6: u64 = cast %tid_x5
+  %t7: u64 = add 0:u64, %t6
+  %lane: u64 = rem %t7, 64:u64
+  %wid: u64 = div %t7, 64:u64
+  store %val, %t4 @store0
+  loop @loop0 {
+    carry %d: i32 = 32:i32, %t38 -> %d39
+    %t10: i1 = ge %d, 1:i32
+    while %t10
+    %v11: f32 = load %val @load1
+    %t12: i32 = bitcast %v11
+    %t13: u32 = cast %d
+    %lane14: u32 = laneid
+    %self: i32 = cast %lane14
+    store %self16, %self @store1
+    %v17: i32 = load %self16 @load2
+    %t18: u32 = cast %v17
+    %t19: u32 = add %t18, %t13
+    %index: i32 = cast %t19
+    store %index21, %index @store2
+    %v22: i32 = load %self16 @load3
+    %t23: i32 = and %v22, 63:i32
+    %t24: u32 = cast %t23
+    %t25: u32 = add %t24, %t13
+    %t26: i32 = cast %t25
+    %t27: i1 = ge %t26, 64:i32
+    %v28: i32 = load %self16 @load4
+    %v29: i32 = load %index21 @load5
+    %t30: i32 = select %t27, %v28, %v29
+    store %index21, %t30 @store3
+    %v31: i32 = load %index21 @load6
+    %t32: i32 = shl %v31, 2:i32
+    %other: i32 = waveread %t12, %t32
+    %t33: f32 = bitcast %other
+    store %tmp34, %t33 @store4
+    %v35: f32 = load %val @load7
+    %v36: f32 = load %tmp34 @load8
+    %t37: f32 = add %v35, %v36
+    store %val, %t37 @store5
+    %t38: i32 = shr %d, 1:i32
+  }
+  %v40: f32 = load %val @load9
+  %t41: i1 = eq %lane, 0:u64
+  if %t41 @if1 {
+    %t42: i64 = cast %wid
+    %p43: lds<f32> = gep %shared, %t42
+    store %p43, %v40 @store6
+  }
+  barrier
+  %t44: i1 = lt %t7, 4:u64
+  if %t44 @if2 {
+    %t45: i64 = cast %lane
+    %p46: lds<f32> = gep %shared, %t45
+    %v47: f32 = load %p46 @load10
+  }
+  merge %t48: f32 = %v47, 0.0:f32
+  %t49: i1 = eq %wid, 0:u64
+  if %t49 @if3 {
+    store %val50, %t48 @store7
+    loop @loop1 {
+      carry %d51: i32 = 32:i32, %t84 -> %d51_85
+      %t52: i1 = ge %d51, 1:i32
+      while %t52
+      %v54: f32 = load %val50 @load11
+      %t55: i32 = bitcast %v54
+      %t56: u32 = cast %d51
+      %lane57: u32 = laneid
+      %self59: i32 = cast %lane57
+      store %self60, %self59 @store8
+      %v61: i32 = load %self60 @load12
+      %t62: u32 = cast %v61
+      %t63: u32 = add %t62, %t56
+      %index65: i32 = cast %t63
+      store %index66, %index65 @store9
+      %v67: i32 = load %self60 @load13
+      %t68: i32 = and %v67, 63:i32
+      %t69: u32 = cast %t68
+      %t70: u32 = add %t69, %t56
+      %t71: i32 = cast %t70
+      %t72: i1 = ge %t71, 64:i32
+      %v73: i32 = load %self60 @load14
+      %v74: i32 = load %index66 @load15
+      %t75: i32 = select %t72, %v73, %v74
+      store %index66, %t75 @store10
+      %v76: i32 = load %index66 @load16
+      %t77: i32 = shl %v76, 2:i32
+      %other78: i32 = waveread %t55, %t77
+      %t79: f32 = bitcast %other78
+      store %tmp80, %t79 @store11
+      %v81: f32 = load %val50 @load17
+      %v82: f32 = load %tmp80 @load18
+      %t83: f32 = add %v81, %v82
+      store %val50, %t83 @store12
+      %t84: i32 = shr %d51, 1:i32
+    }
+    %v86: f32 = load %val50 @load19
+  }
+  merge %val87: f32 = %v86, %t48
+  %tid_x88: u32 = tid.x
+  %t89: i1 = eq %tid_x88, 0:u32
+  if %t89 @if4 {
+    %bid_x90: u32 = bid.x
+    %t91: i64 = cast %bid_x90
+    %p92: ptr<f32> = gep %output, %t91
+    store %p92, %val87 @store13
+  }
+}

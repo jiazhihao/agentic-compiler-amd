@@ -1,0 +1,87 @@
+kir func mo_t5_layernorm(%x: ptr<f32>, %weight: ptr<f32>, %y: ptr<f32>, %rstd: ptr<f32>, %eps: f32, %inner_size: u64, %mode: i32) {
+  %ltmp: lds<f32> = shared[name=ltmp3, bytes=1024]
+  %bid_x: u32 = bid.x
+  %t: u64 = cast %bid_x
+  %tid_x: u32 = tid.x
+  %lid: u64 = cast %tid_x
+  loop @loop0 {
+    carry %i: u64 = %lid, %t7 -> %i8
+    carry %pvar: f32 = 0.0:f32, %t6 -> %pvar9
+    %t1: i1 = lt %i, %inner_size
+    while %t1
+    %t2: u64 = mul %t, %inner_size
+    %x_idx: u64 = add %t2, %i
+    %t4: i64 = cast %x_idx
+    %p: ptr<f32> = gep %x, %t4
+    %v: f32 = load %p @load0
+    %t5: f32 = mul %v, %v
+    %t6: f32 = add %pvar, %t5
+    %t7: u64 = add %i, 256:u64
+  }
+  %t10: i64 = cast %lid
+  %p11: lds<f32> = gep %ltmp, %t10
+  store %p11, %pvar9 @store0
+  barrier
+  loop @loop1 {
+    carry %i12: u32 = 128:u32, %t25 -> %i12_26
+    %t13: i1 = gt %i12, 0:u32
+    while %t13
+    %t14: u64 = cast %i12
+    %t15: i1 = lt %lid, %t14
+    if %t15 @if0 {
+      %t16: i64 = cast %lid
+      %p17: lds<f32> = gep %ltmp, %t16
+      %v18: f32 = load %p17 @load1
+      %t19: u64 = cast %i12
+      %t20: u64 = add %lid, %t19
+      %t21: i64 = cast %t20
+      %p22: lds<f32> = gep %ltmp, %t21
+      %v23: f32 = load %p22 @load2
+      %t24: f32 = add %v18, %v23
+      store %p17, %t24 @store1
+    }
+    barrier
+    %t25: u32 = shr %i12, 1:u32
+  }
+  %p27: lds<f32> = gep %ltmp, 0:i64
+  %v28: f32 = load %p27 @load3
+  %t29: f32 = cast %inner_size
+  %t30: f32 = div %v28, %t29 @div0
+  %t31: f32 = add %t30, %eps
+  %t32: f64 = cast %t31
+  %rsqrt: f64 = rsqrt %t32
+  %prstd: f32 = cast %rsqrt
+  %t34: i1 = eq %lid, 0:u64
+  if %t34 @if1 {
+    %t35: i1 = ne %rstd, 0:ptr<f32>
+    if %t35 @if2 {
+      %t36: i64 = cast %t
+      %p37: ptr<f32> = gep %rstd, %t36
+      store %p37, %prstd @store2
+    }
+  }
+  loop @loop2 {
+    carry %i38: u64 = %lid, %t54 -> %i38_55
+    %t39: i1 = lt %i38, %inner_size
+    while %t39
+    %t40: u64 = mul %t, %inner_size
+    %idx: u64 = add %t40, %i38
+    %t42: i1 = eq %mode, 4:i32
+    if %t42 @if3 {
+    } else {
+      %t43: i64 = cast %i38
+      %p44: ptr<f32> = gep %weight, %t43
+      %v45: f32 = load %p44 @load4
+    }
+    merge %t46: f32 = 1.0:f32, %v45
+    %t47: i64 = cast %idx
+    %p48: ptr<f32> = gep %x, %t47
+    %v49: f32 = load %p48 @load5
+    %t50: f32 = mul %v49, %prstd
+    %val: f32 = mul %t50, %t46
+    %t52: i64 = cast %idx
+    %p53: ptr<f32> = gep %y, %t52
+    store %p53, %val @store3
+    %t54: u64 = add %i38, 256:u64
+  }
+}

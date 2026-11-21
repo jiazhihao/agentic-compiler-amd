@@ -1,0 +1,210 @@
+kir func mo_bn_infer(%in: ptr<f32>, %out: ptr<f32>, %estimatedMean: ptr<f32>, %estimatedVariance: ptr<f32>, %scale: ptr<f32>, %bias: ptr<f32>, %epsilon: f64, %c: u32, %hw: u32, %batchSize: u32, %cStride: u32, %hwStride: u32, %batchStride: u32, %alpha: f32, %beta: f32) {
+  %value: loc<f32> = local[name=value13, bytes=16]
+  %inhat: loc<f32> = local[name=inhat12, bytes=16]
+  %beta56: loc<f32> = local[name=beta11, bytes=4]
+  %alpha55: loc<f32> = local[name=alpha10, bytes=4]
+  %invVariance: loc<f32> = local[name=invVariance6, bytes=16]
+  %pbias: loc<f32> = local[name=pbias5, bytes=16]
+  %pscale: loc<f32> = local[name=pscale4, bytes=16]
+  %variance: loc<f32> = local[name=variance3, bytes=16]
+  %mean: loc<f32> = local[name=mean2, bytes=16]
+  %bid_x: u32 = bid.x
+  %t: u32 = mul %bid_x, 1:u32
+  %tid_x: u32 = tid.x
+  %tidx: u32 = add %t, %tid_x
+  %bid_y: u32 = bid.y
+  %t1: u32 = mul %bid_y, 256:u32
+  %tid_y: u32 = tid.y
+  %tidy: u32 = add %t1, %tid_y
+  %bid_z: u32 = bid.z
+  %t3: i32 = select false:i1, 4:i32, 1:i32
+  %vecSizeX: u32 = cast %t3
+  %t5: i32 = select false:i1, 1:i32, 4:i32
+  %vecSizeY: u32 = cast %t5
+  %t7: u32 = mul %tidx, %vecSizeX
+  %t8: i1 = ge %t7, %c
+  %t9: u32 = mul %tidy, %vecSizeY
+  %t10: i1 = ge %t9, %hw
+  %c11: i1 = or %t8, %t10
+  %t12: i1 = ge %bid_z, %batchSize
+  %c13: i1 = or %c11, %t12
+  if %c13 @if0 {
+  }
+  merge %t14: i1 = true:i1, false:i1
+  %t15: i1 = not %t14
+  if %t15 @if1 {
+    %adjIndex: u32 = mul %tidx, %vecSizeX
+    %t17: i64 = cast %adjIndex
+    %p: ptr<f32> = gep %estimatedMean, %t17
+    %v: f32 = load %p @load0
+    %t18: i64 = cast %adjIndex
+    %p19: ptr<f32> = gep %estimatedVariance, %t18
+    %v20: f32 = load %p19 @load1
+    %t21: i64 = cast %adjIndex
+    %p22: ptr<f32> = gep %scale, %t21
+    %v23: f32 = load %p22 @load2
+    %t24: i64 = cast %adjIndex
+    %p25: ptr<f32> = gep %bias, %t24
+    %v26: f32 = load %p25 @load3
+    loop @loop0 {
+      carry %i: u32 = 0:u32, %t36 -> %i37
+      %t27: i1 = lt %i, 4:u32
+      while %t27
+      %t28: i64 = cast %i
+      %p29: loc<f32> = gep %mean, %t28
+      store %p29, %v @store0
+      %t30: i64 = cast %i
+      %p31: loc<f32> = gep %variance, %t30
+      store %p31, %v20 @store1
+      %t32: i64 = cast %i
+      %p33: loc<f32> = gep %pscale, %t32
+      store %p33, %v23 @store2
+      %t34: i64 = cast %i
+      %p35: loc<f32> = gep %pbias, %t34
+      store %p35, %v26 @store3
+      %t36: u32 = add %i, 1:u32
+    }
+    loop @loop1 {
+      carry %i38: u32 = 0:u32, %t49 -> %i38_50
+      %t39: i1 = lt %i38, 4:u32
+      while %t39
+      %t40: i64 = cast %i38
+      %p41: loc<f32> = gep %invVariance, %t40
+      %t42: i64 = cast %i38
+      %p43: loc<f32> = gep %variance, %t42
+      %v44: f32 = load %p43 @load4
+      %t45: f32 = cast %epsilon
+      %t46: f32 = add %v44, %t45
+      %abs: f32 = abs %t46
+      %t47: f64 = cast %abs
+      %rsqrt: f64 = rsqrt %t47
+      %t48: f32 = cast %rsqrt
+      store %p41, %t48 @store4
+      %t49: u32 = add %i38, 1:u32
+    }
+    %t51: ptr<f32> = bitcast %mean
+    %t52: ptr<f32> = bitcast %invVariance
+    %t53: ptr<f32> = bitcast %pscale
+    %t54: ptr<f32> = bitcast %pbias
+    store %alpha55, %alpha @store5
+    store %beta56, %beta @store6
+    %bid_z57: u32 = bid.z
+    loop @loop2 {
+      carry %n: u32 = %bid_z57, %t154 -> %n155
+      %t58: i1 = lt %n, %batchSize
+      while %t58
+      %t59: u32 = mul %n, %batchStride
+      %t60: u32 = mul %tidx, %cStride
+      %t61: u32 = mul %t60, 1:u32
+      %t62: u32 = add %t59, %t61
+      %t63: u32 = mul %tidy, %hwStride
+      %t64: u32 = mul %t63, 4:u32
+      %batchIndex: u32 = add %t62, %t64
+      %p66: loc<u8> = bitcast %value
+      %p67: loc<u8> = gep %p66, 0:i64
+      %t68: i64 = cast %batchIndex
+      %p69: ptr<f32> = gep %in, %t68
+      %p70: ptr<u8> = bitcast %p69
+      %p71: ptr<u8> = gep %p70, 0:i64
+      %p72: ptr<f32> = bitcast %p71
+      %v73: f32 = load %p72 @load5
+      %p74: loc<f32> = bitcast %p67
+      store %p74, %v73 @store7
+      %p75: ptr<u8> = gep %p71, 4:i64
+      %p76: ptr<f32> = bitcast %p75
+      %v77: f32 = load %p76 @load6
+      %p78: loc<u8> = gep %p67, 4:i64
+      %p79: loc<f32> = bitcast %p78
+      store %p79, %v77 @store8
+      %p80: ptr<u8> = gep %p71, 8:i64
+      %p81: ptr<f32> = bitcast %p80
+      %v82: f32 = load %p81 @load7
+      %p83: loc<u8> = gep %p67, 8:i64
+      %p84: loc<f32> = bitcast %p83
+      store %p84, %v82 @store9
+      %p85: ptr<u8> = gep %p71, 12:i64
+      %p86: ptr<f32> = bitcast %p85
+      %v87: f32 = load %p86 @load8
+      %p88: loc<u8> = gep %p67, 12:i64
+      %p89: loc<f32> = bitcast %p88
+      store %p89, %v87 @store10
+      loop @loop3 {
+        carry %i90: u32 = 0:u32, %t128 -> %i90_129
+        %t91: i1 = lt %i90, 4:u32
+        while %t91
+        %t92: i64 = cast %i90
+        %p93: loc<f32> = gep %inhat, %t92
+        %t94: i64 = cast %i90
+        %p95: loc<f32> = gep %value, %t94
+        %v96: f32 = load %p95 @load9
+        %t97: i64 = cast %i90
+        %p98: ptr<f32> = gep %t51, %t97
+        %v99: f32 = load %p98 @load10
+        %t100: f32 = sub %v96, %v99
+        %t101: i64 = cast %i90
+        %p102: ptr<f32> = gep %t52, %t101
+        %v103: f32 = load %p102 @load11
+        %t104: f32 = mul %t100, %v103
+        store %p93, %t104 @store11
+        %t105: i64 = cast %i90
+        %p106: loc<f32> = gep %inhat, %t105
+        %t107: i64 = cast %i90
+        %p108: ptr<f32> = gep %t53, %t107
+        %v109: f32 = load %p108 @load12
+        %t110: i64 = cast %i90
+        %p111: loc<f32> = gep %inhat, %t110
+        %v112: f32 = load %p111 @load13
+        %t113: f32 = mul %v109, %v112
+        %t114: i64 = cast %i90
+        %p115: ptr<f32> = gep %t54, %t114
+        %v116: f32 = load %p115 @load14
+        %t117: f32 = add %t113, %v116
+        store %p106, %t117 @store12
+        %t118: i64 = cast %i90
+        %p119: loc<f32> = gep %inhat, %t118
+        %t120: i64 = cast %i90
+        %p121: loc<f32> = gep %inhat, %t120
+        %v122: f32 = load %p121 @load15
+        store %p119, %v122 @store13
+        %t123: i64 = cast %i90
+        %p124: loc<f32> = gep %value, %t123
+        %t125: i64 = cast %i90
+        %p126: loc<f32> = gep %inhat, %t125
+        %v127: f32 = load %p126 @load16
+        store %p124, %v127 @store14
+        %t128: u32 = add %i90, 1:u32
+      }
+      %t130: i64 = cast %batchIndex
+      %p131: ptr<f32> = gep %out, %t130
+      %p132: ptr<u8> = bitcast %p131
+      %p133: ptr<u8> = gep %p132, 0:i64
+      %p134: loc<u8> = bitcast %value
+      %p135: loc<u8> = gep %p134, 0:i64
+      %p136: loc<f32> = bitcast %p135
+      %v137: f32 = load %p136 @load17
+      %p138: ptr<f32> = bitcast %p133
+      store %p138, %v137 @store15
+      %p139: loc<u8> = gep %p135, 4:i64
+      %p140: loc<f32> = bitcast %p139
+      %v141: f32 = load %p140 @load18
+      %p142: ptr<u8> = gep %p133, 4:i64
+      %p143: ptr<f32> = bitcast %p142
+      store %p143, %v141 @store16
+      %p144: loc<u8> = gep %p135, 8:i64
+      %p145: loc<f32> = bitcast %p144
+      %v146: f32 = load %p145 @load19
+      %p147: ptr<u8> = gep %p133, 8:i64
+      %p148: ptr<f32> = bitcast %p147
+      store %p148, %v146 @store17
+      %p149: loc<u8> = gep %p135, 12:i64
+      %p150: loc<f32> = bitcast %p149
+      %v151: f32 = load %p150 @load20
+      %p152: ptr<u8> = gep %p133, 12:i64
+      %p153: ptr<f32> = bitcast %p152
+      store %p153, %v151 @store18
+      %gdim_z: u32 = gdim.z
+      %t154: u32 = add %n, %gdim_z
+    }
+  }
+  merge %t156: i1 = false:i1, %t14
+}

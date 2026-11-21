@@ -1,0 +1,117 @@
+kir func moe_gate_topk(%logits: ptr<f32>, %weights: ptr<f32>, %indices: ptr<i32>, %num_tokens: i32, %num_experts: i32, %k: i32) {
+  %picked: loc<i32> = local[name=picked4, bytes=64]
+  %bid_x: u32 = bid.x
+  %bdim_x: u32 = bdim.x
+  %t: u32 = mul %bid_x, %bdim_x
+  %tid_x: u32 = tid.x
+  %t0: u32 = add %t, %tid_x
+  %t2: i32 = cast %t0
+  %t3: i1 = ge %t2, %num_tokens
+  if %t3 @if0 {
+  }
+  merge %t4: i1 = true:i1, false:i1
+  %t5: i1 = not %t4
+  if %t5 @if1 {
+    %t6: u64 = cast %t2
+    %t7: u64 = cast %num_experts
+    %t8: u64 = mul %t6, %t7
+    %t9: i64 = cast %t8
+    %p: ptr<f32> = gep %logits, %t9
+    loop @loop0 {
+      carry %e: i32 = 0:i32, %t13 -> %e14
+      carry %m: f32 = -inf:f32, %max -> %m15
+      %t10: i1 = lt %e, %num_experts
+      while %t10
+      %t11: i64 = cast %e
+      %p12: ptr<f32> = gep %p, %t11
+      %v: f32 = load %p12 @load0
+      %max: f32 = max %m, %v
+      %t13: i32 = add[nsw=true] %e, 1:i32
+    }
+    loop @loop1 {
+      carry %e16: i32 = 0:i32, %t23 -> %e16_24
+      carry %sum: f32 = 0.0:f32, %t22 -> %sum25
+      %t17: i1 = lt %e16, %num_experts
+      while %t17
+      %t18: i64 = cast %e16
+      %p19: ptr<f32> = gep %p, %t18
+      %v20: f32 = load %p19 @load1
+      %t21: f32 = sub %v20, %m15
+      %exp: f32 = exp %t21
+      %t22: f32 = add %sum, %exp
+      %t23: i32 = add[nsw=true] %e16, 1:i32
+    }
+    loop @loop2 {
+      carry %r: i32 = 0:i32, %t78 -> %r79
+      %t26: i1 = lt %r, %k
+      while %t26
+      loop @loop3 {
+        carry %e27: i32 = 0:i32, %t55 -> %e27_56
+        carry %best: i32 = -1:i32, %best53 -> %best57
+        carry %best_x: f32 = -inf:f32, %best_x54 -> %best_x58
+        %t28: i1 = lt %e27, %num_experts
+        while %t28
+        loop @loop4 {
+          carry %p29: i32 = 0:i32, %t39 -> %p29_40
+          carry %taken: i1 = false:i1, %t38 -> %taken41
+          %t30: i1 = lt %p29, %r
+          while %t30
+          %t31: i64 = cast %p29
+          %p32: loc<i32> = gep %picked, %t31
+          %v33: i32 = load %p32 @load2
+          %t34: i1 = eq %v33, %e27
+          %t35: i32 = cast %t34
+          %t36: i32 = cast %taken
+          %t37: i32 = or %t36, %t35
+          %t38: i1 = ne %t37, 0:i32
+          %t39: i32 = add[nsw=true] %p29, 1:i32
+        }
+        %t42: i1 = not %taken41
+        if %t42 @if2 {
+          %t43: i1 = lt %best, 0:i32
+          if %t43 @if3 {
+          } else {
+            %t44: i64 = cast %e27
+            %p45: ptr<f32> = gep %p, %t44
+            %v46: f32 = load %p45 @load3
+            %t47: i1 = gt %v46, %best_x
+          }
+          merge %t48: i1 = true:i1, %t47
+        }
+        merge %t49: i1 = %t48, false:i1
+        if %t49 @if4 {
+          %t50: i64 = cast %e27
+          %p51: ptr<f32> = gep %p, %t50
+          %v52: f32 = load %p51 @load4
+        }
+        merge %best53: i32 = %e27, %best
+        merge %best_x54: f32 = %v52, %best_x
+        %t55: i32 = add[nsw=true] %e27, 1:i32
+      }
+      %t59: i64 = cast %r
+      %p60: loc<i32> = gep %picked, %t59
+      store %p60, %best57 @store0
+      %t61: u64 = cast %t2
+      %t62: u64 = cast %k
+      %t63: u64 = mul %t61, %t62
+      %t64: u64 = cast %r
+      %t65: u64 = add %t63, %t64
+      %t66: i64 = cast %t65
+      %p67: ptr<f32> = gep %weights, %t66
+      %t68: f32 = sub %best_x58, %m15
+      %exp69: f32 = exp %t68
+      %t70: f32 = div %exp69, %sum25 @div0
+      store %p67, %t70 @store1
+      %t71: u64 = cast %t2
+      %t72: u64 = cast %k
+      %t73: u64 = mul %t71, %t72
+      %t74: u64 = cast %r
+      %t75: u64 = add %t73, %t74
+      %t76: i64 = cast %t75
+      %p77: ptr<i32> = gep %indices, %t76
+      store %p77, %best57 @store2
+      %t78: i32 = add[nsw=true] %r, 1:i32
+    }
+  }
+  merge %t80: i1 = false:i1, %t4
+}

@@ -589,24 +589,54 @@ plan. The comparison with amdclang's `-ffast-math` builds is not made: the kerne
 
 #### M15: frontend breadth, the whole benchmark through the own path
 
-- [ ] From M13: records (struct values and arrays of them), `atomicAdd`, `__shfl_*`, local arrays
-      (`array.home`).
-- [ ] From M14: the remaining math functions (`log`, `log2`, `exp2`, `sin`, `cos`, `sincos`, `pow`,
-      `rsqrt`) with the sequences amdclang emits; the comparison with amdclang's `-ffast-math` builds.
-- [ ] Templates (instantiated bodies as Clang resolved them), helper functions inlined, classes
-      with methods, references, `constexpr`, the benchmark's headers (`flashinfer_common.h`,
-      `miopen_common.h`, `attn_port.h`, `rowwise.h`). Ported from the reference frontend, bounded
-      by what the benchmark uses; the supported subset is a table generated from the checker.
-- [ ] `source(text)` compiles through the own frontend (an amdclang build of the same text stays
-      available as a baseline candidate).
-- [ ] A guard test: no call to amdclang's code generation outside baseline, oracle and fuzz code.
+- [x] From M13: records (struct values, arrays of them, records returned and passed by value),
+      `__shfl_*` and `__lane_id` (`laneid`, `waveread` in `kir`; `lane.id`, `lane.read` in `wir`;
+      `ds_bpermute_b32`), local arrays and address-taken variables. They are objects in `kir`
+      (`local`, `loc<T>`), and `kir/locals.py` turns every object back into values before the wave
+      lowering; an object that would stay in memory is refused by name (`array.home` with a memory
+      home is not built: no kernel needs it).
+- [ ] `atomicAdd` (only `vl_moe_align` uses it, and that kernel is also blocked by hipcub): M16.
+- [x] From M14: `log`, `log2`, `exp2`, `rsqrt` (`log` and `exp2` in the machine's form only: amdclang's
+      sequences for them are not transcribed, so the kernels that call them pass the battery and are
+      not bit-identical).
+- [ ] `sin`, `cos`, `sincos`, `pow` (`fi_rope`), `double` math (`mo_adam`, `mo_bn_infer`,
+      `mo_t5_layernorm`), and the comparison with amdclang's `-ffast-math` builds: M16.
+- [x] Templates and member templates as instantiated (an instantiation is told from its siblings by
+      the place of its node in its memory page, which is the same in every run of Clang; node ids
+      are not), helper functions inlined, classes with methods and constructors, function objects,
+      overloaded operators, references (parameters, locals, returns), default arguments,
+      `constexpr` loops (unrolled to constants), enumerations, aliases, namespace-scope constants,
+      `extern __shared__ T x[]`, `if` with an init statement, loop conditions that assign. The
+      benchmark's headers `flashinfer_common.h`, `miopen_common.h`, `attn_port.h`, `rowwise.h`,
+      `rocblas_common.h`. The supported subset is `agc.frontend.SUPPORTED`.
+- [ ] hipcub / rocPRIM classes (`vl_fused_add_rms_norm`, `vl_rms_norm`, `vl_moe_align`) and lambdas
+      that capture: M16.
+- [x] `lower(text=...)` compiles a rewritten source through the own frontend, and `replan` keeps
+      that text (`source(text)` stays the amdclang build of it: a baseline candidate).
+- [x] A guard test: the packages of the own path (`frontend`, `kir`, `wir`, `lower`) never call
+      amdclang's code generation; Clang is run with `-fsyntax-only` only.
+- [x] Brought forward: branches of the wave on any uniform condition (64-bit and floating-point
+      compares, booleans), scalar address arithmetic, `bool` and sub-dword arguments, the safety
+      gates made differential (they refuse what agc's schedule adds, not what the source has).
 
 Exit: every kernel of `tests/kernels` and `bench/llm` compiles through the own path, passes the
 CPU translation checks and the full battery with the default plan. Coverage table in the report.
 Size: about 4 k.
 
+Done (#87) for 40 of 50 kernels (20 before): each passes the CPU translation checks, the strict
+static check and the full battery with the default plan; 30 are bit-identical to amdclang. Not
+reached, and now the head of M16's list: `fa_attention`, `fa_attention_causal` (out of scalar
+registers: the allocator has no spilling or live-range splitting), `fi_fused_add_rmsnorm` (an LDS
+address kept as a value), `mo_t5_layernorm` (`u64` to `float`), `mo_bn_infer`, `mo_adam` (`double`
+math), `fi_rope` (`pow`, `sincos`, `memcpy`), the three hipcub kernels. Default-plan speed is
+reported as measured (geomean 0.849 over the 40, numbers in `progress.md`): parity is M16.
+
 #### M16: parity, the default plan as fast as amdclang -O3
 
+- [ ] From M15: the ten kernels that do not pass yet (list under M15), `atomicAdd`, the remaining
+      math, amdclang's own choice of which multiply-adds to fuse (`rb_gemvt`, `vl_rotary_embedding`
+      differ from it in the last bits either way), and the kernels far below parity: `mla_decode`
+      0.16, `attn_decode` 0.28, `moe_gate_topk` 0.41, `rb_gemvn` 0.60.
 - [ ] From M13: the `mir` interpreter for the instructions the selector emits, each instruction's
       semantics checked against the device by single-instruction probe kernels.
 - [ ] From M12: strength reduction of loop addresses (pointer increments), which is what puts

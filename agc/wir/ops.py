@@ -13,6 +13,8 @@
 | `load[scale, off, n]`, `store[.., n]` | v | `n` consecutive elements per lane in one access (a `dwordxN` load): the value is a vector `f32x2` |
 | `extract[i] x`, `pack a, b, ..` | v | an element of a vector; a vector from elements |
 | `mulw a, b` | u or v | the 64-bit product of two 32-bit integers |
+| `lane.id` | v | the lane's index in the wave |
+| `lane.read x, at` | v | `x` of lane `(at >> 2) & 63`, or 0 when that lane is not running (`ds_bpermute_b32`) |
 | `lane.reduce[op] x` | v | `x` combined over the 64 lanes of the wave (DPP and `v_readlane`: no memory), in every lane; every lane of the wave must be running |
 
 | `region[name, bytes]` | u | an LDS region of the workgroup: an `lds<T>` handle (lowering assigns its offset; the kernel's LDS size is the sum) |
@@ -32,10 +34,10 @@ from ..kir import ops as kops
 from ..kir.ir import Const, IRError, Op, U32, Value
 
 SOURCES_U = {"arg", "hidden", "region"} | {f"wg.{d}" for d in "xyz"}
-SOURCES_V = {f"lane.{d}" for d in "xyz"}
+SOURCES_V = {f"lane.{d}" for d in "xyz"} | {"lane.id"}
 ARITH = (kops.PURE - kops.BUILTINS - {"gep"})
 HIDDEN_FIELDS = {f"{n}_{d}" for n in ("block_count", "group_size") for d in "xyz"}
-ALL = SOURCES_U | SOURCES_V | ARITH | {"ptradd", "load", "store", "extract", "pack", "mulw", "barrier", "lane.reduce"}
+ALL = SOURCES_U | SOURCES_V | ARITH | {"ptradd", "load", "store", "extract", "pack", "mulw", "barrier", "lane.reduce", "lane.read"}
 
 
 def kind_of(x) -> str:
@@ -95,6 +97,10 @@ def check(op: Op) -> None:
         t = op.args[0].type if len(op.args) == 1 else None
         if t is None or not t.is_vec or not isinstance(op.attrs.get("i"), int) or not 0 <= op.attrs["i"] < t.count or r.type != t.elem:
             raise IRError("extract[i] takes a vector and gives its element i")
+        return
+    if n == "lane.read":
+        if len(op.args) != 2 or r is None or r.kind != "v" or r.type != op.args[0].type or r.type.size != 4:
+            raise IRError("lane.read x, at: a 32-bit value of another lane")
         return
     if n == "lane.reduce":
         from ..kir.idioms import REDUCIBLE

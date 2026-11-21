@@ -1,0 +1,120 @@
+kir func vl_rotary_embedding(%positions: ptr<i64>, %query: ptr<f32>, %key: ptr<f32>, %cos_sin_cache: ptr<f32>, %rot_dim: i32, %query_stride: i64, %key_stride: i64, %head_stride: i64, %num_heads: i32, %num_kv_heads: i32, %head_size: i32, %rope_dim_offset: i64, %inverse: i1) {
+  %bid_x: u32 = bid.x
+  %t: i32 = cast %bid_x
+  %t0: i64 = cast %t
+  %p: ptr<i64> = gep %positions, %t0
+  %v: i64 = load %p @load0
+  %t1: i64 = cast %rot_dim
+  %t2: i64 = mul[nsw=true] %v, %t1
+  %p3: ptr<f32> = gep %cos_sin_cache, %t2
+  %embed_dim: i32 = div %rot_dim, 2:i32
+  %t5: i64 = cast %embed_dim
+  %p6: ptr<f32> = gep %p3, %t5
+  %nq: i32 = mul[nsw=true] %num_heads, %embed_dim
+  %tid_x: u32 = tid.x
+  %i: i32 = cast %tid_x
+  loop @loop0 {
+    carry %i9: i32 = %i, %t48 -> %i9_49
+    %t10: i1 = lt %i9, %nq
+    while %t10
+    %head_idx: i32 = div %i9, %embed_dim
+    %t12: i64 = cast %t
+    %t13: i64 = mul[nsw=true] %t12, %query_stride
+    %t14: i64 = cast %head_idx
+    %t15: i64 = mul[nsw=true] %t14, %head_stride
+    %t16: i64 = add[nsw=true] %t13, %t15
+    %token_head: i64 = add[nsw=true] %t16, %rope_dim_offset
+    %rot_offset: i32 = rem %i9, %embed_dim
+    %p19: ptr<f32> = gep %query, %token_head
+    %t20: i32 = add[nsw=true] %embed_dim, %rot_offset
+    %t21: i64 = cast %rot_offset
+    %p22: ptr<f32> = gep %p3, %t21
+    %p23: ptr<f32> = gep %p22, 0:i64
+    %v24: f32 = load %p23 @load1
+    %t25: i64 = cast %rot_offset
+    %p26: ptr<f32> = gep %p6, %t25
+    %p27: ptr<f32> = gep %p26, 0:i64
+    %v28: f32 = load %p27 @load2
+    if %inverse @if0 {
+      %t29: f32 = neg %v28
+    }
+    merge %sin_f: f32 = %t29, %v28
+    %t30: i64 = cast %rot_offset
+    %p31: ptr<f32> = gep %p19, %t30
+    %v32: f32 = load %p31 @load3
+    %t33: i64 = cast %t20
+    %p34: ptr<f32> = gep %p19, %t33
+    %v35: f32 = load %p34 @load4
+    %t36: i64 = cast %rot_offset
+    %p37: ptr<f32> = gep %p19, %t36
+    %t38: f32 = mul %v32, %v24
+    %t39: f32 = mul %v35, %sin_f
+    %t40: f32 = sub %t38, %t39
+    store %p37, %t40 @store0
+    %t41: i64 = cast %t20
+    %p42: ptr<f32> = gep %p19, %t41
+    %t43: f32 = mul %v35, %v24
+    %t44: f32 = mul %v32, %sin_f
+    %t45: f32 = add %t43, %t44
+    store %p42, %t45 @store1
+    %bdim_x: u32 = bdim.x
+    %t46: u32 = cast %i9
+    %t47: u32 = add %t46, %bdim_x
+    %t48: i32 = cast %t47
+  }
+  %c: i1 = ne %key, 0:ptr<f32>
+  if %c @if1 {
+    %nk: i32 = mul[nsw=true] %num_kv_heads, %embed_dim
+    %tid_x51: u32 = tid.x
+    %i53: i32 = cast %tid_x51
+    loop @loop1 {
+      carry %i54: i32 = %i53, %t98 -> %i54_99
+      %t55: i1 = lt %i54, %nk
+      while %t55
+      %head_idx57: i32 = div %i54, %embed_dim
+      %t58: i64 = cast %t
+      %t59: i64 = mul[nsw=true] %t58, %key_stride
+      %t60: i64 = cast %head_idx57
+      %t61: i64 = mul[nsw=true] %t60, %head_stride
+      %t62: i64 = add[nsw=true] %t59, %t61
+      %token_head64: i64 = add[nsw=true] %t62, %rope_dim_offset
+      %rot_offset66: i32 = rem %i54, %embed_dim
+      %p67: ptr<f32> = gep %key, %token_head64
+      %t68: i32 = add[nsw=true] %embed_dim, %rot_offset66
+      %t69: i64 = cast %rot_offset66
+      %p70: ptr<f32> = gep %p3, %t69
+      %p71: ptr<f32> = gep %p70, 0:i64
+      %v72: f32 = load %p71 @load5
+      %t73: i64 = cast %rot_offset66
+      %p74: ptr<f32> = gep %p6, %t73
+      %p75: ptr<f32> = gep %p74, 0:i64
+      %v76: f32 = load %p75 @load6
+      if %inverse @if2 {
+        %t77: f32 = neg %v76
+      }
+      merge %sin_f78: f32 = %t77, %v76
+      %t79: i64 = cast %rot_offset66
+      %p80: ptr<f32> = gep %p67, %t79
+      %v81: f32 = load %p80 @load7
+      %t82: i64 = cast %t68
+      %p83: ptr<f32> = gep %p67, %t82
+      %v84: f32 = load %p83 @load8
+      %t85: i64 = cast %rot_offset66
+      %p86: ptr<f32> = gep %p67, %t85
+      %t87: f32 = mul %v81, %v72
+      %t88: f32 = mul %v84, %sin_f78
+      %t89: f32 = sub %t87, %t88
+      store %p86, %t89 @store2
+      %t90: i64 = cast %t68
+      %p91: ptr<f32> = gep %p67, %t90
+      %t92: f32 = mul %v84, %v72
+      %t93: f32 = mul %v81, %sin_f78
+      %t94: f32 = add %t92, %t93
+      store %p91, %t94 @store3
+      %bdim_x95: u32 = bdim.x
+      %t96: u32 = cast %i54
+      %t97: u32 = add %t96, %bdim_x95
+      %t98: i32 = cast %t97
+    }
+  }
+}

@@ -36,7 +36,9 @@ The session is reached through the `agc` MCP server (`.mcp.json`), or from a she
 `lower(overrides)` compiles the manifest's HIP source without amdclang's optimizer or code generator
 (Clang only parses): source → `kir` (one thread's program) → `wir` (one wave's schedule: uniform and
 per-lane values, `where` / `branch` regions, loads with base, index and offset) → assembly. The
-result is a new root state; check and time it like any other.
+result is a new root state; check and time it like any other. `lower(text=...)` does the same for a
+rewritten source (same entry name and parameters); `replan` keeps that text. What the frontend
+reads is `agc.frontend.SUPPORTED`; a refusal lists every unsupported construct with its line.
 
 - Every lowering step is a recorded decision whose default does what amdclang does. `plan(id)` lists
   them: site (`kernel`, `if0`, `load1`, ...), chosen alternative, the others, what the decision means.

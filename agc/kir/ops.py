@@ -8,7 +8,7 @@
 | `mulhi a, b` | the high 32 bits of the 64-bit product of two 32-bit integers |
 | `rcp x` | `1 / x` in floating point, to within one unit in the last place (the machine's reciprocal) |
 | `sqrt x`, `abs x`, `rndne x`, `floor x`, `trunc x` | correctly rounded square root, magnitude, round to nearest even, down, toward zero |
-| `exp2 x`, `log2 x` | `2^x` and `log2 x` as the machine computes them (about one unit in the last place) |
+| `exp2 x`, `log2 x`, `rsqrt x` | `2^x`, `log2 x` and `1 / sqrt x` as the machine computes them (about one unit in the last place) |
 | `ldexp x, n` | `x * 2^n` (`n` an `i32`); `copysign x, y`: the magnitude of `x` with the sign of `y` |
 | `exp x`, `tanh x` | math-library functions: expanded into the operations above by the decision `math.<fn>` (`kir/mathlib.py`) |
 | `fma a, b, c` | `a * b + c` rounded once |
@@ -18,8 +18,11 @@
 | `bitcast x` | same bits, another type of the same size |
 | `gep p, i` | `p + i` elements |
 | `load p` / `store p, x` | memory |
-| `shared[name, bytes]` | the workgroup's shared array `name` (`__shared__`): an `lds<T>` pointer to its first element |
+| `shared[name, bytes]` | the workgroup's shared array `name` (`__shared__`): an `lds<T>` pointer to its first element; `dynamic`: its size is what the launch provides |
+| `local[name, bytes]` | a thread's own object of `bytes` bytes (a struct, an array, a variable whose address is taken): a `loc<T>` pointer |
 | `barrier` | every thread of the workgroup reaches this point before any continues (`__syncthreads`) |
+| `laneid` | the thread's place in its wave, 0 to 63 (threads fill waves in the order of their flat index in the workgroup) |
+| `waveread x, at` | `x` as the thread at place `(at >> 2) & 63` of the same wave holds it at this point, or 0 when no thread runs this operation there (`ds_bpermute`: no memory is touched) |
 | `wgreduce[op, size] x` | `x` combined over the `size` threads of the workgroup with `op`, in every thread; the order is that of the DPP lowering (`kir/idioms.py`), not the source's |
 """
 from __future__ import annotations
@@ -28,14 +31,14 @@ from .ir import I1, U32, Const, IRError, Op, Type
 
 BUILTINS = {f"{b}.{d}" for b in ("tid", "bid", "bdim", "gdim") for d in "xyz"}
 BINARY = {"add", "sub", "mul", "div", "rem", "and", "or", "xor", "shl", "shr", "min", "max", "mulhi"}
-FLOAT_UNARY = {"rcp", "sqrt", "abs", "rndne", "floor", "trunc", "exp2", "log2", "exp", "tanh"}
-LIBRARY = {"exp", "tanh"}                # expanded before lowering
+FLOAT_UNARY = {"rcp", "sqrt", "abs", "rndne", "floor", "trunc", "exp2", "log2", "exp", "tanh", "log", "rsqrt"}
+LIBRARY = {"exp", "tanh", "log"}         # expanded before lowering
 UNARY = {"neg", "not"} | FLOAT_UNARY
 COMPARE = {"eq", "ne", "lt", "le", "gt", "ge"}
 INT_ONLY = {"rem", "and", "or", "xor", "shl", "shr", "not", "mulhi"}
 COMMUTATIVE = {"add", "mul", "and", "or", "xor", "min", "max", "eq", "ne", "mulhi"}
-PURE = BUILTINS | BINARY | UNARY | COMPARE | {"fma", "select", "cast", "bitcast", "gep", "shared", "ldexp", "copysign"}
-ALL = PURE | {"load", "store", "barrier", "wgreduce"}
+PURE = BUILTINS | BINARY | UNARY | COMPARE | {"fma", "select", "cast", "bitcast", "gep", "shared", "ldexp", "copysign", "local"}
+ALL = PURE | {"load", "store", "barrier", "wgreduce", "laneid", "waveread"}
 
 
 def _same(op: Op, n: int) -> Type:
@@ -57,6 +60,14 @@ def check(op: Op) -> None:
         if r is not None or op.args:
             raise IRError("barrier takes no operand and has no result")
         return
+    if n == "laneid":
+        if op.args or r is None or str(r.type) != "u32":
+            raise IRError("laneid gives a u32")
+        return
+    if n == "waveread":
+        if len(op.args) != 2 or r is None or r.type != op.args[0].type or r.type.size != 4 or not op.args[1].type.is_int:
+            raise IRError("waveread x, at: a 32-bit value of another thread of the wave")
+        return
     if n == "wgreduce":
         from .idioms import REDUCIBLE
         if len(op.args) != 1 or r is None or r.type != op.args[0].type or op.attrs.get("op") not in REDUCIBLE \
@@ -66,6 +77,10 @@ def check(op: Op) -> None:
     if n == "shared":
         if op.args or r is None or not r.type.is_lds or not isinstance(op.attrs.get("bytes"), int) or not op.attrs.get("name"):
             raise IRError("shared[name, bytes] gives an lds<T> pointer")
+        return
+    if n == "local":
+        if op.args or r is None or not r.type.is_local or not isinstance(op.attrs.get("bytes"), int) or not op.attrs.get("name"):
+            raise IRError("local[name, bytes] gives a loc<T> pointer")
         return
     if n == "store":
         if r is not None or len(op.args) != 2 or not op.args[0].type.is_ptr or op.args[0].type.elem != op.args[1].type:

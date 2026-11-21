@@ -58,7 +58,7 @@ def run_kir(m: Manifest, f, case: Case) -> dict[str, np.ndarray]:
     r = m.resolve(case.symbols)
     t = _tensors(m, r, case)
     args = {fp.name: (t[mp.name] if mp.kind == "tensor" else r.scalars[mp.name]) for fp, mp in zip(f.params, m.params)}
-    run_kir_func(f, args, r.grid, r.block)
+    run_kir_func(f, args, r.grid, r.block, r.lds)
     return {p.name: t[p.name] for p in m.outputs()}
 
 
@@ -66,7 +66,7 @@ def run_wir(m: Manifest, w, layout: list, case: Case) -> dict[str, np.ndarray]:
     r = m.resolve(case.symbols)
     t = _tensors(m, r, case)
     values = {off: (t[mp.name] if mp.kind == "tensor" else r.scalars[mp.name]) for (off, _), mp in zip(layout, m.params)}
-    run_wir_func(w, r.grid, r.block, values)
+    run_wir_func(w, r.grid, r.block, values, r.lds)
     return {p.name: t[p.name] for p in m.outputs()}
 
 

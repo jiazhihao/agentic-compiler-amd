@@ -37,7 +37,22 @@ class Ptr:
     name: str = ""
 
 
+def wave_read(x, at, local, size: int, mask):
+    """`waveread`: threads are stored a workgroup after another, each in the order of its flat index."""
+    n = mask.shape[0]
+    t = np.arange(n, dtype=np.int64)
+    local = np.broadcast_to(local, mask.shape)
+    src = t - local % 64 + ((np.broadcast_to(np.asarray(at), mask.shape).astype(np.int64) >> 2) & 63)
+    inside = (src < n) & (src // size == t // size) if size else np.zeros(n, dtype=bool)
+    at_src = np.where(inside, src, 0)
+    ok = inside & np.broadcast_to(mask, (n,))[at_src]
+    x = np.ascontiguousarray(x)
+    return np.where(ok, x[at_src], np.zeros((), dtype=x.dtype))
+
+
 def const(c: Const):
+    if c.type.is_ptr:
+        return None                                          # the null pointer
     return np.array(c.value, dtype=np_dtype(c.type))
 
 
@@ -98,10 +113,12 @@ def eval_op(name: str, args: list, types: list[Type], rtype: Type | None):
             return ((args[0].astype(wide) * args[1].astype(wide)) >> wide(32)).astype(args[0].dtype)
         if name == "rcp":
             return (np.asarray(1, dtype=args[0].dtype) / args[0]).astype(args[0].dtype)
-        if name in ("sqrt", "abs", "rndne", "floor", "trunc", "exp2", "log2", "exp", "tanh"):
+        if name in ("sqrt", "abs", "rndne", "floor", "trunc", "exp2", "log2", "exp", "tanh", "log"):
             f = {"sqrt": np.sqrt, "abs": np.abs, "rndne": np.rint, "floor": np.floor, "trunc": np.trunc, "exp2": np.exp2,
-                 "log2": np.log2, "exp": np.exp, "tanh": np.tanh}[name]
+                 "log2": np.log2, "exp": np.exp, "tanh": np.tanh, "log": np.log}[name]
             return f(args[0]).astype(args[0].dtype)
+        if name == "rsqrt":
+            return (np.asarray(1, dtype=args[0].dtype) / np.sqrt(args[0])).astype(args[0].dtype)
         if name == "ldexp":
             return np.ldexp(args[0], args[1].astype(np.int32)).astype(args[0].dtype)
         if name == "copysign":
@@ -222,12 +239,25 @@ class Interp:
             self.env[id(s.result)] = same if n == "eq" else ~np.asarray(same)
         elif n in ("shared", "region"):                      # the workgroup's shared memory: one copy per workgroup
             name, size = s.attrs["name"], s.attrs["bytes"]
+            if s.attrs.get("dynamic"):                       # as large as the launch makes the LDS
+                size = max(int(getattr(self, "launch_lds", 0)), 4)
             groups = int(self.ids["group"].max()) + 1 if self.n else 1
             if name not in self.lds:
                 self.lds[name] = np.full(groups * size, 0xDA, dtype=np.uint8)
             self.env[id(s.result)] = Ptr(self.lds[name], self.ids["group"].astype(np.int64) * size, f"lds:{name}")
+        elif n == "local":                                   # one copy per thread
+            size = s.attrs["bytes"]
+            key = ("local", s.attrs["name"])
+            if key not in self.lds:
+                self.lds[key] = np.full(self.n * size, 0xDA, dtype=np.uint8)
+            self.env[id(s.result)] = Ptr(self.lds[key], np.arange(self.n, dtype=np.int64) * size, f"local:{s.attrs['name']}")
         elif n == "barrier":
             pass                                             # threads run in lockstep here: every statement is a barrier
+        elif n == "laneid":
+            self.env[id(s.result)] = (self.flat_local() & 63).astype(np_dtype(s.result.type))
+        elif n == "waveread":
+            self.env[id(s.result)] = wave_read(np.broadcast_to(self.val(s.args[0]), mask.shape), self.val(s.args[1]),
+                                               self.flat_local(), self.workgroup_size(), mask)
         elif n == "wgreduce":
             from .idioms import workgroup_reduce
             x = np.broadcast_to(self.val(s.args[0]), mask.shape)
@@ -242,6 +272,14 @@ class Interp:
         else:
             self.env[id(s.result)] = eval_op(n, [self.val(a) for a in s.args], [a.type for a in s.args],
                                              s.result.type if s.result is not None else None)
+
+    def workgroup_size(self) -> int:
+        return int(self.ids["bdim.x"]) * int(self.ids["bdim.y"]) * int(self.ids["bdim.z"])
+
+    def flat_local(self):
+        """Each thread's flat index in its workgroup."""
+        i = self.ids
+        return (i["tid.x"].astype(np.int64) + int(i["bdim.x"]) * (i["tid.y"].astype(np.int64) + int(i["bdim.y"]) * i["tid.z"].astype(np.int64)))
 
     def merge(self, cond, a, b):
         if isinstance(a, Ptr) or isinstance(b, Ptr):
@@ -284,5 +322,7 @@ class Interp:
         self.body(self.f.body, np.ones(self.n, dtype=bool))
 
 
-def run(f: Func, args: dict, grid, block) -> None:
-    Interp(f, args, grid, block).run()
+def run(f: Func, args: dict, grid, block, lds: int = 0) -> None:
+    it = Interp(f, args, grid, block)
+    it.launch_lds = lds
+    it.run()

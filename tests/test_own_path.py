@@ -23,9 +23,24 @@ from conftest import gpu, needs_toolchain
 KIR = Path(__file__).parent / "kir"
 LLM = Path(__file__).parent.parent / "bench" / "llm"
 OWN = Path(__file__).parent / "own"                    # control-flow kernels written for the lowering
-LOWERED = ["axpy", "cast_bf16", "gelu", "gemm_bf16", "gemm_naive", "gemm_tiled", "layernorm", "matvec", "mo_rope_fwd", "rb_axpy",
-           "rb_copy", "rb_ger", "rb_rot", "rb_scal", "rb_swap", "rmsnorm", "row_sum", "softmax",
-           "transpose"]                                # pass the battery through the own path (own-gfx950.json)
+LOWERED = ["attn_decode", "axpy", "cast_bf16", "fi_gelu_tanh_and_mul", "fi_merge_state", "fi_merge_state_in_place",
+           "fi_merge_states", "fi_rmsnorm", "fi_silu_and_mul", "gelu", "gemm_bf16", "gemm_fp8", "gemm_naive",
+           "gemm_tiled", "kda_step", "layernorm", "matvec", "mla_decode", "mo_active_fwd", "mo_glu_fwd",
+           "mo_prelu_bwd", "mo_reduce_sum", "mo_rope_fwd", "moe_gate_topk", "rb_axpy", "rb_copy", "rb_dot",
+           "rb_gemvn", "rb_gemvt", "rb_ger", "rb_nrm2", "rb_rot", "rb_scal", "rb_swap", "rmsnorm", "row_argmax",
+           "row_sum", "softmax", "transpose", "vl_rotary_embedding"]
+# ^ pass the battery through the own path (own-gfx950.json)
+# Pass the battery (within the manifest's tolerance) with outputs that differ from amdclang's in the last bits,
+# and why. The default plan fuses every multiply and add; amdclang fuses some. (Measured on the device.)
+NOT_IDENTICAL = {
+    "gemm_tiled": "bit-identical with fp.contract off", "fi_rmsnorm": "bit-identical with fp.contract off",
+    "rb_gemvn": "bit-identical with fp.contract off",
+    "rb_gemvt": "amdclang fuses some of the sites: neither fp.contract on nor off for all is its choice",
+    "vl_rotary_embedding": "amdclang fuses some of the sites",
+    "fi_merge_state": "exp2f: amdclang's sequence is not transcribed (the hardware form is used)",
+    "fi_merge_state_in_place": "exp2f", "fi_merge_states": "exp2f",
+    "attn_decode": "logf: `math.log` has only the hardware form", "mla_decode": "logf",
+}
 CONTROL = ["divmod", "first_below", "halvings", "last_above", "sum_positive"]
 
 
@@ -146,7 +161,8 @@ def test_lowering_is_checked_on_the_cpu(name):
 def test_plan_records_every_decision_and_overrides_change_the_code():
     r = lowered("rb_scal")
     taken = {(e["site"], e["decision"]) for e in r.plan}
-    assert ("kernel", "fp.contract") in taken and ("if0", "branch.skip_empty") in taken
+    assert ("kernel", "fp.contract") in taken and ("if1", "branch.skip_empty") in taken
+    assert ("if0", "branch.skip_empty") not in taken        # `alpha != 1`: the same in every lane, a branch of the wave
     assert any(d == "access.width" for _, d in taken)
     assert all(e["by"] == "default" and e["chosen"] == e["default"] for e in r.plan)
     assert "global_load_dwordx2" in body(r) and "s_cbranch_execz" in body(r)
@@ -419,8 +435,7 @@ def test_own_path_record_is_consistent():
     assert set(LOWERED) <= set(passed)
     for n in passed:
         k = rec["kernels"][n]
-        # gemm_tiled: amdclang leaves that multiply and add unfused; `fp.contract: off` is bit-identical (a GPU test)
-        assert (k["bit_identical"] is True or n == "gemm_tiled") and k["battery"].split("/")[0] == k["battery"].split("/")[1], n
+        assert (k["bit_identical"] is True or n in NOT_IDENTICAL) and k["battery"].split("/")[0] == k["battery"].split("/")[1], n
     assert rec["summary"]["battery_ok"] == len(passed)
 
 
@@ -439,8 +454,8 @@ def test_frontend_lists_everything_unsupported():
     with pytest.raises(FrontendError) as e:
         lower_hip(OWN / "unsupported.hip", "refused")
     whats = " | ".join(u["what"] for u in e.value.items)
-    assert "float[4]" in whats and "SwitchStmt" in whats and "GotoStmt" in whats        # every construct, not the first one
-    assert all(u["loc"] != "?" for u in e.value.items) and {u["loc"].split(":")[0] for u in e.value.items} >= {"6", "7", "11"}
+    assert "SwitchStmt" in whats and "GotoStmt" in whats and "LabelStmt" in whats       # every construct, not the first one
+    assert all(u["loc"] != "?" for u in e.value.items) and {u["loc"].split(":")[0] for u in e.value.items} >= {"7", "11", "13"}
 
 
 @needs_toolchain
@@ -517,3 +532,115 @@ def test_session_lower_plan_replan(marks, agc_root):
     assert e.value.kind == "parameter"
     with pytest.raises(SessionError):
         s.plan("ref")
+
+
+# ---- M15: frontend breadth -------------------------------------------------------------------------
+SHUFFLE = """kir func f(%x: ptr<f32>, %y: ptr<f32>) {
+  %t: u32 = tid.x
+  %i: i64 = cast %t
+  %p: ptr<f32> = gep %x, %i
+  %v: f32 = load %p
+  %lane: u32 = laneid
+  %next: u32 = add %lane, 1:u32
+  %at: u32 = shl %next, 2:u32
+  %up: i1 = lt %lane, 40:u32
+  if %up @if0 {
+    %o: f32 = waveread %v, %at
+    %s: f32 = add %v, %o
+    %q: ptr<f32> = gep %y, %i
+    store %q, %s
+  }
+}
+"""
+
+
+def test_wave_read_and_lane_id():
+    """`waveread` gives the value another lane of the wave holds, and 0 for a lane that does not run the read
+    (here: lanes 40 and up, masked off; and the lanes past the workgroup's end)."""
+    f = parse_func(SHUFFLE)
+    assert verify(f) == []
+    x = np.arange(1, 101, dtype=np.float32)
+    y = np.full(100, -1, dtype=np.float32)
+    run_kir(f, {"x": x, "y": y}, (1,), (100,))
+    want = np.full(100, -1, dtype=np.float32)
+    for t in range(100):
+        lane, wave = t % 64, t // 64
+        if lane < 40:
+            src = wave * 64 + lane + 1
+            other = x[src] if (lane + 1 < 40 and src < 100) else 0.0
+            want[t] = x[t] + other
+    assert y.tolist() == want.tolist()
+    r = lower_kir(parse_func(SHUFFLE))
+    b = body(r)
+    assert "ds_bpermute_b32" in b and "v_mbcnt_lo_u32_b32" in b and "v_mbcnt_hi_u32_b32" in b
+    assert mircheck.static_check(r.module, encode=False, strict=True)["ok"]
+    y2 = np.full(100, -1, dtype=np.float32)
+    run_wir(r.wir_func, (1,), (100,), {0: x, 8: y2})
+    assert y2.tolist() == want.tolist()
+
+
+OBJECTS = """kir func f(%y: ptr<f32>, %n: i32) {
+  %a: loc<f32> = local[name=a0, bytes=16]
+  %t: u32 = tid.x
+  %i: i64 = cast %t
+  %tf: f32 = cast %t
+  %p0: loc<f32> = gep %a, 0:i64
+  store %p0, %tf
+  %p1: loc<f32> = gep %a, 1:i64
+  store %p1, 2.0:f32
+  %c: i1 = lt %t, 4:u32
+  if %c @if0 {
+    %v: f32 = load %p0
+    %w: f32 = mul %v, 3.0:f32
+    store %p1, %w
+  }
+  %r0: f32 = load %p0
+  %r1: f32 = load %p1
+  %s: f32 = add %r0, %r1
+  %q: ptr<f32> = gep %y, %i
+  store %q, %s
+}
+"""
+
+
+def test_thread_local_objects_become_values():
+    """A thread's own array (or struct, or a variable whose address is taken) is promoted to values before the
+    wave lowering: no memory is left, and what cannot be promoted is refused by name."""
+    r = lower_kir(parse_func(OBJECTS))
+    assert "local" not in r.kir and "merge" in r.kir
+    y = np.zeros(8, dtype=np.float32)
+    run_kir(r.kir_func, {"y": y, "n": 0}, (1,), (8,))
+    assert y.tolist() == [0, 4, 8, 12, 6, 7, 8, 9]
+    # an element chosen at run time is a selection among the values
+    dyn = OBJECTS.replace("  %r0: f32 = load %p0\n", "  %e0: u32 = and %t, 1:u32\n  %e: i64 = cast %e0\n  %pe: loc<f32> = gep %a, %e\n  %r0: f32 = load %pe\n")
+    r = lower_kir(parse_func(dyn))
+    assert "local" not in r.kir
+    y = np.zeros(8, dtype=np.float32)
+    run_kir(r.kir_func, {"y": y, "n": 0}, (1,), (8,))
+    assert y.tolist() == [0, 6, 8, 18, 6, 4, 8, 4]
+
+
+def test_no_amdclang_code_generation_in_the_own_path():
+    """The own path uses Clang to parse only: the packages it is made of never build a code object."""
+    root = Path(__file__).resolve().parent.parent / "agc"
+    for pkg in ("frontend", "kir", "wir", "lower"):
+        for p in sorted((root / pkg).glob("*.py")):
+            text = p.read_text()
+            for banned in ("hip_build", "llvm-mc", "ld.lld", "importer", "from_asm"):
+                assert banned not in text, f"{p.relative_to(root)} mentions {banned}"
+    ast = (root / "frontend" / "clang_ast.py").read_text()
+    assert ast.count('toolchain.tool("clang")') == ast.count('"-fsyntax-only"') == 2
+
+
+@pytest.mark.parametrize("marks", [pytest.param(None, marks=gpu)])
+def test_session_lowers_a_rewritten_source(marks, agc_root):
+    """lower(text=...) compiles another text of the kernel through the own path, and replan keeps that text."""
+    from agc.session import Session
+    s = Session.open(corpus.CORPUS_DIR / "axpy.json", agc_root)
+    text = s.manifest.source.read_text() if hasattr(s.manifest.source, "read_text") else Path(s.manifest.source).read_text()
+    assert "a * x[i] + y[i]" in text
+    a = s.lower(text=text.replace("a * x[i] + y[i]", "y[i] + x[i] * a"))
+    assert s.check(a["id"])["ok"]
+    b = s.replan(a["id"], {"fp.contract": "off"})
+    assert b["id"] != a["id"] and s.check(b["id"])["ok"]
+    assert s.store.get(b["id"]).action.get("file") == s.store.get(a["id"]).action.get("file")

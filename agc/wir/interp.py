@@ -35,7 +35,7 @@ class Interp(_KirInterp):
         if isinstance(x, Ptr):
             x = x.off
         x = np.asarray(x)
-        if x.ndim == 0:
+        if x.ndim == 0 or x.size == 1:
             return
         lead = np.empty(self.first.size, dtype=np.int64)
         # the first running lane of each wave
@@ -81,6 +81,12 @@ class Interp(_KirInterp):
             p, e = self.address(s), s.args[2].type.elem
             for i, x in enumerate(self.val(s.args[2])):
                 Memory.store(Ptr(p.raw, p.off + i * e.size, p.name), x, e, mask, s.site or "")
+        elif n == "lane.id":
+            self.env[id(s.result)] = (self.flat_local() & 63).astype(np_dtype(s.result.type))
+        elif n == "lane.read":
+            from ..kir.interp import wave_read
+            self.env[id(s.result)] = wave_read(np.broadcast_to(self.val(s.args[0]), mask.shape), self.val(s.args[1]),
+                                               self.flat_local(), self.workgroup_size(), mask)
         elif n == "lane.reduce":
             from ..kir.idioms import WAVE as W, wave_reduce
             if self.n % W or not mask.all():
@@ -106,5 +112,7 @@ class Interp(_KirInterp):
             self.check_uniform(s, self.env[id(s.result)], mask)
 
 
-def run(f: Func, grid, block, arg_values: dict[int, object]) -> None:
-    Interp(f, {}, grid, block, arg_values).run()
+def run(f: Func, grid, block, arg_values: dict[int, object], lds: int = 0) -> None:
+    it = Interp(f, {}, grid, block, arg_values)
+    it.launch_lds = lds
+    it.run()

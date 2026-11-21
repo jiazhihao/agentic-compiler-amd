@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..kir.ir import Const, Func, I1, I64, If, IRError, Loop, Merge, Namer, Op, Type, U32, Value, operands, results
+from ..kir.ir import Const, Func, I1, I64, If, IRError, Loop, Merge, Namer, Op, Type, U32, Value, operands, results, walk
 from ..kir.passes import _dce
 from ..wir import ops as wops
 from .plan import Plan
@@ -52,6 +52,7 @@ def lower(f: Func, layout: list[tuple[int, int]], table: Table, plan: Plan) -> F
 class _Wave:
     def __init__(self, f: Func, layout, table: Table, plan: Plan):
         self.f, self.table, self.plan = f, table, plan
+        self.unskippable = 0                               # `where` regions around that hold a barrier
         self.out = Func(f.name, [], [], "wir")
         self.namer = Namer()
         self.entry: list = self.out.body
@@ -133,7 +134,9 @@ class _Wave:
         n, t = s.name, s.result.type
         at = args[0].type if args else t
         if n in ("eq", "ne", "lt", "le", "gt", "ge"):
-            return id(s.result) in self.cond_only and at.is_int and at.bits == 32 and self.table.salu(n, at) is not None
+            # a condition of regions only: a scalar compare, or (64-bit, floating point) a per-lane compare of
+            # uniform operands, on which the wave branches as one
+            return id(s.result) in self.cond_only and not at.is_bool
         if t.is_bool or at.is_bool or t.is_float or at.is_float:
             return n == "bitcast" and t.size == 4 and at.size == 4
         if n in ("cast", "bitcast"):
@@ -159,6 +162,13 @@ class _Wave:
             return
         if n == "barrier":
             self.emit("barrier", [], None, None, src=s)
+            return
+        if n == "laneid":
+            self.m[id(s.result)] = self.source("lane.id", "v", t=s.result.type)
+            return
+        if n == "waveread":
+            x, at = self.val(s.args[0]), self.val(s.args[1])
+            self.m[id(s.result)] = self.emit("lane.read", [x, at], s.result.type, "v", s.result.name, s)
             return
         if n == "wgreduce":
             # each wave combines its lanes without memory; the waves meet through one LDS slot each
@@ -239,7 +249,9 @@ class _Wave:
                 kind = "v"
                 if p.base.kind == "u" and wops.kind_of(idx) == "u" and s.result.type.size in (4, 8) and not s.result.type.is_bool \
                         and not p.base.type.is_lds:
-                    if self.choose(s.site or "load", "load.uniform", ["scalar", "vector"]) == "scalar":
+                    # a scalar load runs whatever the mask is: inside a region that cannot be skipped when no lane
+                    # takes it (one with a barrier), only the per-lane load is safe
+                    if self.choose(s.site or "load", "load.uniform", ["vector"] if self.unskippable else ["scalar", "vector"]) == "scalar":
                         kind = "u"
                 self.m[id(s.result)] = self.emit("load", [p.base, idx], s.result.type, kind, s.result.name, s, scale=p.scale, off=p.off)
             else:
@@ -319,11 +331,14 @@ class _Wave:
         cond = self.val(s.cond)
         mode = "branch" if wops.kind_of(cond) == "u" else "where"
         w = If(cond, mode=mode, site=s.site, loc=s.loc)
+        pinned = mode == "where" and any(isinstance(x, Op) and x.name == "barrier" for x in walk(s.then + s.orelse))
+        self.unskippable += pinned
         self.blocks.append(w.then)
         self.body(s.then)
         self.blocks[-1] = w.orelse
         self.body(s.orelse)
         self.blocks.pop()
+        self.unskippable -= pinned
         # the merged values are evaluated where their definitions are visible
         merged = []
         for m in s.merges:
@@ -353,5 +368,6 @@ class _Wave:
     def run(self) -> Func:
         self.body(self.f.body)
         _dce(self.out)
-        from ..wir.verify import assert_ok
+        from ..wir.verify import as_written, assert_ok
+        as_written(self.out)
         return assert_ok(self.out)

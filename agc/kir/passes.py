@@ -16,6 +16,13 @@ from .ir import Const, Func, I1, If, Loop, Merge, Namer, Op, Type, Value, operan
 from .ops import BUILTINS, COMMUTATIVE, PURE
 
 
+def _put(subst: dict, v, new) -> None:
+    """Record that `v` is replaced by `new`. The replaced value is kept alive: substitutions are looked up by
+    object identity, and an identity must not be reused by a value created later in the same pass."""
+    subst[id(v)] = new
+    subst.setdefault("alive", []).append(v)
+
+
 def fold_const(name: str, args: list[Const], t: Type) -> Const | None:
     """The constant an operation on constants computes, or None when it is not foldable."""
     if name in BUILTINS or name in ("gep", "load", "store") or any(a.type.is_ptr for a in args) or t.is_ptr:
@@ -184,6 +191,16 @@ def _rewrite(stmts: list, subst: dict, table: dict, ctx: dict) -> list:
                 d = defs.get(id(s.args[0]))
                 if d is not None and d.name == "not":
                     new = r(d.args[0])
+            if new is None and s.name == "cast" and s.result.type.is_float and s.args[0].type.is_int and s.args[0].type.bits == 64:
+                d = defs.get(id(s.args[0])) if isinstance(s.args[0], Value) else None
+                while d is not None and d.name == "cast" and d.args[0].type.is_int and d.args[0].type.bits == 64:
+                    d = defs.get(id(d.args[0])) if isinstance(d.args[0], Value) else None
+                if d is not None and d.name == "cast" and d.args[0].type.is_int and d.args[0].type.bits == 32:
+                    src = d.args[0]
+                    # extend, then convert: the value of the 32-bit integer, when the 64-bit type reads it the same way
+                    if not src.type.signed or s.args[0].type.signed:
+                        s.args = [src]
+                        ctx["changed"] = True
             if new is None and _logic(s, out, ctx):
                 ctx["changed"] = True
             if new is None and s.name == "add" and s.result.type.is_int and isinstance(s.args[1], Const) and isinstance(s.args[0], Value):
@@ -214,7 +231,7 @@ def _rewrite(stmts: list, subst: dict, table: dict, ctx: dict) -> list:
                 else:
                     table[key] = s.result
             if new is not None:
-                subst[id(s.result)] = new
+                _put(subst, s.result, new)
             else:
                 out.append(s)
         elif isinstance(s, If):
@@ -223,7 +240,7 @@ def _rewrite(stmts: list, subst: dict, table: dict, ctx: dict) -> list:
                 taken = s.then if s.cond.value else s.orelse
                 out += _rewrite(taken, subst, table, ctx)
                 for m in s.merges:
-                    subst[id(m.result)] = r(m.a if s.cond.value else m.b)
+                    _put(subst, m.result, r(m.a if s.cond.value else m.b))
                 continue
             s.then = _rewrite(s.then, subst, dict(table), ctx)
             s.orelse = _rewrite(s.orelse, subst, dict(table), ctx)
@@ -231,7 +248,7 @@ def _rewrite(stmts: list, subst: dict, table: dict, ctx: dict) -> list:
             for m in s.merges:
                 m.a, m.b = r(m.a), r(m.b)
                 if m.a is m.b or (isinstance(m.a, Const) and m.a == m.b):
-                    subst[id(m.result)] = m.a
+                    _put(subst, m.result, m.a)
                 else:
                     keep.append(m)
             s.merges = keep
@@ -247,8 +264,8 @@ def _rewrite(stmts: list, subst: dict, table: dict, ctx: dict) -> list:
             s.init = [r(x) for x in s.init]
             for i, (c, nx) in enumerate(zip(s.carried, s.next)):     # carried but never changed: its initial value
                 if nx is c:
-                    subst[id(c)] = s.init[i]
-                    subst[id(s.out[i])] = s.init[i]
+                    _put(subst, c, s.init[i])
+                    _put(subst, s.out[i], s.init[i])
             keep = [i for i, (c, nx) in enumerate(zip(s.carried, s.next)) if nx is not c]
             if len(keep) != len(s.carried):
                 ctx["changed"] = True
@@ -261,7 +278,7 @@ def _rewrite(stmts: list, subst: dict, table: dict, ctx: dict) -> list:
             s.next = [r(x) for x in s.next]
             if isinstance(s.cond, Const) and not s.cond.value:      # never runs
                 for o, i in zip(s.out, s.init):
-                    subst[id(o)] = i
+                    _put(subst, o, i)
                 continue
             out.append(s)
     return out
@@ -403,12 +420,17 @@ def unroll_constant_loops(f: Func, limit: int = 64) -> Func:
                 else:
                     stmts2, outs = flat
                     for o, v in zip(s.out, outs):
-                        subst[id(o)] = v
+                        _put(subst, o, v)
                     out += go(stmts2)
         return out
 
-    f.body = go(f.body)
-    return simplify(f)
+    for _ in range(4):                                     # a loop's bound may be the result of another constant loop
+        before = sum(isinstance(s, Loop) for s in f.walk())
+        f.body = go(f.body)
+        simplify(f)
+        if not 0 < sum(isinstance(s, Loop) for s in f.walk()) < before:
+            break
+    return f
 
 
 def _unroll(s: Loop, namer: Namer, limit: int, r) -> tuple[list, list] | None:
@@ -629,7 +651,7 @@ def cse(f: Func) -> Func:
                     args = sorted(s.args, key=lambda a: repr(_key(a))) if s.name in COMMUTATIVE else s.args
                     key = (s.name, tuple(_key(a) for a in args), str(s.result.type), s.result.kind, tuple(sorted(s.attrs.items())))
                     if key in table:
-                        subst[id(s.result)] = table[key]
+                        _put(subst, s.result, table[key])
                         continue
                     table[key] = s.result
                 out.append(s)

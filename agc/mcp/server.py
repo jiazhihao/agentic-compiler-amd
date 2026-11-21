@@ -244,12 +244,12 @@ def apply(ref: str, transform: str, params: dict | None = None) -> dict:
 
 
 @tool
-def lower(overrides: dict | None = None, note: str = "") -> dict:
-    """Compile the manifest's HIP source through agc's own lowering (Clang only parses; no amdclang code generation)
+def lower(overrides: dict | None = None, note: str = "", text: str = "") -> dict:
+    """Compile the manifest's HIP source (or `text`, a rewritten source with the same entry and parameters) through agc's own lowering (Clang only parses; no amdclang code generation)
     into a new root state. Every lowering step is a recorded decision whose default reproduces amdclang;
     `overrides` picks other alternatives: {"if0.branch.skip_empty": "none"} for one site, {"fp.contract": "off"}
     for every site. Then static_check / check / bench / equivalent as for any state. plan(ref) lists the decisions."""
-    return _short(_s().lower(overrides, note))
+    return _short(_s().lower(overrides, note, text))
 
 
 @tool
