@@ -35,8 +35,8 @@
     "lds": 0
    }
   },
-  "over_strongest_amdclang": 1.5494,
-  "over_shipped_O3": 11.5923
+  "over_strongest_amdclang": 1.5519,
+  "over_shipped_O3": 11.5027
  },
  "path": [
   "source",
@@ -44,30 +44,42 @@
  ],
  "verified": {
   "outcome": "win",
-  "speedup": 1.5494,
+  "speedup": 1.5519,
   "speedup_ci95": [
-   1.5478,
-   1.551
+   1.5473,
+   1.5565
   ],
-  "reference_ms": 0.16574,
-  "candidate_ms": 0.107,
+  "reference_ms": 0.16778,
+  "candidate_ms": 0.10818,
   "cases": 98,
   "protocol_version": "agc-timing-amd-2",
+  "equivalent": {
+   "ok": true,
+   "cases": 99,
+   "bit_identical": false,
+   "bit_identical_cases": 0,
+   "within_tolerance": true,
+   "max_abs_err": 0.048828125,
+   "max_rel_err": 0.009711246083254408,
+   "worst_case": "large_exponent/seed0[G=2,Hk=4,S=300]",
+   "failing": [],
+   "error": null
+  },
   "pairs": 240,
   "runs": [
    {
-    "speedup": 1.5494,
+    "speedup": 1.5519,
     "ci95": [
-     1.5478,
-     1.551
+     1.5473,
+     1.5565
     ],
     "valid": true
    },
    {
-    "speedup": 1.5578,
+    "speedup": 1.5561,
     "ci95": [
-     1.5552,
-     1.5607
+     1.5489,
+     1.5634
     ],
     "valid": true
    }
@@ -145,5 +157,5 @@
   "seconds": 769,
   "log": ".agc/sessions/attn_decode-69c8eacfa7/agent/20261120-232335.jsonl"
  },
- "recorded": "2026-11-20"
+ "recorded": "2026-11-21"
 }

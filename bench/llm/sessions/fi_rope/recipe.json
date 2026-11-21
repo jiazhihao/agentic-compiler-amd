@@ -41,8 +41,8 @@
     "lds": 0
    }
   },
-  "over_strongest_amdclang": 1.0371,
-  "over_shipped_O3": 2.2973
+  "over_strongest_amdclang": 1.032,
+  "over_shipped_O3": 2.4266
  },
  "path": [
   "source",
@@ -53,30 +53,42 @@
  ],
  "verified": {
   "outcome": "win",
-  "speedup": 1.0371,
+  "speedup": 1.032,
   "speedup_ci95": [
-   1.0305,
-   1.0409
+   1.0277,
+   1.0363
   ],
-  "reference_ms": 0.04996,
-  "candidate_ms": 0.04812,
+  "reference_ms": 0.04966,
+  "candidate_ms": 0.04808,
   "cases": 98,
   "protocol_version": "agc-timing-amd-2",
+  "equivalent": {
+   "ok": true,
+   "cases": 99,
+   "bit_identical": false,
+   "bit_identical_cases": 0,
+   "within_tolerance": true,
+   "max_abs_err": 14.6328125,
+   "max_rel_err": 4.237768365366283,
+   "worst_case": "large_exponent/seed0[Hk=2,Hq=5,N=74]",
+   "failing": [],
+   "error": null
+  },
   "pairs": 240,
   "runs": [
    {
-    "speedup": 1.0371,
+    "speedup": 1.032,
     "ci95": [
-     1.0305,
-     1.0409
+     1.0277,
+     1.0363
     ],
     "valid": true
    },
    {
-    "speedup": 1.0475,
+    "speedup": 1.0398,
     "ci95": [
-     1.0423,
-     1.0518
+     1.0361,
+     1.0435
     ],
     "valid": true
    }

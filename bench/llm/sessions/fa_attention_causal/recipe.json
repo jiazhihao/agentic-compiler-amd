@@ -38,8 +38,8 @@
     "lds": 0
    }
   },
-  "over_strongest_amdclang": 1.9918,
-  "over_shipped_O3": 4.4583
+  "over_strongest_amdclang": 1.9812,
+  "over_shipped_O3": 4.3972
  },
  "path": [
   "source",
@@ -54,30 +54,42 @@
  ],
  "verified": {
   "outcome": "win",
-  "speedup": 1.9918,
+  "speedup": 1.9812,
   "speedup_ci95": [
-   1.9868,
-   1.9949
+   1.9772,
+   1.9853
   ],
-  "reference_ms": 0.0872,
-  "candidate_ms": 0.0438,
+  "reference_ms": 0.09074,
+  "candidate_ms": 0.0458,
   "cases": 49,
   "protocol_version": "agc-timing-amd-2",
+  "equivalent": {
+   "ok": true,
+   "cases": 50,
+   "bit_identical": false,
+   "bit_identical_cases": 3,
+   "within_tolerance": true,
+   "max_abs_err": 0.15625,
+   "max_rel_err": 0.008340943077936928,
+   "worst_case": "large_exponent/seed0[N=149]",
+   "failing": [],
+   "error": null
+  },
   "pairs": 240,
   "runs": [
    {
-    "speedup": 1.9918,
+    "speedup": 1.9812,
     "ci95": [
-     1.99,
-     1.9963
+     1.9772,
+     1.9853
     ],
     "valid": true
    },
    {
-    "speedup": 1.9918,
+    "speedup": 1.9874,
     "ci95": [
-     1.9868,
-     1.9949
+     1.9837,
+     1.9911
     ],
     "valid": true
    }
@@ -170,5 +182,5 @@
   "seconds": 583,
   "log": ".agc/sessions/fa_attention_causal-4e5d3a08f9/agent/20261120-234826.jsonl"
  },
- "recorded": "2026-11-20"
+ "recorded": "2026-11-21"
 }
