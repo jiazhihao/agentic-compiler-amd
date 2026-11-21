@@ -19,6 +19,18 @@ and a benchmark result is a set of per-kernel sessions. General passes and the d
 policy are what the sessions have shown to pay often enough to automate; they are the
 floor an agent starts from, not the product.
 
+**Phase 2 (roadmap M11 to M21, issue #77): agc owns the lowering.** The first phase took HIP
+through `amdclang -O3 -S` and improved the imported assembly. The second gives agc its own path
+from HIP to assembly: Clang parses, and from the AST on everything is agc's, as a collection of
+IR transformations and lowering rules with alternatives. A compilation is a plan of recorded
+decisions; the agent chooses alternatives, measures, and backtracks by replanning. The approach
+follows CAKE (arXiv 2608.12629): the agent works on a typed, hardware-explicit schedule IR, the
+harness answers with localized findings and a cost model, and the harness itself is improved
+from the sessions' evidence. The difference is the target: CAKE emits PTX and leaves the machine
+code to the vendor toolchain; agc emits the machine's assembly, so its decision space includes
+instruction selection, scheduling, registers and waits. Sections 2 and 3 describe both phases;
+where they differ the text says which.
+
 This project reuses the design and infrastructure of the NVIDIA reference implementation
 ([jiazhihao/agentic-compiler](https://github.com/jiazhihao/agentic-compiler), Hopper/PTX)
 and changes the bottom of the stack. On NVIDIA the compiler emitted PTX and `ptxas`
@@ -64,17 +76,51 @@ what can be imported), a drop-in `hipcc` replacement, RDNA/wave32, other CDNA ge
 |---|---|---|
 | D1 | **Machine IR (`mir`) is the optimization level that owns the output.** Its physical form is the shipped program, instruction for instruction. | The large MI355X wins (MFMA/LDS/VMEM interleaving, AGPR placement, `s_waitcnt` placement, wave ping-pong, direct-to-LDS loads) are instruction-level decisions. Owning them makes them visible, searchable and agent-editable. |
 | D2 | **Operand legality comes from AMD's machine-readable ISA XML** (`amdgpu_isa_cdna4.xml`, MIT), compiled into `agc/isa/cdna4.json.gz` by `scripts/gen_isa.py`. | The specification is concrete and complete; no hand-written opcode tables. `llvm-mc` is a second, independent check (it must encode every instruction). |
-| D3 | **HIP enters through `amdclang -O3 -S` and is imported into physical `mir`.** | Reusing Clang for HIP parsing, template instantiation and lane-level selection gives every HIP kernel a parity starting point; agc's passes and the agent improve from there instead of starting from scratch. (The reference's Clang-AST → `kir` frontend is deliberately not ported first; see D9.) |
+| D3 | *(Phase 1; replaced by D3' in phase 2.)* **HIP enters through `amdclang -O3 -S` and is imported into physical `mir`.** | Reusing Clang for HIP parsing, template instantiation and lane-level selection gives every HIP kernel a parity starting point; agc's passes and the agent improve from there instead of starting from scratch. (The reference's Clang-AST → `kir` frontend is deliberately not ported first; see D9.) |
 | D4 | **Tensor programs enter at `tair` and are generated straight into virtual `mir`** by schedule templates (elementwise, rowwise, reduction, GEMM/MFMA, attention), then register-allocated by agc. | High-level inputs have no HIP to import. Generators produce MFMA/LDS code that the lane-level path cannot reach (e.g. a naive HIP GEMM can be replaced by an MFMA kernel because the spec, not the source, is the contract). |
 | D5 | **A machine model as data**, `agc/arch/gfx950.yaml`, every field tagged `isa-doc`, `rocminfo` or `measured`; measured fields come from on-device microbenchmarks. | Without a vendor scheduler, agc's scheduler needs latencies, issue rules and hazard windows. Python code holds no architecture constants. |
 | D6 | **Independent static checkers** (verifier, hazard checker, waitcnt checker, encode round-trip) run on every physical `mir` before any GPU job, separately from the passes that produced it. They are validated on every `amdclang` output in the corpus (zero violations) and by seeded mutations. | A missing wait or `s_nop` produces silent wrong results, not crashes. A candidate must not be able to skip the checker. |
 | D7 | **Compiler-owned verification and timing.** The candidate cannot choose its oracle, inputs, tolerance or measurement. Protocol `agc-timing-amd-2` (versions and what changed: `agc/runtime/timing.py`). | Unchanged from the reference. Speedups are paired against amdclang under the same protocol. |
 | D8 | **One machine-wide GPU executor** (subprocess workers, a lock, interactive before batch), using the HIP module API through `libamdhip64` via ctypes. | Isolation, reproducibility and accounting; no HIP headers needed at runtime. |
-| D9 | **`kir` (lane-level IR) and the Clang-AST frontend are deferred**, not dropped. | `amdclang` + import covers HIP inputs at parity; generators cover high-level inputs. A lane-level IR returns only if a measured case needs a lane-level transformation that neither path provides. |
+| D9 | *(Phase 1; replaced by D9'.)* **`kir` (lane-level IR) and the Clang-AST frontend are deferred**, not dropped. | `amdclang` + import covers HIP inputs at parity; generators cover high-level inputs. A lane-level IR returns only if a measured case needs a lane-level transformation that neither path provides. |
 | D10 | **Agent and scripted policy share one action menu.** | The default policy is the regression baseline; the agent explores. |
 | D11 | **Per-kernel specialization through the agent is the product; general passes are its by-product.** Every optimization is available as an action on one kernel's state (a parameterized pass, a generator template with its knobs, a launch change, a free-form `mir` edit), and nothing has to be general to be used. | The wins differ by kernel (loads in flight for one, coarsening for another, MFMA or a DPP reduction for a third) and depend on shapes and launch. A fixed pipeline has to be right for all kernels; an agent with a harness only has to be right for the one in front of it, and the checks, not the generality of the transformation, make the result safe. A customization that recurs is promoted to a pass or a template and enters the default policy. |
+| D3' | **HIP enters through agc's own lowering**: Clang AST → `kir` → `wir` → `mir`. Importing `amdclang -S` output stays as an input kind (existing assembly, baselines). | Phase 1 measured that most of the gain on the LLM benchmark was restructuring that the agent could only express as rewritten HIP text for amdclang (geomean 1.54), and that every result at or above 1.5x needed a whole-kernel rewrite typed as raw `mir`. Both belong on IRs agc owns. |
+| D9' | **`kir` and the Clang-AST frontend are built** (the trigger of D9 occurred: 22 of 23 first-round recipes were lane-level restructurings). | |
+| D12 | **Clang is the parser, and only the parser** (`-fsyntax-only -Xclang -ast-dump=json`): no LLVM IR, no optimizer, no backend. | Templates, overloads and constant expressions arrive resolved; parsing C++ is not where the performance is. `-O0 -emit-llvm` as the input was rejected: it loses loops and array structure and ties agc to LLVM IR. |
+| D13 | **Three IRs with one contract each**: `kir` says what one thread computes, `wir` says how a wave is driven (the schedule), `mir` is the shipped program. Each has text, a parser, a verifier and a NumPy interpreter. | Every lowering step is checkable on the CPU; `wir` is the level at which a schedule is stated and its mechanics derived. |
+| D14 | **Lowering is a set of rules with alternatives; a compilation is a plan** of decisions `(site, decision, alternative, parameters)`. The default alternative of every decision reproduces amdclang. | Parity by default; every departure is named, replayable and attributable. |
+| D15 | **Backtracking is replanning**: one decision changes, agc re-derives from the earliest affected level and replays the rest. The store of immutable states is the search tree. | The agent does not redo by hand what did not change. |
+| D16 | **A rule is admitted with its analyses**: effects, verifier coverage, a hardware-behaviour note, a cost-model term, a pass over the whole corpus. | A primitive without analyses makes the IR less analyzable (CAKE's principles P4 to P8). |
+| D17 | **The manifest is specialization context for the compiler**: distinct tensors give alias information, shape ranges give value ranges, the tolerance admits floating-point alternatives per site. | amdclang cannot know this from the source; `-ffast-math` is all or nothing. |
+| D18 | **The first implementation of each lowering is written from LLVM's AMDGPU backend**, then diverges where measurements say so; ported logic names its source file. | The legality knowledge is there. The reference map is in the roadmap. |
 
 ## 3. The IR stack
+
+Phase 2 (the phase-1 stack follows):
+
+```text
+ HIP + manifest ──Clang (parse only)──► AST ──frontend──► kir   one thread's program
+                                                           │ wave lowering        ◄─ decisions
+ einsum / tair / NumPy ref ──► tair ──templates──────────► wir   one wave's schedule
+                                                           │ selection, scheduling,
+                                                           │ regalloc, waits, hazards ◄─ decisions
+                                                           ▼
+ amdclang -O3 -S ──import (baseline, oracle)──► mir ──► checkers ──► llvm-mc → ld.lld → .hsaco
+```
+
+`kir`: SSA scalars, structured control flow, typed memory (global, LDS, private), HIP builtins;
+transformations here keep the source's semantics (simplification, loops, work mapping over
+threads and workgroups, idiom lifting to `tair`, fusion). `wir`: values that are wave-uniform,
+per lane, masks or MFMA accumulators; declared resources (launch, wave roles, LDS regions,
+barriers, load and store streams with their depth in flight); operations close to instruction
+families. Written in `wir`: what is loaded when and how wide, which reduction mechanism, which
+MFMA form, which wave does what. Derived by lowering: register numbers, `s_waitcnt`, `s_nop`,
+address arithmetic, kernarg offsets, the descriptor. The decision catalog, the session
+operations (`lower`, `actions`, `replan`, `sweep`, `attribute`, `explain`) and the gates are in
+the [roadmap](roadmap.md), phase 2.
+
+Phase 1:
 
 ```text
  HIP + manifest ──amdclang -O3 -S──► asm ──import──────────────► mir (physical)
@@ -142,7 +188,8 @@ thread trace give per-instruction stall evidence.
 
 ## 4. Inputs
 
-1. **HIP** (primary): `amdclang -x hip --offload-arch=gfx950 -O3 -S`, imported.
+1. **HIP** (primary): phase 1, `amdclang -x hip --offload-arch=gfx950 -O3 -S`, imported;
+   phase 2, parsed by Clang and lowered by agc (`kir` → `wir` → `mir`).
 2. **CUDA**: `hipify-clang`, then as HIP; the CUDA original is provenance only.
 3. **Tensor programs**: einsum / TAIR text / NumPy reference in the manifest.
 4. **Existing assembly** (hand-written or library kernels): imported into `mir`.
@@ -248,6 +295,7 @@ banks). Fields are tagged by source; `measured` fields are regenerated by
 | `agc/runtime` | HIP driver (ctypes), toolchain wrappers, executor + worker, inputs, reference evaluation, battery, timing, profiler, baselines |
 | `agc/mir` | IR, parser/printer, descriptor/metadata, emit, import, verifier, CFG/liveness, hazard and waitcnt checkers, interpreter, passes |
 | `agc/tair` | Specifications and their interpreter |
+| `agc/frontend`, `agc/kir`, `agc/wir`, `agc/lower`, `agc/cost` (phase 2) | Clang AST to `kir`; the thread-level IR; the wave-level schedule IR; lowering rules, sites and plans; the cost model |
 | `agc/gen` | Template generators from `tair` to virtual `mir` |
 | `agc/store`, `agc/session`, `agc/mcp`, `agc/cli.py` | States, actions, the agent interface |
 | `agc/agent` | The per-kernel harness: session prompt, agent runner, independent verification, recipes, replay |

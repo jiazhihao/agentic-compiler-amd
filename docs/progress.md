@@ -21,6 +21,18 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 
 ## Log
 
+### 2026-11-21 — Roadmap, phase 2: agc's own lowering from HIP to assembly (#77)
+- **What.** Roadmap M11 to M21 (`docs/roadmap.md`, issue #77) and design decisions D3', D9', D12
+  to D18: Clang as parser only, `kir` (thread level) and `wir` (wave-level schedule IR) above
+  `mir`, lowering as recorded decisions with alternatives, replanning as backtracking, gates with
+  site-addressed findings, a cost model, the evolution loop, a matched experiment against raw
+  `mir` edits. Modelled on CAKE (arXiv 2608.12629, read in full); the difference is that agc
+  lowers to the machine's assembly, not to PTX.
+- **Measured.** Clang's JSON AST for `axpy.hip` (`-fsyntax-only -Xclang -ast-dump=json`, filtered
+  to the entry): 0.6 s, 150 KB. Nothing else was run; this entry is a plan.
+- **Open.** Everything in it. The milestone sizes (about 30 k lines in total) and the exit numbers
+  are estimates; the kernels named as candidates for M11 are not yet confirmed by a frontend.
+
 ### 2026-11-23 — GEMM with LDS-shared operands; FP8 GEMM (#23, #75)
 - **LDS-shared GEMM (#23).** `gemm_mfma` got `share`: four waves per workgroup compute a 2x2 block of
   quarters and share the operand halves through LDS, so a workgroup loads each operand element once.
