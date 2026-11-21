@@ -4,7 +4,7 @@
   "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
   "rocm": "7.14.60850"
  },
- "recorded": "2026-11-19",
+ "recorded": "2026-11-21",
  "operation": "C[M,N] = A[M,K] @ B[N,K]^T, bf16 inputs, f32 result",
  "shapes": {
   "square": {
@@ -15,110 +15,293 @@
     {
      "params": {
       "tiles": 1,
-      "unroll": 1
+      "unroll": 1,
+      "share": 0
      },
-     "ms": 1.02701,
-     "tflops": 133.8,
-     "vs_amdclang": 116.5,
+     "ms": 1.03621,
+     "tflops": 132.6,
+     "vs_amdclang": 115.9,
      "vs_amdclang_ci95": [
-      116.0,
-      117.0
+      115.6,
+      116.2
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 9.481
+     "hipblaslt_ratio": 9.535
     },
     {
      "params": {
       "tiles": 1,
-      "unroll": 2
+      "unroll": 1,
+      "share": 1
      },
-     "ms": 0.93717,
-     "tflops": 146.7,
-     "vs_amdclang": 127.7,
+     "ms": 0.56773,
+     "tflops": 242.1,
+     "vs_amdclang": 211.9,
+     "vs_amdclang_ci95": [
+      211.0,
+      213.0
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 5.224
+    },
+    {
+     "params": {
+      "tiles": 1,
+      "unroll": 2,
+      "share": 0
+     },
+     "ms": 0.94017,
+     "tflops": 146.2,
+     "vs_amdclang": 127.8,
      "vs_amdclang_ci95": [
       127.5,
       128.0
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 8.652
+     "hipblaslt_ratio": 8.651
     },
     {
      "params": {
       "tiles": 2,
-      "unroll": 1
+      "unroll": 1,
+      "share": 0
      },
-     "ms": 0.52181,
-     "tflops": 263.4,
+     "ms": 0.52247,
+     "tflops": 263.1,
      "vs_amdclang": 229.6,
      "vs_amdclang_ci95": [
-      229.2,
-      230.0
+      229.3,
+      229.9
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 4.817
+     "hipblaslt_ratio": 4.807
     },
     {
      "params": {
       "tiles": 2,
-      "unroll": 2
+      "unroll": 1,
+      "share": 1
      },
-     "ms": 0.51757,
-     "tflops": 265.5,
-     "vs_amdclang": 231.5,
+     "ms": 0.29722,
+     "tflops": 462.4,
+     "vs_amdclang": 403.5,
      "vs_amdclang_ci95": [
-      230.1,
-      232.6
+      402.6,
+      404.0
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 4.778
+     "hipblaslt_ratio": 2.735
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 1,
+      "share": 2
+     },
+     "ms": 0.27708,
+     "tflops": 496.0,
+     "vs_amdclang": 432.3,
+     "vs_amdclang_ci95": [
+      383.1,
+      435.2
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 2.55
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 1,
+      "share": 3
+     },
+     "ms": 0.28024,
+     "tflops": 490.4,
+     "vs_amdclang": 427.4,
+     "vs_amdclang_ci95": [
+      426.5,
+      428.4
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 2.579
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 2,
+      "share": 0
+     },
+     "ms": 0.51495,
+     "tflops": 266.9,
+     "vs_amdclang": 232.4,
+     "vs_amdclang_ci95": [
+      231.5,
+      232.7
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 4.738
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 2,
+      "share": 2
+     },
+     "ms": 0.26196,
+     "tflops": 524.7,
+     "vs_amdclang": 456.4,
+     "vs_amdclang_ci95": [
+      455.9,
+      458.5
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 2.41
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 2,
+      "share": 3
+     },
+     "ms": 0.26106,
+     "tflops": 526.5,
+     "vs_amdclang": 459.3,
+     "vs_amdclang_ci95": [
+      457.9,
+      460.0
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 2.402
     },
     {
      "params": {
       "tiles": 4,
-      "unroll": 1
+      "unroll": 1,
+      "share": 0
      },
-     "ms": 0.29004,
-     "tflops": 473.9,
-     "vs_amdclang": 412.7,
+     "ms": 0.29045,
+     "tflops": 473.2,
+     "vs_amdclang": 413.1,
      "vs_amdclang_ci95": [
-      411.8,
-      414.2
+      411.9,
+      414.3
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 2.678
+     "hipblaslt_ratio": 2.672
     },
     {
      "params": {
       "tiles": 4,
-      "unroll": 2
+      "unroll": 1,
+      "share": 1
      },
-     "ms": 0.28678,
+     "ms": 0.18274,
+     "tflops": 752.1,
+     "vs_amdclang": 657.6,
+     "vs_amdclang_ci95": [
+      654.5,
+      659.1
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 1.681
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 1,
+      "share": 2
+     },
+     "ms": 0.16808,
+     "tflops": 817.7,
+     "vs_amdclang": 715.1,
+     "vs_amdclang_ci95": [
+      711.6,
+      717.5
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 1.547
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 1,
+      "share": 3
+     },
+     "ms": 0.20454,
+     "tflops": 671.9,
+     "vs_amdclang": 588.2,
+     "vs_amdclang_ci95": [
+      586.4,
+      589.3
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 1.882
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 2,
+      "share": 0
+     },
+     "ms": 0.28681,
      "tflops": 479.2,
-     "vs_amdclang": 417.8,
+     "vs_amdclang": 419.0,
      "vs_amdclang_ci95": [
-      417.1,
-      419.2
+      417.7,
+      419.5
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 2.648
+     "hipblaslt_ratio": 2.639
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 2,
+      "share": 2
+     },
+     "ms": 0.1815,
+     "tflops": 757.2,
+     "vs_amdclang": 662.1,
+     "vs_amdclang_ci95": [
+      659.9,
+      665.2
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 1.67
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 2,
+      "share": 3
+     },
+     "ms": 0.20242,
+     "tflops": 679.0,
+     "vs_amdclang": 592.2,
+     "vs_amdclang_ci95": [
+      588.9,
+      594.2
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 1.863
     }
    ],
-   "hipblaslt_ms": 0.10832,
-   "amdclang_ms": 119.4835,
+   "hipblaslt_ms": 0.10868,
+   "amdclang_ms": 119.575,
    "best": {
     "params": {
      "tiles": 4,
-     "unroll": 2
+     "unroll": 1,
+     "share": 2
     },
-    "ms": 0.28678,
-    "tflops": 479.2,
-    "vs_amdclang": 417.8,
+    "ms": 0.16808,
+    "tflops": 817.7,
+    "vs_amdclang": 715.1,
     "vs_amdclang_ci95": [
-     417.1,
-     419.2
+     711.6,
+     717.5
     ],
     "outcome": "win",
-    "hipblaslt_ratio": 2.648
+    "hipblaslt_ratio": 1.547
    }
   },
   "wide": {
@@ -129,110 +312,293 @@
     {
      "params": {
       "tiles": 1,
-      "unroll": 1
+      "unroll": 1,
+      "share": 0
      },
-     "ms": 1.04071,
-     "tflops": 132.1,
-     "vs_amdclang": 115.0,
+     "ms": 1.05436,
+     "tflops": 130.4,
+     "vs_amdclang": 113.8,
      "vs_amdclang_ci95": [
-      114.6,
-      115.3
+      113.4,
+      114.2
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 9.249
+     "hipblaslt_ratio": 9.36
     },
     {
      "params": {
       "tiles": 1,
-      "unroll": 2
+      "unroll": 1,
+      "share": 1
      },
-     "ms": 0.94011,
-     "tflops": 146.2,
-     "vs_amdclang": 127.3,
+     "ms": 0.59301,
+     "tflops": 231.8,
+     "vs_amdclang": 202.9,
      "vs_amdclang_ci95": [
-      127.1,
-      127.6
+      202.1,
+      203.5
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 8.355
+     "hipblaslt_ratio": 5.265
+    },
+    {
+     "params": {
+      "tiles": 1,
+      "unroll": 2,
+      "share": 0
+     },
+     "ms": 0.9451,
+     "tflops": 145.4,
+     "vs_amdclang": 126.8,
+     "vs_amdclang_ci95": [
+      126.7,
+      127.1
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 8.39
     },
     {
      "params": {
       "tiles": 2,
-      "unroll": 1
+      "unroll": 1,
+      "share": 0
      },
-     "ms": 0.53339,
-     "tflops": 257.7,
-     "vs_amdclang": 224.0,
+     "ms": 0.52465,
+     "tflops": 262.0,
+     "vs_amdclang": 228.8,
      "vs_amdclang_ci95": [
-      223.6,
-      224.5
+      228.5,
+      229.6
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 4.74
+     "hipblaslt_ratio": 4.658
     },
     {
      "params": {
       "tiles": 2,
-      "unroll": 2
+      "unroll": 1,
+      "share": 1
      },
-     "ms": 0.51703,
-     "tflops": 265.8,
-     "vs_amdclang": 231.7,
+     "ms": 0.29934,
+     "tflops": 459.1,
+     "vs_amdclang": 400.7,
      "vs_amdclang_ci95": [
-      231.2,
-      232.0
+      399.9,
+      401.6
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 4.595
+     "hipblaslt_ratio": 2.657
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 1,
+      "share": 2
+     },
+     "ms": 0.27393,
+     "tflops": 501.7,
+     "vs_amdclang": 438.4,
+     "vs_amdclang_ci95": [
+      436.1,
+      439.6
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 2.432
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 1,
+      "share": 3
+     },
+     "ms": 0.28157,
+     "tflops": 488.1,
+     "vs_amdclang": 426.7,
+     "vs_amdclang_ci95": [
+      426.0,
+      427.2
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 2.5
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 2,
+      "share": 0
+     },
+     "ms": 0.51885,
+     "tflops": 264.9,
+     "vs_amdclang": 230.9,
+     "vs_amdclang_ci95": [
+      230.3,
+      231.4
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 4.606
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 2,
+      "share": 2
+     },
+     "ms": 0.26401,
+     "tflops": 520.6,
+     "vs_amdclang": 455.4,
+     "vs_amdclang_ci95": [
+      454.1,
+      456.5
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 2.344
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 2,
+      "share": 3
+     },
+     "ms": 0.26147,
+     "tflops": 525.6,
+     "vs_amdclang": 458.5,
+     "vs_amdclang_ci95": [
+      457.4,
+      460.3
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 2.321
     },
     {
      "params": {
       "tiles": 4,
-      "unroll": 1
+      "unroll": 1,
+      "share": 0
      },
-     "ms": 0.29114,
-     "tflops": 472.1,
-     "vs_amdclang": 410.3,
+     "ms": 0.29225,
+     "tflops": 470.3,
+     "vs_amdclang": 410.7,
      "vs_amdclang_ci95": [
-      408.5,
-      412.2
+      409.8,
+      412.0
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 2.587
+     "hipblaslt_ratio": 2.594
     },
     {
      "params": {
       "tiles": 4,
-      "unroll": 2
+      "unroll": 1,
+      "share": 1
      },
-     "ms": 0.28916,
-     "tflops": 475.3,
-     "vs_amdclang": 414.1,
+     "ms": 0.18966,
+     "tflops": 724.6,
+     "vs_amdclang": 632.8,
      "vs_amdclang_ci95": [
-      413.1,
-      415.1
+      630.1,
+      635.5
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 2.57
+     "hipblaslt_ratio": 1.684
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 1,
+      "share": 2
+     },
+     "ms": 0.17274,
+     "tflops": 795.6,
+     "vs_amdclang": 693.9,
+     "vs_amdclang_ci95": [
+      691.2,
+      695.2
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 1.534
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 1,
+      "share": 3
+     },
+     "ms": 0.20878,
+     "tflops": 658.3,
+     "vs_amdclang": 575.8,
+     "vs_amdclang_ci95": [
+      572.7,
+      576.7
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 1.854
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 2,
+      "share": 0
+     },
+     "ms": 0.28854,
+     "tflops": 476.3,
+     "vs_amdclang": 415.5,
+     "vs_amdclang_ci95": [
+      413.8,
+      416.5
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 2.562
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 2,
+      "share": 2
+     },
+     "ms": 0.1876,
+     "tflops": 732.6,
+     "vs_amdclang": 640.6,
+     "vs_amdclang_ci95": [
+      637.9,
+      645.8
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 1.665
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 2,
+      "share": 3
+     },
+     "ms": 0.20666,
+     "tflops": 665.0,
+     "vs_amdclang": 580.2,
+     "vs_amdclang_ci95": [
+      578.2,
+      582.9
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 1.835
     }
    ],
-   "hipblaslt_ms": 0.11252,
-   "amdclang_ms": 119.3736,
+   "hipblaslt_ms": 0.11264,
+   "amdclang_ms": 119.7856,
    "best": {
     "params": {
      "tiles": 4,
-     "unroll": 2
+     "unroll": 1,
+     "share": 2
     },
-    "ms": 0.28916,
-    "tflops": 475.3,
-    "vs_amdclang": 414.1,
+    "ms": 0.17274,
+    "tflops": 795.6,
+    "vs_amdclang": 693.9,
     "vs_amdclang_ci95": [
-     413.1,
-     415.1
+     691.2,
+     695.2
     ],
     "outcome": "win",
-    "hipblaslt_ratio": 2.57
+    "hipblaslt_ratio": 1.534
    }
   },
   "tall": {
@@ -243,110 +609,293 @@
     {
      "params": {
       "tiles": 1,
-      "unroll": 1
+      "unroll": 1,
+      "share": 0
      },
-     "ms": 1.05243,
-     "tflops": 130.6,
-     "vs_amdclang": 113.8,
+     "ms": 1.06116,
+     "tflops": 129.5,
+     "vs_amdclang": 112.9,
      "vs_amdclang_ci95": [
-      113.4,
-      113.9
+      112.5,
+      113.3
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 9.88
+     "hipblaslt_ratio": 9.858
     },
     {
      "params": {
       "tiles": 1,
-      "unroll": 2
+      "unroll": 1,
+      "share": 1
      },
-     "ms": 0.93837,
-     "tflops": 146.5,
-     "vs_amdclang": 127.5,
+     "ms": 0.56671,
+     "tflops": 242.5,
+     "vs_amdclang": 211.3,
      "vs_amdclang_ci95": [
-      127.3,
-      127.8
+      210.7,
+      212.0
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 8.809
+     "hipblaslt_ratio": 5.265
+    },
+    {
+     "params": {
+      "tiles": 1,
+      "unroll": 2,
+      "share": 0
+     },
+     "ms": 0.94516,
+     "tflops": 145.4,
+     "vs_amdclang": 126.8,
+     "vs_amdclang_ci95": [
+      126.5,
+      127.2
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 8.781
     },
     {
      "params": {
       "tiles": 2,
-      "unroll": 1
+      "unroll": 1,
+      "share": 0
      },
-     "ms": 0.52907,
-     "tflops": 259.8,
-     "vs_amdclang": 226.0,
+     "ms": 0.52947,
+     "tflops": 259.6,
+     "vs_amdclang": 226.9,
      "vs_amdclang_ci95": [
-      225.6,
-      226.2
+      226.6,
+      227.1
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 4.967
+     "hipblaslt_ratio": 4.919
     },
     {
      "params": {
       "tiles": 2,
-      "unroll": 2
+      "unroll": 1,
+      "share": 1
      },
-     "ms": 0.53819,
-     "tflops": 255.4,
-     "vs_amdclang": 221.7,
+     "ms": 0.30724,
+     "tflops": 447.3,
+     "vs_amdclang": 391.0,
      "vs_amdclang_ci95": [
-      219.5,
-      226.9
+      390.8,
+      391.5
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 5.052
+     "hipblaslt_ratio": 2.854
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 1,
+      "share": 2
+     },
+     "ms": 0.28385,
+     "tflops": 484.2,
+     "vs_amdclang": 423.2,
+     "vs_amdclang_ci95": [
+      377.4,
+      426.3
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 2.637
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 1,
+      "share": 3
+     },
+     "ms": 0.28706,
+     "tflops": 478.8,
+     "vs_amdclang": 417.6,
+     "vs_amdclang_ci95": [
+      416.6,
+      419.3
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 2.667
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 2,
+      "share": 0
+     },
+     "ms": 0.53439,
+     "tflops": 257.2,
+     "vs_amdclang": 223.8,
+     "vs_amdclang_ci95": [
+      219.3,
+      229.0
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 4.964
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 2,
+      "share": 2
+     },
+     "ms": 0.2618,
+     "tflops": 525.0,
+     "vs_amdclang": 457.3,
+     "vs_amdclang_ci95": [
+      455.4,
+      458.3
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 2.432
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 2,
+      "share": 3
+     },
+     "ms": 0.2621,
+     "tflops": 524.4,
+     "vs_amdclang": 456.3,
+     "vs_amdclang_ci95": [
+      454.4,
+      458.5
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 2.435
     },
     {
      "params": {
       "tiles": 4,
-      "unroll": 1
+      "unroll": 1,
+      "share": 0
      },
-     "ms": 0.30158,
-     "tflops": 455.7,
-     "vs_amdclang": 395.8,
+     "ms": 0.29968,
+     "tflops": 458.6,
+     "vs_amdclang": 399.7,
      "vs_amdclang_ci95": [
-      394.0,
-      397.3
+      397.7,
+      400.7
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 2.831
+     "hipblaslt_ratio": 2.784
     },
     {
      "params": {
       "tiles": 4,
-      "unroll": 2
+      "unroll": 1,
+      "share": 1
      },
-     "ms": 0.28962,
-     "tflops": 474.5,
-     "vs_amdclang": 412.4,
+     "ms": 0.18958,
+     "tflops": 725.0,
+     "vs_amdclang": 632.8,
      "vs_amdclang_ci95": [
-      411.1,
-      413.7
+      630.3,
+      636.2
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 2.719
+     "hipblaslt_ratio": 1.761
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 1,
+      "share": 2
+     },
+     "ms": 0.17282,
+     "tflops": 795.3,
+     "vs_amdclang": 694.4,
+     "vs_amdclang_ci95": [
+      692.3,
+      696.9
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 1.606
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 1,
+      "share": 3
+     },
+     "ms": 0.20902,
+     "tflops": 657.5,
+     "vs_amdclang": 574.7,
+     "vs_amdclang_ci95": [
+      573.4,
+      576.5
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 1.942
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 2,
+      "share": 0
+     },
+     "ms": 0.28906,
+     "tflops": 475.5,
+     "vs_amdclang": 415.7,
+     "vs_amdclang_ci95": [
+      414.7,
+      416.3
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 2.685
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 2,
+      "share": 2
+     },
+     "ms": 0.1829,
+     "tflops": 751.4,
+     "vs_amdclang": 656.8,
+     "vs_amdclang_ci95": [
+      654.6,
+      658.9
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 1.699
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 2,
+      "share": 3
+     },
+     "ms": 0.2035,
+     "tflops": 675.4,
+     "vs_amdclang": 588.4,
+     "vs_amdclang_ci95": [
+      586.5,
+      590.6
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 1.891
     }
    ],
-   "hipblaslt_ms": 0.10652,
-   "amdclang_ms": 119.7702,
+   "hipblaslt_ms": 0.10764,
+   "amdclang_ms": 119.8013,
    "best": {
     "params": {
      "tiles": 4,
-     "unroll": 2
+     "unroll": 1,
+     "share": 2
     },
-    "ms": 0.28962,
-    "tflops": 474.5,
-    "vs_amdclang": 412.4,
+    "ms": 0.17282,
+    "tflops": 795.3,
+    "vs_amdclang": 694.4,
     "vs_amdclang_ci95": [
-     411.1,
-     413.7
+     692.3,
+     696.9
     ],
     "outcome": "win",
-    "hipblaslt_ratio": 2.719
+    "hipblaslt_ratio": 1.606
    }
   },
   "small": {
@@ -357,110 +906,293 @@
     {
      "params": {
       "tiles": 1,
-      "unroll": 1
+      "unroll": 1,
+      "share": 0
      },
-     "ms": 0.13306,
-     "tflops": 129.1,
-     "vs_amdclang": 112.3,
+     "ms": 0.13458,
+     "tflops": 127.7,
+     "vs_amdclang": 111.6,
      "vs_amdclang_ci95": [
-      112.1,
-      112.4
+      111.3,
+      111.8
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 4.544
+     "hipblaslt_ratio": 4.534
     },
     {
      "params": {
       "tiles": 1,
-      "unroll": 2
+      "unroll": 1,
+      "share": 1
      },
-     "ms": 0.12586,
-     "tflops": 136.5,
-     "vs_amdclang": 118.6,
+     "ms": 0.07992,
+     "tflops": 215.0,
+     "vs_amdclang": 187.8,
      "vs_amdclang_ci95": [
-      118.3,
-      118.9
+      187.1,
+      188.4
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 4.299
+     "hipblaslt_ratio": 2.693
+    },
+    {
+     "params": {
+      "tiles": 1,
+      "unroll": 2,
+      "share": 0
+     },
+     "ms": 0.12628,
+     "tflops": 136.0,
+     "vs_amdclang": 118.8,
+     "vs_amdclang_ci95": [
+      118.5,
+      119.0
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 4.255
     },
     {
      "params": {
       "tiles": 2,
-      "unroll": 1
+      "unroll": 1,
+      "share": 0
      },
-     "ms": 0.0788,
-     "tflops": 218.0,
-     "vs_amdclang": 189.8,
+     "ms": 0.07914,
+     "tflops": 217.1,
+     "vs_amdclang": 189.3,
      "vs_amdclang_ci95": [
-      189.2,
-      190.3
+      188.2,
+      192.1
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 2.691
+     "hipblaslt_ratio": 2.666
     },
     {
      "params": {
       "tiles": 2,
-      "unroll": 2
+      "unroll": 1,
+      "share": 1
      },
-     "ms": 0.07368,
-     "tflops": 233.2,
-     "vs_amdclang": 203.0,
+     "ms": 0.0545,
+     "tflops": 315.2,
+     "vs_amdclang": 274.8,
      "vs_amdclang_ci95": [
-      202.6,
-      203.4
+      272.3,
+      276.2
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 2.516
+     "hipblaslt_ratio": 1.836
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 1,
+      "share": 2
+     },
+     "ms": 0.04964,
+     "tflops": 346.1,
+     "vs_amdclang": 302.5,
+     "vs_amdclang_ci95": [
+      299.5,
+      304.2
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 1.673
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 1,
+      "share": 3
+     },
+     "ms": 0.06092,
+     "tflops": 282.0,
+     "vs_amdclang": 246.1,
+     "vs_amdclang_ci95": [
+      245.1,
+      247.3
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 2.053
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 2,
+      "share": 0
+     },
+     "ms": 0.07406,
+     "tflops": 232.0,
+     "vs_amdclang": 202.6,
+     "vs_amdclang_ci95": [
+      202.3,
+      203.1
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 2.495
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 2,
+      "share": 2
+     },
+     "ms": 0.0424,
+     "tflops": 405.2,
+     "vs_amdclang": 354.2,
+     "vs_amdclang_ci95": [
+      353.5,
+      354.7
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 1.429
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 2,
+      "share": 3
+     },
+     "ms": 0.05856,
+     "tflops": 293.4,
+     "vs_amdclang": 256.0,
+     "vs_amdclang_ci95": [
+      254.7,
+      256.7
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 1.973
     },
     {
      "params": {
       "tiles": 4,
-      "unroll": 1
+      "unroll": 1,
+      "share": 0
      },
-     "ms": 0.09236,
-     "tflops": 186.0,
-     "vs_amdclang": 161.9,
+     "ms": 0.09218,
+     "tflops": 186.4,
+     "vs_amdclang": 162.8,
      "vs_amdclang_ci95": [
-      161.4,
-      162.2
+      161.6,
+      163.3
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 3.154
+     "hipblaslt_ratio": 3.106
     },
     {
      "params": {
       "tiles": 4,
-      "unroll": 2
+      "unroll": 1,
+      "share": 1
      },
-     "ms": 0.07784,
-     "tflops": 220.7,
-     "vs_amdclang": 192.3,
+     "ms": 0.08892,
+     "tflops": 193.2,
+     "vs_amdclang": 168.6,
      "vs_amdclang_ci95": [
-      192.1,
-      193.0
+      167.9,
+      168.9
      ],
      "outcome": "win",
-     "hipblaslt_ratio": 2.659
+     "hipblaslt_ratio": 2.996
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 1,
+      "share": 2
+     },
+     "ms": 0.08384,
+     "tflops": 204.9,
+     "vs_amdclang": 178.6,
+     "vs_amdclang_ci95": [
+      177.6,
+      179.2
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 2.825
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 1,
+      "share": 3
+     },
+     "ms": 0.1019,
+     "tflops": 168.6,
+     "vs_amdclang": 147.4,
+     "vs_amdclang_ci95": [
+      146.8,
+      147.8
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 3.433
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 2,
+      "share": 0
+     },
+     "ms": 0.07722,
+     "tflops": 222.5,
+     "vs_amdclang": 194.2,
+     "vs_amdclang_ci95": [
+      193.5,
+      194.6
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 2.602
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 2,
+      "share": 2
+     },
+     "ms": 0.08852,
+     "tflops": 194.1,
+     "vs_amdclang": 169.5,
+     "vs_amdclang_ci95": [
+      169.2,
+      169.7
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 2.983
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 2,
+      "share": 3
+     },
+     "ms": 0.09742,
+     "tflops": 176.3,
+     "vs_amdclang": 153.9,
+     "vs_amdclang_ci95": [
+      153.7,
+      154.1
+     ],
+     "outcome": "win",
+     "hipblaslt_ratio": 3.282
     }
    ],
-   "hipblaslt_ms": 0.02928,
-   "amdclang_ms": 14.995,
+   "hipblaslt_ms": 0.02968,
+   "amdclang_ms": 14.9992,
    "best": {
     "params": {
      "tiles": 2,
-     "unroll": 2
+     "unroll": 2,
+     "share": 2
     },
-    "ms": 0.07368,
-    "tflops": 233.2,
-    "vs_amdclang": 203.0,
+    "ms": 0.0424,
+    "tflops": 405.2,
+    "vs_amdclang": 354.2,
     "vs_amdclang_ci95": [
-     202.6,
-     203.4
+     353.5,
+     354.7
     ],
     "outcome": "win",
-    "hipblaslt_ratio": 2.516
+    "hipblaslt_ratio": 1.429
    }
   }
  },
@@ -468,7 +1200,8 @@
   {
    "params": {
     "tiles": 1,
-    "unroll": 1
+    "unroll": 1,
+    "share": 0
    },
    "static": true,
    "battery": "77/77",
@@ -479,7 +1212,20 @@
   {
    "params": {
     "tiles": 1,
-    "unroll": 2
+    "unroll": 1,
+    "share": 1
+   },
+   "static": true,
+   "battery": "77/77",
+   "vgprs": 20,
+   "agprs": 16,
+   "instructions": 247
+  },
+  {
+   "params": {
+    "tiles": 1,
+    "unroll": 2,
+    "share": 0
    },
    "static": true,
    "battery": "77/77",
@@ -490,7 +1236,8 @@
   {
    "params": {
     "tiles": 2,
-    "unroll": 1
+    "unroll": 1,
+    "share": 0
    },
    "static": true,
    "battery": "77/77",
@@ -501,7 +1248,44 @@
   {
    "params": {
     "tiles": 2,
-    "unroll": 2
+    "unroll": 1,
+    "share": 1
+   },
+   "static": true,
+   "battery": "77/77",
+   "vgprs": 34,
+   "agprs": 64,
+   "instructions": 667
+  },
+  {
+   "params": {
+    "tiles": 2,
+    "unroll": 1,
+    "share": 2
+   },
+   "static": true,
+   "battery": "77/77",
+   "vgprs": 70,
+   "agprs": 64,
+   "instructions": 718
+  },
+  {
+   "params": {
+    "tiles": 2,
+    "unroll": 1,
+    "share": 3
+   },
+   "static": true,
+   "battery": "77/77",
+   "vgprs": 52,
+   "agprs": 64,
+   "instructions": 724
+  },
+  {
+   "params": {
+    "tiles": 2,
+    "unroll": 2,
+    "share": 0
    },
    "static": true,
    "battery": "77/77",
@@ -511,8 +1295,33 @@
   },
   {
    "params": {
+    "tiles": 2,
+    "unroll": 2,
+    "share": 2
+   },
+   "static": true,
+   "battery": "77/77",
+   "vgprs": 110,
+   "agprs": 64,
+   "instructions": 870
+  },
+  {
+   "params": {
+    "tiles": 2,
+    "unroll": 2,
+    "share": 3
+   },
+   "static": true,
+   "battery": "77/77",
+   "vgprs": 92,
+   "agprs": 64,
+   "instructions": 868
+  },
+  {
+   "params": {
     "tiles": 4,
-    "unroll": 1
+    "unroll": 1,
+    "share": 0
    },
    "static": true,
    "battery": "77/77",
@@ -523,13 +1332,74 @@
   {
    "params": {
     "tiles": 4,
-    "unroll": 2
+    "unroll": 1,
+    "share": 1
+   },
+   "static": true,
+   "battery": "77/77",
+   "vgprs": 62,
+   "agprs": 256,
+   "instructions": 2269
+  },
+  {
+   "params": {
+    "tiles": 4,
+    "unroll": 1,
+    "share": 2
+   },
+   "static": true,
+   "battery": "77/77",
+   "vgprs": 126,
+   "agprs": 256,
+   "instructions": 2350
+  },
+  {
+   "params": {
+    "tiles": 4,
+    "unroll": 1,
+    "share": 3
+   },
+   "static": true,
+   "battery": "77/77",
+   "vgprs": 92,
+   "agprs": 256,
+   "instructions": 2348
+  },
+  {
+   "params": {
+    "tiles": 4,
+    "unroll": 2,
+    "share": 0
    },
    "static": true,
    "battery": "77/77",
    "vgprs": 86,
    "agprs": 256,
    "instructions": 2085
+  },
+  {
+   "params": {
+    "tiles": 4,
+    "unroll": 2,
+    "share": 2
+   },
+   "static": true,
+   "battery": "77/77",
+   "vgprs": 206,
+   "agprs": 256,
+   "instructions": 2706
+  },
+  {
+   "params": {
+    "tiles": 4,
+    "unroll": 2,
+    "share": 3
+   },
+   "static": true,
+   "battery": "77/77",
+   "vgprs": 172,
+   "agprs": 256,
+   "instructions": 2656
   }
  ]
 }

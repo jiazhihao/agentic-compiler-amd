@@ -66,7 +66,7 @@ def main() -> int:
         if n in wins:
             v = max(v, wins[n][1]["bench"]["speedup"])
         best.append((n, v))
-    no_mfma = [v for n, v in best if n != "gemm_bf16"]
+    no_mfma = [v for n, v in best if n not in ("gemm_bf16", "gemm_fp8")]
     L += ["", f"Policy alone: {s['wins']} wins and {s['fallbacks']} fallbacks over {s['with_baseline']} kernels with a baseline; "
           f"geomean {s['geomean_without_mfma_gemm']} without the MFMA GEMM (fallbacks count as 1.0), {s['geomean']} with it. "
           f"Taking the better of policy and agent session per kernel: geomean {gm(no_mfma):.3f} without the MFMA GEMM, "
@@ -79,9 +79,25 @@ def main() -> int:
         L.append(f"| {sh['M']} x {sh['N']} x {sh['K']} | {sh['amdclang_ms']:.2f} | {b['ms']:.4f} | {sh['hipblaslt_ms']:.4f} | "
                  f"{b['vs_amdclang']:.0f}x | {b['hipblaslt_ratio']:.2f} | {b['tflops']:.0f} |")
     ratios = [sh["best"]["hipblaslt_ratio"] for sh in gemm["shapes"].values()]
-    L += ["", f"agc takes {min(ratios):.1f}x to {max(ratios):.1f}x hipBLASLt's time. The kernel is bound by operand-load throughput (7 to 8 TB/s in "
-          "every variant); the next factor needs operands shared between waves through LDS (issue #23). The roadmap's "
-          "target of 1.5x was not met.", "",
+    within = sum(r <= 1.5 for r in ratios)
+    L += ["", f"agc takes {min(ratios):.2f}x to {max(ratios):.2f}x hipBLASLt's time (2.5x to 2.8x before the operands were shared "
+          "between the four waves of a workgroup through LDS, issue #23). The loads from memory are still the bound; they cost per "
+          f"load instruction and per cache line touched. The target of 1.5x is met on {within} of {len(ratios)} shapes."]
+    fp8_path = B / "gemm-fp8-gfx950.json"
+    if fp8_path.exists():
+        fp8 = json.loads(fp8_path.read_text())
+        L += ["", "## FP8 GEMM against hipBLASLt", "",
+              f"{fp8['operation']} (issue #75). The amdclang column is a HIP kernel with a software decode. The FP8 MFMAs are less "
+              "precise than an f32 sum (worst measured error 1.4e-4 of the sum of the products' magnitudes), and the kernel's "
+              "tolerance is set accordingly.", "",
+              "| Shape | amdclang ms | agc ms | hipBLASLt ms | agc vs amdclang | agc time / hipBLASLt time | agc TFLOPS |", "|---|---|---|---|---|---|---|"]
+        for n, sh in fp8["shapes"].items():
+            b = sh["best"]
+            L.append(f"| {sh['M']} x {sh['N']} x {sh['K']} | {sh['amdclang_ms']:.2f} | {b['ms']:.4f} | {sh['hipblaslt_ms']:.4f} | "
+                     f"{b['vs_amdclang']:.0f}x | {b['hipblaslt_ratio']:.2f} | {b['tflops']:.0f} |")
+        fr = [sh["best"]["hipblaslt_ratio"] for sh in fp8["shapes"].values()]
+        L += ["", f"agc takes {min(fr):.2f}x to {max(fr):.2f}x hipBLASLt's FP8 time, with the 32x32x64 FP8 MFMA and LDS-shared operands."]
+    L += ["",
           "## Controls", "",
           "A/A control (the same code object against itself) from the recording run of each baseline:", "",
           "| Kernel | A/A ratio | 95 % CI |", "|---|---|---|"]

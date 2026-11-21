@@ -155,11 +155,39 @@ over the strongest amdclang build (LLM benchmark) or over `amdclang -O3` (corpus
 ## D. Compute
 
 ### D1. MFMA GEMM (template `gemm_mfma`)
-- **Verdict:** pays, 200x to 400x over amdclang
-- **Applies when:** `C = A @ B^T`, bf16 inputs, f32 result. amdclang never emits MFMA.
-- **How:** `generate("gemm_mfma", {"tiles": 1 | 2 | 4, "unroll": 1 | 2})`: `v_mfma_f32_32x32x16_bf16`, `tiles^2` output tiles per wave so a loaded element is used `tiles` times.
-- **Measured:** 479 TFLOP/s at 4096^3 (tiles 4); bigger tiles 1.7x from 64x64 to 128x128 outputs per wave; more loads per wait: nothing (bound by operand-load throughput, 7 to 8 TB/s). hipBLASLt is still 2.6x to 2.8x faster: needs LDS-shared operands (issue #23).
-- **Recipe:** template `gemm_mfma`; `tests/baselines/gemm-gfx950.json`.
+- **Verdict:** pays, 200x to 700x over amdclang; 1.2x to 1.6x hipBLASLt's time with the LDS-shared schedule
+- **Applies when:** `C = A @ B^T`, bf16 or FP8 inputs, f32 result. amdclang never emits MFMA.
+- **How:** `generate("gemm_mfma", {"tiles": 1 | 2 | 4, "unroll": 1 | 2, "share": 0..3, "wide": 0 | 1})`: `tiles^2` 32x32 output tiles per wave so a loaded element is used `tiles` times; `share` and `wide` are D1a and D1c below.
+- **Measured:** without sharing 479 TFLOP/s at 4096^3 bf16 (tiles 4): bigger tiles 1.7x from 64x64 to 128x128 outputs per wave; more loads per wait: nothing. With `share=2`: 818 TFLOP/s (bf16), 1482 (FP8, `wide=1`).
+- **Recipe:** template `gemm_mfma`; `tests/baselines/gemm-gfx950.json`, `gemm-fp8-gfx950.json`.
+
+### D1a. Operands shared through LDS in a 4-wave workgroup (`share`)
+- **Verdict:** pays, 1.5x to 1.7x over the unshared template
+- **Applies when:** a kernel whose waves each load operands that their neighbours load too, and whose time is the loads from memory (the MFMA GEMM: 256 AccVGPRs per wave cap a wave at 128x128 outputs, so the next halving of the traffic per output needs sharing between waves).
+- **How:** four waves compute a 2x2 block of quarters; wave (i, j) needs A half i and B half j. `share=1`: each wave loads one half it needs, keeps it in registers, writes it to LDS, and after one barrier per K-step reads the other half from LDS (A half i by wave (i, i), B half j by wave (1 - j, j)). `share=2`: wave w loads half w in row pieces (16 rows x 64 contiguous bytes per load with `unroll=1`, 8 rows x 128 bytes with `unroll=2`), writes it to LDS in the readers' layout, and every wave reads both halves from LDS; one barrier per macro step of 2 to 8 K-steps; the next macro step's loads are in flight. Two LDS buffers alternate so a wave may write the next step while another still reads this one.
+- **Measured:** bf16 4096^3: unshared 0.287 ms; `share=1` 0.187 ms; `share=2` 0.168 to 0.172 ms (818 TFLOP/s, 1.55x hipBLASLt's time, was 2.65x). 2048^3: `tiles=2, unroll=2, share=2` 0.0425 ms (405 TFLOP/s, 1.44x hipBLASLt's time, was 2.5x). Probes at 4096^3 (`share=1`, 187 us): no barrier 181, no MFMA 162, no loads from memory 25: the loads from memory are still the bound. Loads two or three macro steps ahead: 0.179 and 0.176 ms (nothing).
+- **Recipe:** template; all variants pass the full battery (77/77).
+
+### D1b. What a load from memory costs: per instruction, and per cache line
+- **Verdict:** facts that decide the schedule
+- **Applies when:** a kernel bound by loads of data that is in the caches (operands read by many workgroups).
+- **How:** always load 16 bytes per lane (`dwordx4`), whatever the element size, and let each load touch few cache lines. Route the data through LDS when the layout the consumer needs is not the layout that loads well: LDS reads of the same volume cost about 5 %.
+- **Measured:** FP8 GEMM with `dwordx2` loads in operand layout: the loads alone took 134 us at 4096^3, as long as bf16's `dwordx4` loads of twice the bytes; with `dwordx4` row pieces the kernel went from 0.147 to 0.124 ms. bf16, rows per load 32 / 16 / 8 / 2 (a probe that changes the addresses only): 186 / 160 / 160 / 138 us. Doubling the LDS reads of `share=1`: 188 to 198 us.
+- **Recipe:** `_panel_loop` in `agc/gen/gemm.py`.
+
+### D1c. The 32x32x64 FP8 MFMA (`wide`)
+- **Verdict:** pays, 1.34x over the 32x32x16 FP8 MFMA
+- **Applies when:** FP8 inputs on gfx950, K a multiple of 64.
+- **How:** `v_mfma_f32_32x32x64_f8f6f4` (operands of 8 registers: 32 bytes per lane; `cbsz` / `blgp` 0 for E4M3, 1 for E5M2): the same products in half the MFMA passes and a quarter of the MFMA instructions. Layout, verified by the battery: lane l element e of A is `A[l % 32][32 (l // 32) + e]`. In the LDS-shared schedule a lane's 32 bytes are two 16-byte slots, read with two `ds_read_b128`.
+- **Measured:** 4096^3: 0.124 ms with the 32x32x16 MFMA, 0.0927 ms wide (1482 TFLOP/s; hipBLASLt FP8 0.0726 ms: 1.28x its time). 2048^3: 0.0259 ms (664 TFLOP/s, 1.23x hipBLASLt's time).
+- **Recipe:** template `gemm_mfma` on `tests/kernels/gemm_fp8`.
+
+### D1d. FP8 MFMA precision
+- **Verdict:** a fact: the FP8 MFMAs are less precise than an f32 sum
+- **Applies when:** setting the tolerance of anything computed with an FP8 MFMA.
+- **How:** allow about 2.5e-4 of the sum of the products' magnitudes (`cond`); bf16 MFMA passes at 2e-5.
+- **Measured:** inputs with a wide range of exponents: worst error 1.4e-4 of the sum of magnitudes (one product of 5760 and 245 products below 1e-4 of it: the small ones are partly lost); normal inputs 9e-6. amdclang's software decode with an f32 sum: 4e-7. FP8's own input quantization is 6 %.
+- **Recipe:** `tests/kernels/gemm_fp8.json` (`note`).
 
 ### D2. MFMA attention (template `attention_mfma`)
 - **Verdict:** pays, 2.0x to 2.1x
@@ -225,6 +253,20 @@ over the strongest amdclang build (LLM benchmark) or over `amdclang -O3` (corpus
 - **How:** above 80 KB per workgroup only one workgroup fits a CU (163,840 bytes per CU).
 - **Measured:** `kda_step` 1.21 against 1.60 with the smaller allocation.
 - **Recipe:** none.
+
+### E5. LDS layout: a read should cover all banks
+- **Verdict:** essential; 120 us lost on a GEMM when wrong
+- **Applies when:** `ds_read` / `ds_write` with per-lane addresses that are not lane-contiguous.
+- **How:** LDS has 64 banks of 4 bytes. Lay data out so the 64 lanes of one access cover 64 consecutive units (any permutation of them is as good); a row-major layout whose lanes are 64 or 128 bytes apart puts one access on 2 to 4 banks.
+- **Measured:** GEMM `share=2` at 4096^3: row-major LDS layout with 128-byte row pieces: LDS reads 120 us and writes 35 us; readers' layout: 3 us and 1 us.
+- **Recipe:** `_panel_loop` in `agc/gen/gemm.py`.
+
+### E6. Loads straight into LDS (`global_load_lds_dwordx4`)
+- **Verdict:** loses on the GEMM (0.200 ms against 0.172 ms)
+- **Applies when:** tempting when loaded data only passes through registers on its way to LDS.
+- **How:** `s_mov_b32 m0, base` then the load: lane l's 16 bytes land at `m0 + 16 l` (verified by the battery). The static checker lets no LDS read and no barrier overlap such a load, so all operands of a step are read before the next step's loads are issued, and the barrier waits for them.
+- **Measured:** GEMM `share=3`: the MFMA time hides better behind the loads (10 to 20 us added instead of 28 to 51), but the barrier with its wait costs 30 to 43 us; in total slower.
+- **Recipe:** template `gemm_mfma`, `share=3` (kept as a measured knob).
 
 ## F. Order and control
 

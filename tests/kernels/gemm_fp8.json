@@ -1,0 +1,101 @@
+{
+ "name": "gemm_fp8",
+ "source": "gemm_fp8.hip",
+ "entry": "gemm_fp8",
+ "shapes": {
+  "M": 200,
+  "N": 136,
+  "K": 256
+ },
+ "bench_shapes": {
+  "M": 2048,
+  "N": 2048,
+  "K": 2048
+ },
+ "dynamic": [
+  "M",
+  "N"
+ ],
+ "params": [
+  {
+   "name": "A",
+   "kind": "tensor",
+   "dtype": "e4m3",
+   "shape": [
+    "M",
+    "K"
+   ]
+  },
+  {
+   "name": "B",
+   "kind": "tensor",
+   "dtype": "e4m3",
+   "shape": [
+    "N",
+    "K"
+   ]
+  },
+  {
+   "name": "C",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "M",
+    "N"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "M",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "M"
+  },
+  {
+   "name": "N",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "N"
+  },
+  {
+   "name": "K",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "K"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "cdiv(N, 16)",
+   "cdiv(M, 16)"
+  ],
+  "block": [
+   16,
+   16
+  ]
+ },
+ "program": {
+  "file": "gemm_fp8.tair"
+ },
+ "reference": {
+  "kind": "einsum",
+  "expr": "mk,nk->mn",
+  "inputs": [
+   "A",
+   "B"
+  ],
+  "output": "C"
+ },
+ "tolerance": {
+  "C": {
+   "cond": 0.00025
+  }
+ },
+ "tags": [
+  "contraction",
+  "gemm",
+  "mfma",
+  "fp8"
+ ],
+ "note": "cond is 2.5e-4 (bf16: 2e-5): the FP8 MFMA sums each group of 16 products with less precision than an f32 sum and loses part of products far below the largest one; measured worst 1.4e-4 of the sum of magnitudes (large_exponent inputs), 9e-6 on normal inputs"
+}

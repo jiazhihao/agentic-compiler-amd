@@ -141,6 +141,13 @@ def recipes() -> str:
         for name, s in gm["shapes"].items():
             bst = s["best"]
             L.append(f"| {name} ({s['M']} x {s['N']} x {s['K']}) | {bst['params']} | {bst['tflops']} | {bst['vs_amdclang']} | {bst['hipblaslt_ratio']:.2f}x |")
+    fp = _load("gemm-fp8-gfx950.json")
+    if fp:
+        L += ["", "## GEMM on the FP8 MFMAs", "", f"{fp['operation']}; template `gemm_mfma` on `tests/kernels/gemm_fp8`.", "",
+              "| shape | best parameters | TFLOP/s | over amdclang | hipBLASLt (FP8) is faster by |", "|---|---|---|---|---|"]
+        for name, s in fp["shapes"].items():
+            bst = s["best"]
+            L.append(f"| {name} ({s['M']} x {s['N']} x {s['K']}) | {bst['params']} | {bst['tflops']} | {bst['vs_amdclang']} | {bst['hipblaslt_ratio']:.2f}x |")
     wins = sorted((REPO / "tests" / "mir" / "wins").glob("*.s"))
     if wins:
         L += ["", "## Hand-written machine-IR wins (corpus)", "",

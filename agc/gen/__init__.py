@@ -15,8 +15,8 @@ TEMPLATES = {
                     "params": {"elements_per_lane": [1, 2, 4]}, "default": {"elements_per_lane": 4}},
     "rowwise": {"module": rowwise, "doc": "reductions over the last axis and a per-row map; one wave per row, DPP reductions",
                 "params": {"unroll": [1, 2, 4]}, "default": {"unroll": 4}},
-    "gemm_mfma": {"module": gemm, "doc": "C = A @ B^T on MFMA (bf16 in, f32 out); tiles x tiles 32x32 output tiles per wave",
-                  "params": {"tiles": [1, 2, 4], "unroll": [1, 2]}, "default": {"tiles": 4, "unroll": 1}},
+    "gemm_mfma": {"module": gemm, "doc": "C = A @ B^T on MFMA (bf16 or FP8 in, f32 out); tiles x tiles 32x32 output tiles per wave; share: operands through LDS in a 4-wave workgroup",
+                  "params": {"tiles": [1, 2, 4], "unroll": [1, 2], "share": [0, 1, 2, 3], "wide": [0, 1]}, "default": {"tiles": 4, "unroll": 1, "share": 0, "wide": 0}},
     "attention_mfma": {"module": attention, "doc": "out = softmax(scale Q K^T) V per head on MFMA (f32): 16 queries x 16 keys per tile, "
                                                     "online softmax; `waves` waves per workgroup share the key tiles",
                        "params": {"waves": [1, 2, 4, 8], "ahead": [0, 1]}, "default": {"waves": 8, "ahead": 1}},

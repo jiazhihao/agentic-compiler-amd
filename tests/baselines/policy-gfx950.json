@@ -332,17 +332,17 @@
   },
   "gemm_bf16": {
    "chosen": {
-    "state": "e186ba2748a73001",
+    "state": "2150c833a0c68078",
     "path": "generate",
-    "how": "gemm_mfma(tiles=2, unroll=2)",
+    "how": "gemm_mfma(tiles=2, unroll=2, share=2, wide=0)",
     "bit_identical": false,
-    "speedup": 203.8445,
+    "speedup": 350.466,
     "ci95": [
-     203.3592,
-     204.2729
+     347.1385,
+     353.8254
     ],
-    "ms": 0.07348,
-    "amdclang_ms": 14.97125
+    "ms": 0.04254,
+    "amdclang_ms": 14.91612
    },
    "fallback": false,
    "candidates": [
@@ -352,13 +352,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "parity",
-     "speedup": 0.9901,
+     "speedup": 0.9893,
      "ci95": [
-      0.9895,
-      0.9974
+      0.9842,
+      0.9944
      ],
-     "ms": 15.1364,
-     "amdclang_ms": 14.98854
+     "ms": 15.11621,
+     "amdclang_ms": 14.92647
     },
     {
      "path": "import+pass",
@@ -366,13 +366,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "parity",
-     "speedup": 1.0014,
+     "speedup": 1.0008,
      "ci95": [
-      1.0011,
-      1.0022
+      0.9998,
+      1.0019
      ],
-     "ms": 14.96959,
-     "amdclang_ms": 14.9947
+     "ms": 14.95919,
+     "amdclang_ms": 14.96797
     },
     {
      "path": "import+pass",
@@ -382,11 +382,11 @@
      "outcome": "loss",
      "speedup": 0.9712,
      "ci95": [
-      0.9709,
-      0.9719
+      0.971,
+      0.9715
      ],
-     "ms": 15.4373,
-     "amdclang_ms": 14.99241
+     "ms": 15.42566,
+     "amdclang_ms": 14.97292
     },
     {
      "path": "import+pass",
@@ -396,11 +396,11 @@
      "outcome": "parity",
      "speedup": 1.0002,
      "ci95": [
-      1.0001,
-      1.0004
+      0.9998,
+      1.0007
      ],
-     "ms": 14.93782,
-     "amdclang_ms": 14.94067
+     "ms": 14.92086,
+     "amdclang_ms": 14.92643
     },
     {
      "path": "import+pass",
@@ -408,13 +408,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "parity",
-     "speedup": 1.0004,
+     "speedup": 0.9999,
      "ci95": [
-      1.0002,
-      1.0006
+      0.9991,
+      1.0008
      ],
-     "ms": 14.93549,
-     "amdclang_ms": 14.93984
+     "ms": 14.97377,
+     "amdclang_ms": 14.96918
     },
     {
      "path": "import+pass",
@@ -422,97 +422,1173 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "parity",
-     "speedup": 1.0004,
+     "speedup": 1.0001,
      "ci95": [
-      0.9999,
-      1.0006
+      1.0,
+      1.0003
      ],
-     "ms": 14.94383,
-     "amdclang_ms": 14.94823
+     "ms": 14.96183,
+     "amdclang_ms": 14.96632
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "loss",
+     "speedup": 0.9168,
+     "ci95": [
+      0.915,
+      0.9185
+     ],
+     "ms": 16.30814,
+     "amdclang_ms": 14.93657
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 0.9997,
+     "ci95": [
+      0.9989,
+      1.0005
+     ],
+     "ms": 14.97485,
+     "amdclang_ms": 14.97274
     },
     {
      "path": "generate",
-     "how": "gemm_mfma(tiles=1, unroll=1)",
+     "how": "gemm_mfma(tiles=1, unroll=1, share=0, wide=0)",
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 112.6706,
+     "speedup": 112.2626,
      "ci95": [
-      112.5827,
-      112.8597
+      111.8277,
+      112.6992
      ],
-     "ms": 0.13286,
-     "amdclang_ms": 14.97705
+     "ms": 0.133,
+     "amdclang_ms": 14.94967
     },
     {
      "path": "generate",
-     "how": "gemm_mfma(tiles=1, unroll=2)",
+     "how": "gemm_mfma(tiles=1, unroll=1, share=0, wide=1)",
      "bit_identical": false,
-     "verified": true,
-     "outcome": "win",
-     "speedup": 118.2658,
-     "ci95": [
-      117.9053,
-      118.5208
-     ],
-     "ms": 0.12664,
-     "amdclang_ms": 14.97302
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
     },
     {
      "path": "generate",
-     "how": "gemm_mfma(tiles=2, unroll=1)",
+     "how": "gemm_mfma(tiles=1, unroll=1, share=1, wide=0)",
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 192.5093,
+     "speedup": 188.2908,
      "ci95": [
-      192.1283,
-      192.7834
+      186.6068,
+      189.9901
      ],
-     "ms": 0.07776,
-     "amdclang_ms": 14.96391
+     "ms": 0.07908,
+     "amdclang_ms": 14.92605
     },
     {
      "path": "generate",
-     "how": "gemm_mfma(tiles=2, unroll=2)",
+     "how": "gemm_mfma(tiles=1, unroll=1, share=1, wide=1)",
      "bit_identical": false,
-     "verified": true,
-     "outcome": "win",
-     "speedup": 203.8445,
-     "ci95": [
-      203.3592,
-      204.2729
-     ],
-     "ms": 0.07348,
-     "amdclang_ms": 14.97125
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
     },
     {
      "path": "generate",
-     "how": "gemm_mfma(tiles=4, unroll=1)",
+     "how": "gemm_mfma(tiles=1, unroll=1, share=2, wide=0)",
      "bit_identical": false,
-     "verified": true,
-     "outcome": "win",
-     "speedup": 163.3409,
-     "ci95": [
-      163.1416,
-      163.8935
-     ],
-     "ms": 0.09142,
-     "amdclang_ms": 14.93118
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: share=2 and 3 (both operands through LDS) need tiles of 2 or 4"
     },
     {
      "path": "generate",
-     "how": "gemm_mfma(tiles=4, unroll=2)",
+     "how": "gemm_mfma(tiles=1, unroll=1, share=2, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: share=2 and 3 (both operands through LDS) need tiles of 2 or 4"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=1, share=3, wide=0)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: share=2 and 3 (both operands through LDS) need tiles of 2 or 4"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=1, share=3, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: share=2 and 3 (both operands through LDS) need tiles of 2 or 4"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=2, share=0, wide=0)",
      "bit_identical": false,
      "verified": true,
      "outcome": "win",
-     "speedup": 194.1858,
+     "speedup": 118.3807,
      "ci95": [
-      193.7777,
-      194.4197
+      118.3381,
+      118.4234
      ],
-     "ms": 0.07686,
-     "amdclang_ms": 14.92523
+     "ms": 0.12652,
+     "amdclang_ms": 14.97365
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=2, share=0, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=2, share=1, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 187.5272,
+     "ci95": [
+      185.3445,
+      189.7355
+     ],
+     "ms": 0.07964,
+     "amdclang_ms": 14.9595
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=2, share=1, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=2, share=2, wide=0)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: share=2 and 3 (both operands through LDS) need tiles of 2 or 4"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=2, share=2, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: share=2 and 3 (both operands through LDS) need tiles of 2 or 4"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=2, share=3, wide=0)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: share=2 and 3 (both operands through LDS) need tiles of 2 or 4"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=2, share=3, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: share=2 and 3 (both operands through LDS) need tiles of 2 or 4"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=1, share=0, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 190.2121,
+     "ci95": [
+      188.7728,
+      191.6623
+     ],
+     "ms": 0.07844,
+     "amdclang_ms": 14.92909
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=1, share=0, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=1, share=1, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 274.561,
+     "ci95": [
+      270.2884,
+      278.9012
+     ],
+     "ms": 0.05414,
+     "amdclang_ms": 14.93671
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=1, share=1, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=1, share=2, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 302.7014,
+     "ci95": [
+      299.9182,
+      305.5105
+     ],
+     "ms": 0.04946,
+     "amdclang_ms": 14.96073
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=1, share=2, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=1, share=3, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 246.5158,
+     "ci95": [
+      245.0031,
+      248.0379
+     ],
+     "ms": 0.06058,
+     "amdclang_ms": 14.92057
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=1, share=3, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=2, share=0, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 203.1483,
+     "ci95": [
+      202.4799,
+      203.819
+     ],
+     "ms": 0.0736,
+     "amdclang_ms": 14.93656
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=2, share=0, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=2, share=1, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 271.6261,
+     "ci95": [
+      268.8661,
+      274.4144
+     ],
+     "ms": 0.05518,
+     "amdclang_ms": 14.96732
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=2, share=1, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=2, share=2, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 350.466,
+     "ci95": [
+      347.1385,
+      353.8254
+     ],
+     "ms": 0.04254,
+     "amdclang_ms": 14.91612
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=2, share=2, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=2, share=3, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 254.092,
+     "ci95": [
+      252.7654,
+      255.4256
+     ],
+     "ms": 0.05878,
+     "amdclang_ms": 14.94193
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=2, share=3, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=1, share=0, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 160.7104,
+     "ci95": [
+      158.5515,
+      162.8988
+     ],
+     "ms": 0.09292,
+     "amdclang_ms": 14.96699
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=1, share=0, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=1, share=1, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 169.5025,
+     "ci95": [
+      168.8743,
+      170.133
+     ],
+     "ms": 0.08802,
+     "amdclang_ms": 14.92385
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=1, share=1, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=1, share=2, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 179.2627,
+     "ci95": [
+      175.5917,
+      183.0104
+     ],
+     "ms": 0.08316,
+     "amdclang_ms": 14.95024
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=1, share=2, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=1, share=3, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 147.645,
+     "ci95": [
+      146.0182,
+      149.2899
+     ],
+     "ms": 0.10134,
+     "amdclang_ms": 14.91999
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=1, share=3, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=2, share=0, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 193.1464,
+     "ci95": [
+      191.2834,
+      195.0276
+     ],
+     "ms": 0.07732,
+     "amdclang_ms": 14.92783
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=2, share=0, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=2, share=1, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 167.8243,
+     "ci95": [
+      164.7378,
+      170.9686
+     ],
+     "ms": 0.08888,
+     "amdclang_ms": 14.97577
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=2, share=1, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=2, share=2, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 167.8644,
+     "ci95": [
+      166.8453,
+      168.8897
+     ],
+     "ms": 0.08892,
+     "amdclang_ms": 14.92289
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=2, share=2, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=2, share=3, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 152.4489,
+     "ci95": [
+      151.6736,
+      153.2282
+     ],
+     "ms": 0.09826,
+     "amdclang_ms": 14.97634
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=2, share=3, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=2, share=2, wide=0) + stream_loads(scope=all)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 339.7996,
+     "ci95": [
+      339.2937,
+      340.3064
+     ],
+     "ms": 0.04388,
+     "amdclang_ms": 14.92203
+    }
+   ]
+  },
+  "gemm_fp8": {
+   "chosen": {
+    "state": "13ce610ba5d9da55",
+    "path": "generate",
+    "how": "gemm_mfma(tiles=2, unroll=2, share=2, wide=1)",
+    "bit_identical": false,
+    "speedup": 591.7439,
+    "ci95": [
+     588.6775,
+     594.8263
+    ],
+    "ms": 0.02528,
+    "amdclang_ms": 14.97724
+   },
+   "fallback": false,
+   "candidates": [
+    {
+     "path": "import+pass",
+     "how": "unroll_loads(factor=4)",
+     "bit_identical": true,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: unroll_loads: no loop can be unrolled: the kernel has no single-block loop"
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=2)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 1.0,
+     "ci95": [
+      0.9995,
+      1.0005
+     ],
+     "ms": 15.00333,
+     "amdclang_ms": 15.00111
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 1.0003,
+     "ci95": [
+      1.0,
+      1.0005
+     ],
+     "ms": 14.98008,
+     "amdclang_ms": 14.98186
+    },
+    {
+     "path": "import+pass",
+     "how": "coarsen(factor=8)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 0.9993,
+     "ci95": [
+      0.9989,
+      0.9998
+     ],
+     "ms": 14.98853,
+     "amdclang_ms": 14.98112
+    },
+    {
+     "path": "import+pass",
+     "how": "stream_loads(scope=all)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 0.9904,
+     "ci95": [
+      0.9892,
+      0.9916
+     ],
+     "ms": 15.13475,
+     "amdclang_ms": 14.98405
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "parity",
+     "speedup": 0.9928,
+     "ci95": [
+      0.9922,
+      0.9933
+     ],
+     "ms": 15.1019,
+     "amdclang_ms": 14.99481
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=1, share=0, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 120.0947,
+     "ci95": [
+      119.7525,
+      120.438
+     ],
+     "ms": 0.1249,
+     "amdclang_ms": 14.9991
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=1, share=0, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=1, share=1, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 212.7179,
+     "ci95": [
+      211.8761,
+      213.563
+     ],
+     "ms": 0.07056,
+     "amdclang_ms": 15.00299
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=1, share=1, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=1, share=2, wide=0)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: share=2 and 3 (both operands through LDS) need tiles of 2 or 4"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=1, share=2, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: share=2 and 3 (both operands through LDS) need tiles of 2 or 4"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=1, share=3, wide=0)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: share=2 and 3 (both operands through LDS) need tiles of 2 or 4"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=1, share=3, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: share=2 and 3 (both operands through LDS) need tiles of 2 or 4"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=2, share=0, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 124.8419,
+     "ci95": [
+      124.5188,
+      125.1658
+     ],
+     "ms": 0.12,
+     "amdclang_ms": 14.97933
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=2, share=0, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=2, share=1, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 212.2714,
+     "ci95": [
+      211.6924,
+      212.852
+     ],
+     "ms": 0.07062,
+     "amdclang_ms": 14.99021
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=2, share=1, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=2, share=2, wide=0)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: share=2 and 3 (both operands through LDS) need tiles of 2 or 4"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=2, share=2, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: share=2 and 3 (both operands through LDS) need tiles of 2 or 4"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=2, share=3, wide=0)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: share=2 and 3 (both operands through LDS) need tiles of 2 or 4"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=1, unroll=2, share=3, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: share=2 and 3 (both operands through LDS) need tiles of 2 or 4"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=1, share=0, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 211.8221,
+     "ci95": [
+      210.5989,
+      213.0523
+     ],
+     "ms": 0.07074,
+     "amdclang_ms": 15.00563
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=1, share=0, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=1, share=1, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 331.1299,
+     "ci95": [
+      330.3648,
+      331.8968
+     ],
+     "ms": 0.0452,
+     "amdclang_ms": 14.97343
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=1, share=1, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=1, share=2, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 485.0102,
+     "ci95": [
+      481.4069,
+      488.6405
+     ],
+     "ms": 0.03096,
+     "amdclang_ms": 14.99282
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=1, share=2, wide=1)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 528.5095,
+     "ci95": [
+      525.1589,
+      531.8814
+     ],
+     "ms": 0.02836,
+     "amdclang_ms": 14.99768
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=1, share=3, wide=0)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: share=3 (loads straight into LDS) needs 16-byte units: bf16 only"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=1, share=3, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=2, share=0, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 219.991,
+     "ci95": [
+      219.2754,
+      220.7089
+     ],
+     "ms": 0.068,
+     "amdclang_ms": 14.97221
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=2, share=0, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=2, share=1, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 330.7165,
+     "ci95": [
+      328.4123,
+      333.037
+     ],
+     "ms": 0.04536,
+     "amdclang_ms": 14.98209
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=2, share=1, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=2, share=2, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 533.8918,
+     "ci95": [
+      531.2947,
+      536.5016
+     ],
+     "ms": 0.02814,
+     "amdclang_ms": 15.01188
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=2, share=2, wide=1)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 591.7439,
+     "ci95": [
+      588.6775,
+      594.8263
+     ],
+     "ms": 0.02528,
+     "amdclang_ms": 14.97724
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=2, share=3, wide=0)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: share=3 (loads straight into LDS) needs 16-byte units: bf16 only"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=2, share=3, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=1, share=0, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 187.7063,
+     "ci95": [
+      186.8868,
+      188.5294
+     ],
+     "ms": 0.07976,
+     "amdclang_ms": 14.9934
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=1, share=0, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=1, share=1, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 195.3283,
+     "ci95": [
+      194.7548,
+      195.9035
+     ],
+     "ms": 0.07682,
+     "amdclang_ms": 15.00394
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=1, share=1, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=1, share=2, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 266.4632,
+     "ci95": [
+      265.397,
+      267.5337
+     ],
+     "ms": 0.05624,
+     "amdclang_ms": 14.98041
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=1, share=2, wide=1)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 318.3863,
+     "ci95": [
+      317.5083,
+      319.2667
+     ],
+     "ms": 0.0471,
+     "amdclang_ms": 15.00632
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=1, share=3, wide=0)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: share=3 (loads straight into LDS) needs 16-byte units: bf16 only"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=1, share=3, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=2, share=0, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 231.0785,
+     "ci95": [
+      229.7307,
+      232.4342
+     ],
+     "ms": 0.06474,
+     "amdclang_ms": 14.9795
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=2, share=0, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=2, share=1, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 195.1957,
+     "ci95": [
+      194.9863,
+      195.4054
+     ],
+     "ms": 0.07676,
+     "amdclang_ms": 14.98164
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=2, share=1, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=2, share=2, wide=0)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 233.115,
+     "ci95": [
+      231.2408,
+      235.0044
+     ],
+     "ms": 0.06408,
+     "amdclang_ms": 14.97769
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=2, share=2, wide=1)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 295.0954,
+     "ci95": [
+      293.128,
+      297.0761
+     ],
+     "ms": 0.05088,
+     "amdclang_ms": 14.99826
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=2, share=3, wide=0)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: share=3 (loads straight into LDS) needs 16-byte units: bf16 only"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=4, unroll=2, share=3, wide=1)",
+     "bit_identical": false,
+     "verified": false,
+     "outcome": "rejected",
+     "reason": "parameter: wide=1 (the 32x32x64 FP8 MFMA) is for FP8 inputs with share=2"
+    },
+    {
+     "path": "generate",
+     "how": "gemm_mfma(tiles=2, unroll=2, share=2, wide=1) + stream_loads(scope=all)",
+     "bit_identical": false,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 574.8835,
+     "ci95": [
+      573.1678,
+      576.6043
+     ],
+     "ms": 0.02604,
+     "amdclang_ms": 14.99123
     }
    ]
   },
@@ -1507,11 +2583,11 @@
  "baseline": "amdclang -O3",
  "recorded": "2026-11-21",
  "summary": {
-  "kernels": 14,
-  "with_baseline": 13,
-  "wins": 10,
+  "kernels": 15,
+  "with_baseline": 14,
+  "wins": 11,
   "fallbacks": 3,
-  "geomean": 2.088,
+  "geomean": 3.249,
   "geomean_without_mfma_gemm": 1.425
  }
 }

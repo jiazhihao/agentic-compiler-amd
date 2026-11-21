@@ -61,7 +61,7 @@ def test_tair_interpreter_agrees_with_the_python_references():
         out = next(iter(tair.evaluate(p, args, np.float64).values()))
         assert np.allclose(out, ref(), rtol=1e-6, atol=1e-7), name
     y = tair.evaluate(tair.parse((KERNELS / "cast_bf16.tair").read_text()), dict(x=x[0]))["y"]
-    assert y.dtype.name == "bfloat16" and set(PROGRAMS) == set(cases) | {"cast_bf16", "gemm_bf16"}
+    assert y.dtype.name == "bfloat16" and set(PROGRAMS) == set(cases) | {"cast_bf16", "gemm_bf16", "gemm_fp8"}
 
 
 # ---- builder and passes --------------------------------------------------------------------

@@ -203,8 +203,8 @@ win is reported with its pass.
 |---|---|
 | Machine-model calibration beyond M7's microbenchmarks (#7) | A scheduler decision needs a latency that is not measured |
 | Attention, prefill and decode (#12) | M7's exit is met |
-| GEMM with LDS-shared macro-tiles (#23) | M7 measured a 2.8x gap to hipBLASLt, bound by operand loads |
-| FP8 GEMM | M7's exit is met |
+| GEMM with LDS-shared macro-tiles (#23): **done**, 1.4x to 1.6x hipBLASLt's time (was 2.5x to 2.8x) | M7 measured a 2.8x gap to hipBLASLt, bound by operand loads |
+| FP8 GEMM (#75): **done**, 1.2x to 1.3x hipBLASLt's FP8 time | M7's exit is met |
 | Re-allocation of imported code (physical → virtual → physical) | An imported kernel is measured to be occupancy-limited |
 | Wave64 `mir` interpreter | A class of bug reaches the GPU that the static checkers and the battery miss |
 | `rocprofv3` profiler action | The agent loop lacks stall evidence that timing alone cannot give |

@@ -1,0 +1,3 @@
+tair gemm_fp8(A: e4m3[M, K], B: e4m3[N, K]) -> (C: f32[M, N]) {
+  C = einsum "mk,nk->mn"(A, B)
+}

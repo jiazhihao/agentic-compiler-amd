@@ -213,122 +213,806 @@
     {
      "params": {
       "tiles": 1,
-      "unroll": 1
+      "unroll": 1,
+      "share": 0,
+      "wide": 0
      },
      "instructions": 165,
      "static": true,
      "battery": "77/77",
      "outcome": "win",
-     "speedup": 112.1082,
+     "speedup": 112.6303,
      "ci95": [
-      111.9887,
-      112.5114
+      112.2195,
+      112.8946
      ],
-     "ms": 0.13342,
-     "amdclang_ms": 14.96442
+     "ms": 0.13324,
+     "amdclang_ms": 14.99768
     },
     {
      "params": {
       "tiles": 1,
-      "unroll": 2
+      "unroll": 1,
+      "share": 1,
+      "wide": 0
+     },
+     "instructions": 247,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 188.518,
+     "ci95": [
+      187.9099,
+      188.9455
+     ],
+     "ms": 0.07948,
+     "amdclang_ms": 14.99028
+    },
+    {
+     "params": {
+      "tiles": 1,
+      "unroll": 2,
+      "share": 0,
+      "wide": 0
      },
      "instructions": 180,
      "static": true,
      "battery": "77/77",
      "outcome": "win",
-     "speedup": 118.5201,
+     "speedup": 118.1558,
      "ci95": [
-      117.9575,
-      118.689
+      117.8619,
+      118.3312
      ],
-     "ms": 0.12652,
-     "amdclang_ms": 14.98797
+     "ms": 0.12694,
+     "amdclang_ms": 14.99664
+    },
+    {
+     "params": {
+      "tiles": 1,
+      "unroll": 2,
+      "share": 1,
+      "wide": 0
+     },
+     "instructions": 247,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 188.6339,
+     "ci95": [
+      188.2024,
+      189.137
+     ],
+     "ms": 0.0795,
+     "amdclang_ms": 15.00605
     },
     {
      "params": {
       "tiles": 2,
-      "unroll": 1
+      "unroll": 1,
+      "share": 0,
+      "wide": 0
      },
      "instructions": 542,
      "static": true,
      "battery": "77/77",
      "outcome": "win",
-     "speedup": 191.2466,
+     "speedup": 190.8938,
      "ci95": [
-      190.9572,
-      191.5643
+      190.2814,
+      191.2436
      ],
-     "ms": 0.07824,
-     "amdclang_ms": 14.96511
+     "ms": 0.07856,
+     "amdclang_ms": 15.00141
     },
     {
      "params": {
       "tiles": 2,
-      "unroll": 2
+      "unroll": 1,
+      "share": 1,
+      "wide": 0
+     },
+     "instructions": 667,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 275.1561,
+     "ci95": [
+      273.8746,
+      275.8839
+     ],
+     "ms": 0.0544,
+     "amdclang_ms": 14.97243
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 1,
+      "share": 2,
+      "wide": 0
+     },
+     "instructions": 714,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 302.8795,
+     "ci95": [
+      301.5427,
+      303.7503
+     ],
+     "ms": 0.04944,
+     "amdclang_ms": 14.97375
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 1,
+      "share": 3,
+      "wide": 0
+     },
+     "instructions": 720,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 245.4184,
+     "ci95": [
+      243.9043,
+      246.3127
+     ],
+     "ms": 0.06116,
+     "amdclang_ms": 14.98948
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 2,
+      "share": 0,
+      "wide": 0
      },
      "instructions": 571,
      "static": true,
      "battery": "77/77",
      "outcome": "win",
-     "speedup": 203.6017,
+     "speedup": 203.895,
      "ci95": [
-      203.1931,
-      203.936
+      203.6666,
+      204.3729
      ],
      "ms": 0.07352,
-     "amdclang_ms": 14.97027
+     "amdclang_ms": 14.99521
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 2,
+      "share": 1,
+      "wide": 0
+     },
+     "instructions": 667,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 274.1948,
+     "ci95": [
+      273.4693,
+      274.9571
+     ],
+     "ms": 0.05466,
+     "amdclang_ms": 15.00087
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 2,
+      "share": 2,
+      "wide": 0
+     },
+     "instructions": 866,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 355.0241,
+     "ci95": [
+      354.3625,
+      355.9683
+     ],
+     "ms": 0.04226,
+     "amdclang_ms": 15.00025
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 2,
+      "share": 3,
+      "wide": 0
+     },
+     "instructions": 864,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 255.4126,
+     "ci95": [
+      254.7084,
+      255.813
+     ],
+     "ms": 0.0586,
+     "amdclang_ms": 14.97442
     },
     {
      "params": {
       "tiles": 4,
-      "unroll": 1
+      "unroll": 1,
+      "share": 0,
+      "wide": 0
      },
      "instructions": 2016,
      "static": true,
      "battery": "77/77",
      "outcome": "win",
-     "speedup": 161.7942,
+     "speedup": 162.4766,
      "ci95": [
-      161.4045,
-      162.0338
+      161.9583,
+      162.8304
      ],
-     "ms": 0.09246,
-     "amdclang_ms": 14.96036
+     "ms": 0.09208,
+     "amdclang_ms": 14.96659
     },
     {
      "params": {
       "tiles": 4,
-      "unroll": 2
+      "unroll": 1,
+      "share": 1,
+      "wide": 0
+     },
+     "instructions": 2269,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 169.5535,
+     "ci95": [
+      168.8795,
+      170.2216
+     ],
+     "ms": 0.08842,
+     "amdclang_ms": 15.00061
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 1,
+      "share": 2,
+      "wide": 0
+     },
+     "instructions": 2346,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 181.8257,
+     "ci95": [
+      181.4532,
+      182.1824
+     ],
+     "ms": 0.08258,
+     "amdclang_ms": 15.0092
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 1,
+      "share": 3,
+      "wide": 0
+     },
+     "instructions": 2344,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 152.329,
+     "ci95": [
+      152.0867,
+      152.6107
+     ],
+     "ms": 0.09858,
+     "amdclang_ms": 15.0154
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 2,
+      "share": 0,
+      "wide": 0
      },
      "instructions": 2085,
      "static": true,
      "battery": "77/77",
      "outcome": "win",
-     "speedup": 193.1339,
+     "speedup": 196.347,
      "ci95": [
-      192.5994,
-      193.3714
+      195.5247,
+      196.6279
      ],
-     "ms": 0.0774,
-     "amdclang_ms": 14.94721
+     "ms": 0.07632,
+     "amdclang_ms": 14.98634
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 2,
+      "share": 1,
+      "wide": 0
+     },
+     "instructions": 2269,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 164.1949,
+     "ci95": [
+      163.6318,
+      164.8027
+     ],
+     "ms": 0.0912,
+     "amdclang_ms": 14.97622
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 2,
+      "share": 2,
+      "wide": 0
+     },
+     "instructions": 2702,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 169.2057,
+     "ci95": [
+      168.7347,
+      169.6708
+     ],
+     "ms": 0.08864,
+     "amdclang_ms": 14.99941
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 2,
+      "share": 3,
+      "wide": 0
+     },
+     "instructions": 2652,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 152.9533,
+     "ci95": [
+      152.5852,
+      153.1622
+     ],
+     "ms": 0.09814,
+     "amdclang_ms": 15.01851
     }
    ],
    "best": {
     "params": {
      "tiles": 2,
-     "unroll": 2
+     "unroll": 2,
+     "share": 2,
+     "wide": 0
     },
-    "instructions": 571,
+    "instructions": 866,
     "static": true,
     "battery": "77/77",
     "outcome": "win",
-    "speedup": 203.6017,
+    "speedup": 355.0241,
     "ci95": [
-     203.1931,
-     203.936
+     354.3625,
+     355.9683
     ],
-    "ms": 0.07352,
-    "amdclang_ms": 14.97027
+    "ms": 0.04226,
+    "amdclang_ms": 15.00025
+   }
+  },
+  "gemm_fp8": {
+   "template": "gemm_mfma",
+   "variants": [
+    {
+     "params": {
+      "tiles": 1,
+      "unroll": 1,
+      "share": 0,
+      "wide": 0
+     },
+     "instructions": 165,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 120.2085,
+     "ci95": [
+      120.0592,
+      120.3287
+     ],
+     "ms": 0.12464,
+     "amdclang_ms": 14.98299
+    },
+    {
+     "params": {
+      "tiles": 1,
+      "unroll": 1,
+      "share": 1,
+      "wide": 0
+     },
+     "instructions": 247,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 210.7733,
+     "ci95": [
+      210.3248,
+      211.2545
+     ],
+     "ms": 0.07116,
+     "amdclang_ms": 15.00298
+    },
+    {
+     "params": {
+      "tiles": 1,
+      "unroll": 2,
+      "share": 0,
+      "wide": 0
+     },
+     "instructions": 180,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 124.8857,
+     "ci95": [
+      124.7186,
+      125.1044
+     ],
+     "ms": 0.12052,
+     "amdclang_ms": 15.06256
+    },
+    {
+     "params": {
+      "tiles": 1,
+      "unroll": 2,
+      "share": 1,
+      "wide": 0
+     },
+     "instructions": 247,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 210.7653,
+     "ci95": [
+      210.5618,
+      210.9863
+     ],
+     "ms": 0.07144,
+     "amdclang_ms": 15.05776
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 1,
+      "share": 0,
+      "wide": 0
+     },
+     "instructions": 542,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 212.4184,
+     "ci95": [
+      212.1459,
+      212.8381
+     ],
+     "ms": 0.071,
+     "amdclang_ms": 15.07206
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 1,
+      "share": 1,
+      "wide": 0
+     },
+     "instructions": 667,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 326.9236,
+     "ci95": [
+      325.8105,
+      327.4872
+     ],
+     "ms": 0.04612,
+     "amdclang_ms": 15.08018
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 1,
+      "share": 2,
+      "wide": 0
+     },
+     "instructions": 810,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 488.685,
+     "ci95": [
+      487.2782,
+      491.34
+     ],
+     "ms": 0.03072,
+     "amdclang_ms": 15.0244
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 1,
+      "share": 2,
+      "wide": 1
+     },
+     "instructions": 688,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 523.0727,
+     "ci95": [
+      521.9751,
+      525.9496
+     ],
+     "ms": 0.02868,
+     "amdclang_ms": 14.99861
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 2,
+      "share": 0,
+      "wide": 0
+     },
+     "instructions": 571,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 220.2638,
+     "ci95": [
+      219.8724,
+      220.5616
+     ],
+     "ms": 0.06832,
+     "amdclang_ms": 15.03986
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 2,
+      "share": 1,
+      "wide": 0
+     },
+     "instructions": 667,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 330.4716,
+     "ci95": [
+      329.7835,
+      330.9977
+     ],
+     "ms": 0.04556,
+     "amdclang_ms": 15.05962
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 2,
+      "share": 2,
+      "wide": 0
+     },
+     "instructions": 1054,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 532.5194,
+     "ci95": [
+      530.4149,
+      533.5176
+     ],
+     "ms": 0.02834,
+     "amdclang_ms": 15.0801
+    },
+    {
+     "params": {
+      "tiles": 2,
+      "unroll": 2,
+      "share": 2,
+      "wide": 1
+     },
+     "instructions": 810,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 590.9984,
+     "ci95": [
+      589.5449,
+      592.4152
+     ],
+     "ms": 0.02552,
+     "amdclang_ms": 15.06759
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 1,
+      "share": 0,
+      "wide": 0
+     },
+     "instructions": 2016,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 187.8115,
+     "ci95": [
+      187.4818,
+      188.1562
+     ],
+     "ms": 0.08004,
+     "amdclang_ms": 15.03525
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 1,
+      "share": 1,
+      "wide": 0
+     },
+     "instructions": 2269,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 194.5726,
+     "ci95": [
+      194.1599,
+      194.914
+     ],
+     "ms": 0.07712,
+     "amdclang_ms": 14.99601
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 1,
+      "share": 2,
+      "wide": 0
+     },
+     "instructions": 2586,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 265.7115,
+     "ci95": [
+      264.5382,
+      266.8692
+     ],
+     "ms": 0.05664,
+     "amdclang_ms": 15.04256
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 1,
+      "share": 2,
+      "wide": 1
+     },
+     "instructions": 2264,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 317.439,
+     "ci95": [
+      316.1382,
+      317.9483
+     ],
+     "ms": 0.0475,
+     "amdclang_ms": 15.07163
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 2,
+      "share": 0,
+      "wide": 0
+     },
+     "instructions": 2085,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 231.3419,
+     "ci95": [
+      230.8014,
+      231.9403
+     ],
+     "ms": 0.06512,
+     "amdclang_ms": 15.06957
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 2,
+      "share": 1,
+      "wide": 0
+     },
+     "instructions": 2269,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 195.3489,
+     "ci95": [
+      194.4823,
+      195.6118
+     ],
+     "ms": 0.07702,
+     "amdclang_ms": 15.04516
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 2,
+      "share": 2,
+      "wide": 0
+     },
+     "instructions": 3178,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 236.5246,
+     "ci95": [
+      236.2137,
+      236.8482
+     ],
+     "ms": 0.06364,
+     "amdclang_ms": 15.06549
+    },
+    {
+     "params": {
+      "tiles": 4,
+      "unroll": 2,
+      "share": 2,
+      "wide": 1
+     },
+     "instructions": 2534,
+     "static": true,
+     "battery": "77/77",
+     "outcome": "win",
+     "speedup": 295.5636,
+     "ci95": [
+      294.5448,
+      297.0328
+     ],
+     "ms": 0.0511,
+     "amdclang_ms": 15.08278
+    }
+   ],
+   "best": {
+    "params": {
+     "tiles": 2,
+     "unroll": 2,
+     "share": 2,
+     "wide": 1
+    },
+    "instructions": 810,
+    "static": true,
+    "battery": "77/77",
+    "outcome": "win",
+    "speedup": 590.9984,
+    "ci95": [
+     589.5449,
+     592.4152
+    ],
+    "ms": 0.02552,
+    "amdclang_ms": 15.06759
    }
   },
   "layernorm": {
@@ -614,7 +1298,7 @@
   "rocm": "7.14.60850"
  },
  "baseline": "amdclang -O3",
- "recorded": "2026-11-19",
- "geomean_best": 2.6284,
- "geomean_default": 2.5471
+ "recorded": "2026-11-21",
+ "geomean_best": 5.1031,
+ "geomean_default": 4.1092
 }

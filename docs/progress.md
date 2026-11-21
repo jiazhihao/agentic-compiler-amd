@@ -21,6 +21,34 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 
 ## Log
 
+### 2026-11-23 — GEMM with LDS-shared operands; FP8 GEMM (#23, #75)
+- **LDS-shared GEMM (#23).** `gemm_mfma` got `share`: four waves per workgroup compute a 2x2 block of
+  quarters and share the operand halves through LDS, so a workgroup loads each operand element once.
+  `share=1`: each wave keeps one half and reads the other from LDS, one barrier per K-step. `share=2`:
+  both halves through LDS; wave w loads half w in row pieces (16 rows x 64 contiguous bytes per load),
+  one barrier per macro step, the next macro step's loads in flight. All 17 variants pass the full
+  battery. bf16 against hipBLASLt (time ratio, before in brackets): 4096^3 1.55 (2.65), 818 TFLOP/s;
+  2048 x 8192 x 4096 1.53; 8192 x 2048 x 4096 1.61; 2048^3 1.43 (2.5). The issue's target (within
+  1.5x on at least one shape) is met on the small shape.
+- **What bounds it, measured.** Still the loads from memory (about 130 of 187 us at 4096^3 in
+  `share=1`). They cost per load instruction (FP8 `dwordx2` loads took as long as bf16 `dwordx4` loads
+  of twice the bytes) and per cache line touched (rows per load 32 / 16 / 2: 186 / 160 / 138 us). LDS
+  reads of the same volume cost about 5 %, provided one read covers all 64 LDS banks: a row-major LDS
+  layout cost 120 us. Loads straight into LDS (`share=3`) lose (0.200 against 0.172 ms): the barrier
+  has to wait for them. Loads two or three macro steps ahead: nothing.
+- **FP8 GEMM (#75).** New corpus kernel `gemm_fp8` (E4M3 inputs, f32 result; amdclang baseline with a
+  software decode). The template takes `e4m3` and `e5m2`; `wide=1` uses gfx950's 32x32x64 FP8 MFMA
+  (half the MFMA passes). Loads are always 16 bytes per lane. Against hipBLASLt's FP8 path: 4096^3
+  1.33 (1462 TFLOP/s), 2048 x 8192 x 4096 1.28, 8192 x 2048 x 4096 1.34, 2048^3 1.17 (679 TFLOP/s).
+  E5M2 passes the battery with both MFMAs (GPU test, no recorded timing).
+- **FP8 precision.** The FP8 MFMAs lose part of products far below the largest one of a group: worst
+  measured error 1.4e-4 of the sum of magnitudes (amdclang's software decode: 4e-7). `gemm_fp8`'s
+  tolerance is `cond` 2.5e-4 (bf16: 2e-5). This is a decision about the contract, recorded in the manifest.
+- **Open.** bf16 is still 1.5x to 1.6x behind hipBLASLt on the large shapes and FP8 1.2x to 1.3x; what
+  hipBLASLt does differently is not known. The remaining idea, deeper overlap of direct-to-LDS loads,
+  needs the static checker to tell LDS buffers apart. Timings are single-allocation `bench` medians
+  and paired timings against amdclang; the library is timed in its own process.
+
 ### 2026-11-22 — placement-aware timing, knowledge base, non-temporal loads, attention template, fusion (#66, #67, #71, #73)
 - **Timing (#66).** The time of a memory-bound kernel depends on where its tensors were allocated (up to
   6 %, differently for each binary, same virtual addresses). On `rb_axpy` one candidate measured 0.97 to

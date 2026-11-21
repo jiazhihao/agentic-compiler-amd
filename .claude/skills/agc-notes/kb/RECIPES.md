@@ -71,7 +71,8 @@ One pass on the strongest amdclang build, no agent: `apply("baseline", pass, par
 | `axpy` | `coarsen(factor=2)` | 1.101 (1.098 to 1.104) |
 | `cast_bf16` | `elementwise(elements_per_lane=4)` | 1.621 (1.609 to 1.633) |
 | `gelu` | `elementwise(elements_per_lane=4)` | 1.682 (1.676 to 1.690) |
-| `gemm_bf16` | `gemm_mfma(tiles=2, unroll=2)` | 203.845 (203.359 to 204.273) |
+| `gemm_bf16` | `gemm_mfma(tiles=2, unroll=2, share=2, wide=0)` | 350.466 (347.139 to 353.825) |
+| `gemm_fp8` | `gemm_mfma(tiles=2, unroll=2, share=2, wide=1)` | 591.744 (588.678 to 594.826) |
 | `gemm_naive` | `unroll_loads(factor=16)` | 2.186 (2.183 to 2.190) |
 | `layernorm` | `rowwise(unroll=4)` | 1.509 (1.505 to 1.513) |
 | `matvec` | `unroll_loads(factor=16)` | 2.786 (2.780 to 2.795) |
@@ -90,7 +91,8 @@ No verified win (fallback): `gemm_tiled`, `row_argmax`, `transpose`.
 | `axpy` | `elementwise` | {'elements_per_lane': 2} | 1.094 (1.085 to 1.100) | 39 |
 | `cast_bf16` | `elementwise` | {'elements_per_lane': 4} | 1.610 (1.589 to 1.621) | 71 |
 | `gelu` | `elementwise` | {'elements_per_lane': 4} | 1.686 (1.676 to 1.690) | 139 |
-| `gemm_bf16` | `gemm_mfma` | {'tiles': 2, 'unroll': 2} | 203.602 (203.193 to 203.936) | 571 |
+| `gemm_bf16` | `gemm_mfma` | {'tiles': 2, 'unroll': 2, 'share': 2, 'wide': 0} | 355.024 (354.363 to 355.968) | 866 |
+| `gemm_fp8` | `gemm_mfma` | {'tiles': 2, 'unroll': 2, 'share': 2, 'wide': 1} | 590.998 (589.545 to 592.415) | 810 |
 | `layernorm` | `rowwise` | {'unroll': 4} | 1.507 (1.505 to 1.511) | 385 |
 | `rmsnorm` | `rowwise` | {'unroll': 4} | 1.481 (1.479 to 1.484) | 255 |
 | `row_sum` | `rowwise` | {'unroll': 4} | 1.253 (1.231 to 1.261) | 103 |
@@ -102,10 +104,21 @@ C[M,N] = A[M,K] @ B[N,K]^T, bf16 inputs, f32 result; template `gemm_mfma`.
 
 | shape | best parameters | TFLOP/s | over amdclang | hipBLASLt is faster by |
 |---|---|---|---|---|
-| square (4096 x 4096 x 4096) | {'tiles': 4, 'unroll': 2} | 479.2 | 417.8 | 2.65x |
-| wide (2048 x 8192 x 4096) | {'tiles': 4, 'unroll': 2} | 475.3 | 414.1 | 2.57x |
-| tall (8192 x 2048 x 4096) | {'tiles': 4, 'unroll': 2} | 474.5 | 412.4 | 2.72x |
-| small (2048 x 2048 x 2048) | {'tiles': 2, 'unroll': 2} | 233.2 | 203.0 | 2.52x |
+| square (4096 x 4096 x 4096) | {'tiles': 4, 'unroll': 1, 'share': 2} | 817.7 | 715.1 | 1.55x |
+| wide (2048 x 8192 x 4096) | {'tiles': 4, 'unroll': 1, 'share': 2} | 795.6 | 693.9 | 1.53x |
+| tall (8192 x 2048 x 4096) | {'tiles': 4, 'unroll': 1, 'share': 2} | 795.3 | 694.4 | 1.61x |
+| small (2048 x 2048 x 2048) | {'tiles': 2, 'unroll': 2, 'share': 2} | 405.2 | 354.2 | 1.43x |
+
+## GEMM on the FP8 MFMAs
+
+C[M,N] = A[M,K] @ B[N,K]^T, e4m3 inputs, f32 result; template `gemm_mfma` on `tests/kernels/gemm_fp8`.
+
+| shape | best parameters | TFLOP/s | over amdclang | hipBLASLt (FP8) is faster by |
+|---|---|---|---|---|
+| square (4096 x 4096 x 4096) | {'tiles': 4, 'unroll': 1, 'share': 2, 'wide': 1} | 1462.1 | 1281.1 | 1.33x |
+| wide (2048 x 8192 x 4096) | {'tiles': 4, 'unroll': 1, 'share': 2, 'wide': 1} | 1429.6 | 1250.3 | 1.28x |
+| tall (8192 x 2048 x 4096) | {'tiles': 4, 'unroll': 1, 'share': 2, 'wide': 1} | 1452.8 | 1270.3 | 1.34x |
+| small (2048 x 2048 x 2048) | {'tiles': 2, 'unroll': 2, 'share': 2, 'wide': 1} | 679.0 | 593.6 | 1.17x |
 
 ## Hand-written machine-IR wins (corpus)
 
