@@ -63,6 +63,34 @@ where the time goes; it is a diagnosis, never a result.
 through the baseline. For effects of a few percent pass `pairs=240` to `bench` and `compare`: the harness
 verifies with two 240-pair timings and takes the lower one, so a 60-pair win at 1.02 is not safe.
 
+## Analysis first
+
+The result of a session is also an ISA-level analysis that the next session and other kernels reuse.
+Before the first edit:
+
+1. `mix("baseline")` and the listing: what the hot path spends instructions on (loads by width,
+   waits and which wait for everything, LDS and barriers, VALU by family). For a kernel with a loop,
+   the loop block; for a loop-free kernel, the whole body.
+2. Where the time goes, measured: `probe` variants with one phase removed (the arithmetic, the
+   reduction, the store, the loads), and `bench`'s traffic numbers. State the split in microseconds.
+3. A list of ISA-level opportunities, each with what it would remove and what it could give at most
+   according to the split. Take them from the code in front of you and from the knowledge base:
+   `Glob(".claude/skills/agc-notes/kb/*.md")`, read the entries of kernels of the same kind (their
+   `applies_when` says when an entry transfers), and what paid there first.
+
+Then measure every opportunity on the list as its own verified state, largest expected gain first.
+Unless the target is reached, do not stop before six timed machine-level candidates of different
+kinds, the launch geometry family included (bytes per lane, bytes per wave, waves per workgroup,
+workgroups, `coarsen` factors, loads of the next tile in flight before the current tile is stored,
+a mask-free fast path for full workgroups): on `rb_scal`, which runs at the copy model's rate, a
+hand-written one-wave-per-workgroup body with two loads in flight still gained 1.12x. A parity is a
+result when it is measured; "at the memory floor" from `headroom` alone is not.
+
+`isa_diff(a, b)` gives the instruction-mix difference of two states; use it in the analysis to say
+how your best state differs from amdclang's code. `equivalent(id)` runs the original binary and
+yours on the same inputs and compares the outputs: run it on the state you report and say whether
+it is bit-identical.
+
 ## How to work
 
 - First find out what bounds the kernel: launch overhead and workgroup count (many short waves),
@@ -96,5 +124,13 @@ End by calling `report(best, summary, tried, friction, lessons)` exactly once:
   from this list.
 - `lessons`: facts you measured that a session on another kernel should know (what paid, what
   did not, by how much, and why you think so). They go into the shared notes.
+- `analysis`: Markdown. The time split you measured; the ISA-level differences between amdclang's
+  code and your best state (from `isa_diff`, with the instructions that matter named); a table of
+  the opportunities: what, expected, measured (state id, speedup, CI), verdict; what remains
+  untested and why. It is kept as the kernel's analysis and given to the next session.
+- `kb`: reusable entries, one per optimization you measured (wins, parities and losses alike):
+  `{{"title", "applies_when", "how", "measured", "verdict"}}`. `applies_when` names the ISA pattern
+  or kernel property that makes it applicable, so that a session on another kernel can decide by
+  looking at its own code; `how` is concrete enough to repeat (instructions, pass and parameters).
 
 {extra}

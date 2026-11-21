@@ -24,7 +24,7 @@ from ..isa import table
 from ..manifest import Manifest, ManifestError
 from ..mir import abi, asm, check as mircheck, emit
 from ..mir.analysis import cfg
-from ..mir.ir import Block, Kernel, Module
+from ..mir.ir import Block, Kernel, Module, Reg
 from ..runtime import harness, toolchain
 from ..runtime.executor import ExecutorError
 from ..runtime.timing import PROTOCOL_VERSION, TimingProtocol
@@ -423,6 +423,32 @@ class Session:
                                               "ci95": out["ci95"]})    # shown by list_states: the state was measured
         return out
 
+    def equivalent(self, ref: str, original: str = "ref") -> dict:
+        """Differential check: the state's binary and the original binary (amdclang -O3 on the source as shipped,
+        or another state) run on the same inputs, every battery case and one case at the bench shapes, and their
+        outputs are compared with each other. `bit_identical`: every output of every case has the same bits;
+        otherwise the largest differences, and whether every case stays within the manifest's tolerance."""
+        ia, ib = self.resolve(original), self.resolve(ref)
+        try:
+            r = harness.diff(self.manifest, self._hsaco(ia), self._hsaco(ib), root=self.root,
+                             original_launch=self.launch_of(ia), candidate_launch=self.launch_of(ib))
+        except ExecutorError as e:
+            raise SessionError("gpu", str(e)[:1500]) from None
+        if not r.get("ok"):
+            return {"ok": False, "error": r.get("error")}
+        cases = r["cases"]
+        worst = max((c for c in cases if "max_rel_err" in c), key=lambda c: c["max_abs_err"], default=None)
+        out = {"ok": all(c["within_tolerance"] for c in cases), "original": ia, "candidate": ib, "cases": len(cases),
+               "bit_identical": all(c["bit_identical"] for c in cases),
+               "bit_identical_cases": sum(c["bit_identical"] for c in cases),
+               "within_tolerance": all(c["within_tolerance"] for c in cases),
+               "max_abs_err": max((c.get("max_abs_err", 0.0) for c in cases), default=0.0),
+               "max_rel_err": max((c.get("max_rel_err", 0.0) for c in cases), default=0.0),
+               "worst_case": worst["case"] if worst and not worst["bit_identical"] else None,
+               "failing": [c["case"] for c in cases if not c["within_tolerance"]][:5]}
+        self.store.put_result(ib, "equivalent", out)
+        return out
+
     def verify(self, ref: str, pairs: int | None = None) -> dict:
         """Static check, full battery and paired timing of a state, all run again (no cached result is trusted)."""
         sid = self.resolve(ref)
@@ -620,6 +646,78 @@ class Session:
                 "delta": {key: fb[key] - fa[key] for key in ("instructions", "waits", "nop_wait_states", "loads", "stores")},
                 "registers": {"a": fa["registers"], "b": fb["registers"]},
                 "occupancy": {"a": fa["occupancy"], "b": fb["occupancy"]}}
+
+    @staticmethod
+    def _class(info) -> str:
+        """The class of an instruction for the instruction mix (what it costs, not what it computes)."""
+        x, name = info.inst, info.name
+        if name == "s_waitcnt":
+            return "wait"
+        if name == "s_nop":
+            return "nop"
+        if name == "s_barrier":
+            return "barrier"
+        if info.lds_dma:
+            return "load_into_lds"
+        if info.ds:
+            return "lds_read" if info.load else "lds_write"
+        if info.vmem and (info.load or info.store):
+            words = next((o.count for o in x.operands if isinstance(o, Reg) and o.cls == "v" and not o.special), 1) if info.load else \
+                next((o.count for o in x.operands[1:2] if isinstance(o, Reg)), 1)
+            return ("scratch_" if name.startswith("scratch") else "vector_") + ("load" if info.load else "store") + f"_{4 * words}B"
+        if info.smem and info.load:
+            return f"scalar_load_{4 * x.operands[0].count}B"
+        if info.branch:
+            return "branch"
+        if info.mfma:
+            return "mfma"
+        if info.valu:
+            stem = name[2:]
+            fam = ("dpp" if info.dpp else "transcendental" if info.trans else "fma" if stem.startswith(("fma", "pk_fma", "mad", "pk_mad"))
+                   else "mul" if stem.startswith(("mul", "pk_mul")) else "add_sub" if stem.startswith(("add", "sub", "pk_add", "pk_sub", "lshl_add"))
+                   else "compare" if stem.startswith("cmp") else "select" if stem.startswith("cndmask") else "move" if stem.startswith(("mov", "readlane", "readfirstlane", "writelane"))
+                   else "min_max" if stem.startswith(("min", "max", "pk_min", "pk_max")) else "convert" if stem.startswith("cvt")
+                   else "bit_ops")
+            return "valu_" + fam
+        return "salu" if info.salu else "other"
+
+    def mix(self, ref: str = "baseline", blocks: list | None = None) -> dict:
+        """The instruction mix of a state by cost class (loads and stores by width, LDS, barriers, waits and how many
+        wait for everything, VALU by family, scalar work, branches, nop wait states): the whole kernel, and each loop
+        block. `blocks`: also these blocks."""
+        sid = self.resolve(ref)
+        k = self._kernel(self.module(sid))
+        g = cfg(k, table(), self.arch)
+
+        def count(infos) -> dict:
+            c = collections.Counter(self._class(i) for i in infos)
+            out = dict(sorted(c.items()))
+            out["instructions"] = len(infos)
+            out["nop_wait_states"] = sum(i.wait_states for i in infos if i.name == "s_nop")
+            full = sum(1 for i in infos if i.name == "s_waitcnt" and all(getattr(o, "args", ("1",))[0] == "0" for o in i.inst.operands))
+            if c.get("wait"):
+                out["waits_for_everything"] = full
+            return out
+        loops = sorted({s for b, ss in enumerate(g.succ) for s in ss if s <= b})
+        want = [b.label for b in k.blocks if b.label in (blocks or [])]
+        return {"id": sid, "kernel": count([i for b in g.infos for i in b]),
+                "loop_blocks": {k.blocks[b].label: count(g.infos[b]) for b in loops},
+                **({"blocks": {l: count(g.infos[[b.label for b in k.blocks].index(l)]) for l in want}} if want else {}),
+                "note": "counts are static (instructions in the code), not executed counts: a loop block runs its count per iteration"}
+
+    def isa_diff(self, a: str, b: str) -> dict:
+        """Instruction-mix difference of two states (`b` minus `a`) by cost class: what one code does that the other
+        does not (wider or fewer loads, fewer waits, DPP in place of LDS, fewer VALU of a family), for the whole kernel
+        and for the loop blocks of each."""
+        ma, mb = self.mix(a), self.mix(b)
+        keys = sorted(set(ma["kernel"]) | set(mb["kernel"]))
+        rows = {key: {"a": ma["kernel"].get(key, 0), "b": mb["kernel"].get(key, 0), "delta": mb["kernel"].get(key, 0) - ma["kernel"].get(key, 0)}
+                for key in keys if ma["kernel"].get(key, 0) != mb["kernel"].get(key, 0)}
+        fa, fb = self.features(a), self.features(b)
+        return {"a": ma["id"], "b": mb["id"], "differences": rows,
+                "registers": {"a": fa["registers"], "b": fb["registers"]}, "block": {"a": fa["block"], "b": fb["block"]},
+                "launch": {"a": self.launch_of(ma["id"]), "b": self.launch_of(mb["id"])},
+                "loop_blocks": {"a": ma["loop_blocks"], "b": mb["loop_blocks"]}}
 
     def trace(self, ref: str) -> list[dict]:
         return self.store.export_trace(self.resolve(ref))["steps"]

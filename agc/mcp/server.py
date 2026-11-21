@@ -215,14 +215,21 @@ def relaunch(ref: str, launch: dict, note: str = "") -> dict:
 
 
 @tool
-def report(best: str, summary: str, tried: list | None = None, friction: list | None = None, lessons: list | None = None) -> dict:
+def report(best: str, summary: str, tried: list | None = None, friction: list | None = None, lessons: list | None = None,
+           analysis: str = "", kb: list | None = None) -> dict:
     """End of a session: name the state to ship (`baseline` if nothing beat it), summarize what was done, list what
     was tried with its measured outcome, and list friction: what was missing or awkward in the tools, transforms or
     IR, and what would have let you go further. `lessons`: measured facts about the machine or about what pays
-    that would help a session on another kernel (with the numbers). The harness re-verifies the named state itself."""
+    that would help a session on another kernel (with the numbers). `analysis`: Markdown, the ISA-level analysis of
+    this kernel (where the time goes, how amdclang's code and yours differ instruction by instruction, each
+    opportunity with what it was expected to give and what it measured). `kb`: reusable knowledge-base entries,
+    each {"title", "applies_when" (the ISA pattern or kernel property that makes it applicable), "how" (the edit or
+    pass, concretely), "measured" (kernel, speedup, CI or probe numbers), "verdict" ("pays" | "parity" | "loses")}.
+    The harness re-verifies the named state itself."""
     s = _s()
     sid = s.resolve(best)
-    out = {"best": sid, "summary": summary, "tried": tried or [], "friction": friction or [], "lessons": lessons or []}
+    out = {"best": sid, "summary": summary, "tried": tried or [], "friction": friction or [], "lessons": lessons or [],
+           "analysis": analysis or "", "kb": kb or []}
     (s.store.root / "report.json").write_text(json.dumps(out, indent=1))
     return {"recorded": str(s.store.root / "report.json"), "best": sid}
 
@@ -265,6 +272,32 @@ def check(ref: str) -> dict:
     """The battery on the GPU: several input distributions, hidden seeds, shape variants, poisoned outputs, compared
     with the reference program. Refused for a state that fails static_check."""
     return _s().check(ref)
+
+
+@tool
+def mix(ref: str = "baseline", blocks: list | None = None) -> dict:
+    """Instruction mix of a state by cost class: vector loads and stores by width, scalar loads, LDS reads and writes,
+    barriers, waits (and how many wait for everything), VALU by family (fma, mul, add_sub, compare, select, move,
+    transcendental, dpp, bit_ops), mfma, scalar work, branches, nop wait states; for the whole kernel and for each
+    loop block. The starting point of an ISA-level analysis: what does this code spend instructions on?"""
+    return _s().mix(ref, blocks)
+
+
+@tool
+def isa_diff(a: str, b: str) -> dict:
+    """Instruction-mix difference of two states by cost class (b minus a), with registers and launch of both: what
+    one code does that the other does not. Use it to compare amdclang's code with your own state, or two amdclang
+    builds, and to say in the report where they differ at the ISA level."""
+    return _s().isa_diff(a, b)
+
+
+@tool
+def equivalent(ref: str, original: str = "ref") -> dict:
+    """Differential check of a state against the original binary (`ref`: amdclang -O3 on the source as shipped):
+    both run on the same inputs (every battery case and one case at the bench shapes) and their outputs are compared
+    with each other. Reports whether they are bit-identical, else the largest absolute and relative difference and
+    whether all cases stay within the manifest's tolerance. The harness runs this on the state you report."""
+    return _s().equivalent(ref, original)
 
 
 @tool

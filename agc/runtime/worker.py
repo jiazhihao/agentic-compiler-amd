@@ -206,6 +206,43 @@ def job_check(job) -> dict:
             "failures": [r for r in reports if not r["ok"]], "resources": cand.resources()}
 
 
+def job_diff(job) -> dict:
+    """Two code objects on the same inputs, their outputs compared with each other (not with the reference
+    program): are they bit-identical, and if not, how far apart and within the manifest's tolerance?"""
+    m = _manifest(job)
+    dev = hip.Device(0)
+    a = Loaded(dev, _image(job, "original_hsaco"), m.entry, job.get("original_launch"))
+    b = Loaded(dev, _image(job, "candidate_hsaco"), m.entry, job.get("candidate_launch"))
+    reports = []
+    for cd in job["cases"]:
+        case = Case.from_dict(cd)
+        resolved = m.resolve(case.symbols)
+        inputs = generate_inputs(m, resolved, case)
+        bound = Bound(dev, m, resolved, inputs)
+        try:
+            outs = []
+            for k in (a, b):
+                bound.reset()
+                bound.launch(k)
+                dev.synchronize()
+                outs.append(bound.outputs())
+            rep = compare_outputs(m, case.label, outs[1], outs[0], reference.scale(m, inputs, resolved)
+                                  if m.reference.kind != "none" else None).to_dict()
+            same = all(np.array_equal(outs[0][p.name].view(p.dtype.bits_view()), outs[1][p.name].view(p.dtype.bits_view()))
+                       for p in m.outputs())
+        finally:
+            bound.free()
+        row = {"case": rep["case"], "within_tolerance": rep["ok"], "bit_identical": bool(same),
+               "max_abs_err": max((x["max_abs_err"] for x in rep["tensors"]), default=0.0),
+               "max_rel_err": max((x["max_rel_err"] for x in rep["tensors"]), default=0.0),
+               "elements": sum(x["total"] for x in rep["tensors"]),
+               "outside_tolerance": sum(x["mismatches"] for x in rep["tensors"])}
+        if case.hidden:
+            row = {k: row[k] for k in ("case", "within_tolerance", "bit_identical")}
+        reports.append(row)
+    return {"ok": True, "cases": reports}
+
+
 def job_run(job) -> dict:
     """Run one case and return the raw outputs (for probes that discover what the hardware does:
     operand layouts, instruction semantics). Outputs are limited to 4 MiB."""
@@ -330,7 +367,8 @@ def job_paired(job) -> dict:
     return {**out, "ok": True, **paired_summary(samples["reference"], samples["candidate"], proto.noise_floor)}
 
 
-JOBS = {"info": job_info, "check": job_check, "bench": job_bench, "paired": job_paired, "run": job_run, "external": job_external}
+JOBS = {"info": job_info, "check": job_check, "bench": job_bench, "paired": job_paired, "run": job_run, "diff": job_diff,
+        "external": job_external}
 
 
 def main() -> int:

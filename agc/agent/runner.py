@@ -76,6 +76,12 @@ def verify(s: Session, ref: str, against: str | None = None) -> dict:
     v = s.verify(ref, PAIRS)
     if not v.get("ok"):
         return v
+    if s.ref_id is not None:                                  # the original binary and this one on the same inputs
+        eq = s.equivalent(ref)
+        v["equivalent"] = {k: eq.get(k) for k in ("ok", "cases", "bit_identical", "bit_identical_cases", "within_tolerance",
+                                                   "max_abs_err", "max_rel_err", "worst_case", "failing", "error")}
+        if not eq.get("ok"):
+            return {**v, "ok": False, "stage": "equivalence", "error": "outputs differ from the original binary's beyond the tolerance"}
 
     def timing() -> dict:
         if against is None:
@@ -142,7 +148,7 @@ def record(s: Session, sid: str, verdict: dict, report: dict, meta: dict, strong
     recipe = {"kernel": s.manifest.name, "launch": ex["launch"], "strict": ex["strict"], "attribution": attribution,
               "path": [st["action"].get("name") for st in ex["trace"]],
               "verified": {**{k: verdict.get(k) for k in ("outcome", "speedup", "speedup_ci95", "reference_ms", "candidate_ms",
-                                                          "cases", "protocol_version")}, "pairs": PAIRS, "runs": verdict.get("runs")},
+                                                          "cases", "protocol_version", "equivalent")}, "pairs": PAIRS, "runs": verdict.get("runs")},
               "summary": report.get("summary", ""), "tried": report.get("tried", []), "friction": report.get("friction", []),
               "lessons": report.get("lessons", []), "session": meta, "recorded": time.strftime("%Y-%m-%d")}
     (d / "recipe.json").write_text(json.dumps(recipe, indent=1) + "\n")
@@ -223,6 +229,9 @@ def run(manifest: str | Path, root: str | Path = ".agc", minutes: int = 45, benc
                                                     f"{v.get('outcome') or v.get('stage')}")
     if result["outcome"] != "win" and old.exists():
         result["recipe_kept"] = "an earlier session's verified recipe stays recorded"
+    result["analysis"], result["kb"] = report.get("analysis", ""), report.get("kb", [])
+    if session and (result["analysis"] or result["kb"]):
+        knowledge(name, result)
     text = json.dumps(result, indent=1, default=str) + "\n"
     (s.store.root / "harness-result.json").write_text(text)
     last = root / "harness"                                   # by kernel name: the store's name changes with the baseline
@@ -230,6 +239,45 @@ def run(manifest: str | Path, root: str | Path = ".agc", minutes: int = 45, benc
     (last / f"{name}.json").write_text(text)
     log(f"{name}: {result['outcome']}" + (f" {result['speedup']:.3f}x {result['ci95']}" if result["outcome"] == "win" else f" ({result['why']})"))
     return result
+
+
+ANALYSES = REPO / "docs" / "kernels"
+KB = REPO / ".claude" / "skills" / "agc-notes" / "kb"
+
+
+def knowledge(name: str, result: dict) -> None:
+    """Keep what a session reports beyond its state: the kernel's ISA-level analysis (docs/kernels/<kernel>.md, one
+    section per session, headed by the harness's own verdict) and its knowledge-base entries (the agc-notes skill's
+    kb/<kernel>.md, read by later sessions). The numbers inside are the session's; the verdict line is the harness's."""
+    ANALYSES.mkdir(parents=True, exist_ok=True)
+    KB.mkdir(parents=True, exist_ok=True)
+    day = time.strftime("%Y-%m-%d %H:%M")
+    v = result.get("verified") or {}
+    eq = v.get("equivalent") or {}
+    verdict = result["outcome"] + (f" {result['speedup']:.3f}x (95% CI {result['ci95'][0]:.3f} to {result['ci95'][1]:.3f}) over the "
+                                   "strongest amdclang build" if result["outcome"] == "win" else f": {result.get('why', '')}")
+    if eq:
+        verdict += ("; outputs bit-identical to the original binary" if eq.get("bit_identical") else
+                    f"; outputs within tolerance of the original binary's (largest relative difference {eq.get('max_rel_err'):.3g})") \
+            + f" on {eq.get('cases')} cases"
+    doc = ANALYSES / f"{name}.md"
+    head = "" if doc.exists() else f"# `{name}`: ISA-level analysis\n\nOne section per agent session. The verdict line is the harness's " \
+                                   "verification; the analysis and its numbers are the session's own.\n"
+    tried = "".join(f"| {str(x.get('what', '')).replace('|', '/')} | {x.get('outcome', '')} | {x.get('speedup', '')} |\n"
+                    for x in result.get("tried", []) if isinstance(x, dict))
+    with doc.open("a") as f:
+        f.write(f"{head}\n## Session {day}\n\n**Harness verdict:** {verdict}\n\n{result.get('analysis', '').strip()}\n"
+                + (f"\n### Tried\n\n| what | outcome | speedup |\n|---|---|---|\n{tried}" if tried else ""))
+    entries = [e for e in result.get("kb", []) if isinstance(e, dict) and e.get("title")]
+    if entries:
+        kb = KB / f"{name}.md"
+        with kb.open("a") as f:
+            if kb.stat().st_size == 0:
+                f.write(f"# Knowledge-base entries from `{name}`\n\nReported by agent sessions on this kernel; the numbers are the "
+                        "sessions' own measurements against the kernel's strongest amdclang build.\n")
+            for e in entries:
+                f.write(f"\n## {e['title']}\n\n- **Verdict:** {e.get('verdict', '')}\n- **Applies when:** {e.get('applies_when', '')}\n"
+                        f"- **How:** {e.get('how', '')}\n- **Measured:** {e.get('measured', '')}\n- **Session:** {day}\n")
 
 
 def replay(names: list[str] | None = None, root: str | Path | None = None, log=print, update: bool = False) -> dict:
@@ -262,7 +310,7 @@ def replay(names: list[str] | None = None, root: str | Path | None = None, log=p
                 att["over_shipped_O3"] = c["speedup_b_over_a"]
             recipe.update(attribution=att, recorded=time.strftime("%Y-%m-%d"),
                           verified={**{k: v.get(k) for k in ("outcome", "speedup", "speedup_ci95", "reference_ms", "candidate_ms", "cases",
-                                                             "protocol_version")}, "pairs": PAIRS, "runs": v.get("runs")})
+                                                             "protocol_version", "equivalent")}, "pairs": PAIRS, "runs": v.get("runs")})
             (d / "recipe.json").write_text(json.dumps(recipe, indent=1) + "\n")
         else:
             shutil.rmtree(d)

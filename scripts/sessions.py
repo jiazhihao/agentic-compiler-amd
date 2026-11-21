@@ -91,11 +91,51 @@ def comment(name: str) -> str:
     return "\n".join(L)
 
 
+def gain(name: str) -> float:
+    """The verified agc gain recorded for a kernel (session recipe), 1.0 without one."""
+    r = recipes().get(name)
+    return r["verified"]["speedup"] if r else 1.0
+
+
+def campaign(a) -> None:
+    """Several sessions per kernel, one kernel after another: each session gets the kernel's analysis so far and
+    continues from it. A kernel is done at the target, or when a session after the first adds less than 1 %."""
+    import llmbench
+    import strong_baseline
+    log = lambda t: print(t, flush=True)
+    for n in a.kernels:
+        best = gain(n)
+        for k in range(a.sessions):
+            doc = agent.runner.ANALYSES / f"{n}.md"
+            extra = ""
+            if doc.exists():
+                extra = (f"Earlier sessions' ISA-level analysis of this kernel is in `{doc.relative_to(agent.runner.REPO)}`: read it first. "
+                         "Do not repeat what it measured. Take the opportunities it lists as untested, and ideas of a different kind "
+                         f"from the ones it tried. The best verified gain so far is {best:.3f}x"
+                         + (" (the recorded recipe; it is in list_states only if the baseline did not change: `bench/llm/sessions/"
+                            f"{n}/best.s` is its text)." if best > 1 else "."))
+            r = agent.run(BENCH / f"{n}.json", minutes=a.minutes, benches=a.benches, model=a.model, extra=extra, log=log)
+            if r.get("baseline_candidate") and strong_baseline.promote(n):
+                strong_baseline.run([n])
+                agent.replay([n], log=log, update=True)
+                llmbench.main([n])
+            new = gain(n)
+            log(f"{n}: session {k + 1}: {r['outcome']}; verified gain {best:.3f} -> {new:.3f}")
+            if new >= a.target or (k >= 1 and new < best * 1.01):
+                best = max(best, new)
+                break
+            best = max(best, new)
+        log(f"{n}: done at {best:.3f}x after {k + 1} session(s)")
+
+
 def main(argv) -> int:
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("run"); p.add_argument("kernels", nargs="+"); p.add_argument("--minutes", type=int, default=45)
     p.add_argument("--benches", type=int, default=30); p.add_argument("--model"); p.add_argument("--extra", default="")
+    p = sub.add_parser("campaign"); p.add_argument("kernels", nargs="+"); p.add_argument("--minutes", type=int, default=30)
+    p.add_argument("--benches", type=int, default=30); p.add_argument("--model"); p.add_argument("--sessions", type=int, default=3)
+    p.add_argument("--target", type=float, default=1.5)
     sub.add_parser("table")
     p = sub.add_parser("comment"); p.add_argument("kernel")
     a = ap.parse_args(argv)
@@ -103,6 +143,8 @@ def main(argv) -> int:
         print(table())
     elif a.cmd == "comment":
         print(comment(a.kernel))
+    elif a.cmd == "campaign":
+        campaign(a)
     else:
         import llmbench
         import strong_baseline
