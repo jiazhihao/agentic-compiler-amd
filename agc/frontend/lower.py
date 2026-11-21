@@ -39,6 +39,15 @@ _BASE = {"int": "i32", "unsigned int": "u32", "long": "i64", "unsigned long": "u
 _BUILTIN_VARS = {"threadIdx": "tid", "blockIdx": "bid", "blockDim": "bdim", "gridDim": "gdim"}
 _BINARY = {"+": "add", "-": "sub", "*": "mul", "/": "div", "%": "rem", "&": "and", "|": "or", "^": "xor",
            "<<": "shl", ">>": "shr", "<": "lt", ">": "gt", "<=": "le", ">=": "ge", "==": "eq", "!=": "ne"}
+# math calls that are one `kir` operation: C names, their `std::` overloads, and the builtins they reach
+_MATH1 = {**{n + s: op for n, op in (("exp", "exp"), ("tanh", "tanh"), ("sqrt", "sqrt"), ("fabs", "abs"), ("floor", "floor"),
+                                      ("trunc", "trunc"), ("rint", "rndne"), ("nearbyint", "rndne"))
+             for s in ("f", "")},
+          **{f"__builtin_{n}f": op for n, op in (("exp", "exp"), ("tanh", "tanh"), ("sqrt", "sqrt"), ("fabs", "abs"),
+                                                 ("floor", "floor"), ("trunc", "trunc"), ("rint", "rndne"))},
+          "abs": "abs"}
+_MATH2 = {**{n + s: op for n, op in (("fmax", "max"), ("fmin", "min"), ("copysign", "copysign")) for s in ("f", "")},
+          "__builtin_fmaxf": "max", "__builtin_fminf": "min", "__builtin_copysignf": "copysign", "max": "max", "min": "min"}
 _WRAPPERS = {"ParenExpr", "ConstantExpr", "ExprWithCleanups", "MaterializeTemporaryExpr", "SubstNonTypeTemplateParmExpr",
              "CXXBindTemporaryExpr", "ImplicitValueInitExpr"}
 _CASTS = {"ImplicitCastExpr", "CStyleCastExpr", "CXXStaticCastExpr", "CXXFunctionalCastExpr", "CXXReinterpretCastExpr",
@@ -93,6 +102,7 @@ class Lowerer:
         # functions with a body, by (name, type): node ids differ between Clang runs, so a callee found
         # in another dump is matched by its name and signature
         self.funcs: dict[tuple, list] = {}
+        self.by_id: dict[str, dict] = {}                   # the same functions by node id (stable ids only)
         self.fetched: set[str] = set()
         self.unsupported: list[dict] = []
         self.namer = Namer()
@@ -119,6 +129,10 @@ class Lowerer:
             if isinstance(n, dict):
                 if n.get("kind") in ("FunctionDecl", "CXXMethodDecl") and any(c.get("kind") == "CompoundStmt" for c in n.get("inner", [])):
                     self.funcs.setdefault((n.get("name"), n.get("type", {}).get("qualType")), []).append(n)
+                    if clang_ast.STABLE_IDS:
+                        self.by_id[n["id"]] = n
+                        if n.get("previousDecl"):            # the declaration a call names; this is its definition
+                            self.by_id[n["previousDecl"]] = n
                 for c in n.get("inner", []):
                     index(c)
 
@@ -216,6 +230,8 @@ class Lowerer:
     # ---- expressions ---------------------------------------------------------------------------
     def rvalue(self, n: dict):
         k = n.get("kind")
+        if k == "SubstNonTypeTemplateParmExpr":             # a template's value parameter: its argument
+            return self.rvalue(n["inner"][-1])
         if k in _WRAPPERS:
             return self.rvalue(n["inner"][0])
         if k in _CASTS:
@@ -227,6 +243,9 @@ class Lowerer:
             return Const(_fold_cast(float(n["value"]), T("f64"), t), t)
         if k == "CXXBoolLiteralExpr":
             return Const(bool(n["value"]), I1)
+        if k in ("CXXNullPtrLiteralExpr", "GNUNullExpr"):
+            t = self.type_of(n)
+            return Const(0, t if t is not None and t.is_ptr else T("ptr<u8>"))
         if k == "CharacterLiteral":
             return Const(int(n["value"]), self.type_of(n))
         if k == "DeclRefExpr":                              # an lvalue used where its address is not needed
@@ -471,9 +490,19 @@ class Lowerer:
             return Const(0, T("i32"))
         if name in ("__builtin_inff", "__builtin_huge_valf", "__builtin_inf", "__builtin_huge_val"):
             return Const(float("inf"), self.type_of(n))
+        rt = self.type_of(n) if (n.get("type") or {}).get("qualType") in ("float", "double", "int", "unsigned int") else None
+        if rt is not None and ((name in _MATH1 and len(args) == 1) or (name in _MATH2 and len(args) == 2)):
+            xs = [self.rvalue(a) for a in args]
+            if all(x.type == rt for x in xs) and (rt.is_float or name in ("max", "min", "abs") and False):
+                op = (_MATH1 if len(xs) == 1 else _MATH2)[name]
+                return self.emit(op, xs, rt, n, op)
+            if all(x.type == rt for x in xs) and rt.is_int and name in ("max", "min"):
+                return self.emit(name, xs, rt, n, name)
         sig = (name, ref.get("type", {}).get("qualType"))
-        if sig not in self.funcs:
+        if sig not in self.funcs and ref.get("id") not in self.by_id:
             self.fetch(name)
+        if ref.get("id") in self.by_id:                     # the very declaration the call names
+            return self.inline(self.by_id[ref["id"]], args, n, f"`{name}`")
         found = self.funcs.get(sig, [])
         if not found:
             self.refuse(n, f"call of `{name}`, which has no body in this translation unit")
@@ -657,6 +686,11 @@ class Lowerer:
             return
         if arr:
             self.refuse(d, f"a local array `{spelled}` that is not `__shared__`")
+            return
+        if "(lambda" in spelled:                            # `auto f = [](...) { ... };`: a compile-time value
+            inits = [c for c in d.get("inner", []) if "Attr" not in c.get("kind", "")]
+            self.vars[d["id"]] = self.rvalue(inits[0])
+            self.names[d["id"]] = d.get("name", "f")
             return
         t = self.type_of(d)
         if t is None:

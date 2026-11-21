@@ -261,5 +261,5 @@ def number_sites(f: Func) -> None:
             s.site = name("if")
         elif isinstance(s, Loop):
             s.site = name("loop")
-        elif s.name in ("load", "store", "fma", "call"):
+        elif s.name in ("load", "store", "fma", "call", "sqrt") or (s.name == "div" and s.result.type.is_float):
             s.site = name(s.name)

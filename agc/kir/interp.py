@@ -98,6 +98,14 @@ def eval_op(name: str, args: list, types: list[Type], rtype: Type | None):
             return ((args[0].astype(wide) * args[1].astype(wide)) >> wide(32)).astype(args[0].dtype)
         if name == "rcp":
             return (np.asarray(1, dtype=args[0].dtype) / args[0]).astype(args[0].dtype)
+        if name in ("sqrt", "abs", "rndne", "floor", "trunc", "exp2", "log2", "exp", "tanh"):
+            f = {"sqrt": np.sqrt, "abs": np.abs, "rndne": np.rint, "floor": np.floor, "trunc": np.trunc, "exp2": np.exp2,
+                 "log2": np.log2, "exp": np.exp, "tanh": np.tanh}[name]
+            return f(args[0]).astype(args[0].dtype)
+        if name == "ldexp":
+            return np.ldexp(args[0], args[1].astype(np.int32)).astype(args[0].dtype)
+        if name == "copysign":
+            return np.copysign(args[0], args[1]).astype(args[0].dtype)
         if name == "neg":
             return np.negative(args[0]).astype(args[0].dtype)
         if name == "not":
@@ -204,6 +212,14 @@ class Interp:
             self.env[id(s.result)] = Ptr(p.raw, p.off + i.astype(np.int64) * s.args[0].type.elem.size, p.name)
         elif n == "bitcast" and s.result.type.is_ptr:
             self.env[id(s.result)] = self.val(s.args[0])
+        elif n in ("eq", "ne") and s.args[0].type.is_ptr:
+            # a pointer into a tensor is never null; two pointers are equal when they address the same byte
+            a, b = (self.val(x) for x in s.args)
+            if isinstance(a, Ptr) and isinstance(b, Ptr):
+                same = (a.off == b.off) if a.raw is b.raw else np.zeros(mask.shape, dtype=bool)
+            else:
+                same = np.array(not isinstance(a, Ptr) and not isinstance(b, Ptr))
+            self.env[id(s.result)] = same if n == "eq" else ~np.asarray(same)
         elif n in ("shared", "region"):                      # the workgroup's shared memory: one copy per workgroup
             name, size = s.attrs["name"], s.attrs["bytes"]
             groups = int(self.ids["group"].max()) + 1 if self.n else 1

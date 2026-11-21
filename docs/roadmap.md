@@ -561,28 +561,38 @@ DPP reduction, which is worth a few percent there.
 
 #### M14: math and numerics
 
-- [ ] The math functions the benchmark uses (`exp`, `exp2`, `log`, `log2`, `sqrt`, `rsqrt`,
-      `tanh`, `sin`, `cos`, `sincos`, `pow`, `fabs`, `fmax`, `fmin`), each with up to three
-      lowerings: `exact` (the device library's algorithm, written once in `kir` text; what
-      amdclang emits per function is read from its assembly first), `hw` (`v_exp_f32`,
-      `v_log_f32`, `v_sin_f32`, `v_cos_f32`, `v_rsq_f32`, `v_rcp_f32`, `v_sqrt_f32` with range
-      reduction where needed), `poly` (a polynomial with a stated error).
-- [ ] Error tables: every unary `f32` lowering measured on all 2^32 inputs on the device against
-      a float64 reference (maximum and distribution of the error in ULP), stored in `gfx950.yaml`
-      as `measured`.
-- [ ] Error model: the manifest's tolerance and the expression's condition decide which
-      alternatives `actions` offers; `fp.contract`, `fp.reassoc`, `fp.recip` per site.
-- [ ] `f16`, `bf16`, `f64` conversions and arithmetic.
+- [x] `exp` and `tanh` with the `exact` lowering: the sequences amdclang emits, read from its assembly
+      (LLVM's f32 `exp`: range reduction with the product's low bits, `v_exp_f32`, `v_ldexp_f32`, the
+      ends of the range; the device library's `tanh`), written as `kir` expansions
+      (`agc/kir/mathlib.py`). `exp` also has `hw` (`exp2(x * log2 e)`).
+- [x] Floating-point division and square root as single exact `kir` operations; at selection `fp.div`
+      (`exact`: LLVM's correctly rounded `v_div_scale` / `v_div_fmas` / `v_div_fixup` sequence; `rcp`)
+      and `math.sqrt` (`exact`: `v_sqrt_f32` plus the one-step correction; `hw`).
+- [x] `fabs`, `fmax`, `fmin`, `floor`, `trunc`, `rint`, `copysign` as operations; `sqrt` through
+      `sqrtf` / `std::sqrt`.
+- [x] Errors measured on the device (`scripts/math_error.py` → `tests/baselines/math-gfx950.json`),
+      sampled: 4 x 2^20 inputs per lowering across all float32 bit patterns (the harness returns at
+      most 4 MiB per launch, so the exhaustive 2^32 run was not done). The decisions carry the
+      measured errors; `plan` says for each alternative whether it is within the manifest's tolerance.
+- [ ] Not done: `log`, `log2`, `exp2`, `sin`, `cos`, `sincos`, `pow`, `rsqrt` (no kernel reachable so
+      far calls them; each needs its sequence read from amdclang's output, in M15 with the kernels that
+      use them); `poly` alternatives; `fp.reassoc`; `f16`, `bf16` arithmetic and `f64` math.
 
 Exit: `gelu`, `softmax`, `rmsnorm`, `layernorm` and the LLM kernels with math covered so far pass
 the battery; `exact` is bit-identical to amdclang on those; on the kernels where `-ffast-math`
 paid, the policy with tolerance-admitted alternatives is at least as fast as amdclang's
 `-ffast-math` build (reported per kernel either way). Size: about 2.5 k.
 
+Done (#85) for the four corpus kernels: all pass and are bit-identical to amdclang with the default
+plan. The comparison with amdclang's `-ffast-math` builds is not made: the kernels it paid on
+(`fi_rope`, `fa_attention*`, `rb_gemvt`) do not pass the frontend yet (M15).
+
 #### M15: frontend breadth, the whole benchmark through the own path
 
 - [ ] From M13: records (struct values and arrays of them), `atomicAdd`, `__shfl_*`, local arrays
       (`array.home`).
+- [ ] From M14: the remaining math functions (`log`, `log2`, `exp2`, `sin`, `cos`, `sincos`, `pow`,
+      `rsqrt`) with the sequences amdclang emits; the comparison with amdclang's `-ffast-math` builds.
 - [ ] Templates (instantiated bodies as Clang resolved them), helper functions inlined, classes
       with methods, references, `constexpr`, the benchmark's headers (`flashinfer_common.h`,
       `miopen_common.h`, `attn_port.h`, `rowwise.h`). Ported from the reference frontend, bounded

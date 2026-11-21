@@ -23,6 +23,19 @@ valu:
   max: {i32: v_max_i32, u32: v_max_u32, f32: v_max_f32, f64: v_max_f64}
   not: {x32: v_not_b32}
   rcp: {f32: v_rcp_f32, f64: v_rcp_f64}
+  rndne: {f32: v_rndne_f32}
+  floor: {f32: v_floor_f32}
+  trunc: {f32: v_trunc_f32}
+  exp2: {f32: v_exp_f32}                 # 2^x
+  log2: {f32: v_log_f32}
+  sqrt.hw: {f32: v_sqrt_f32}             # about one unit in the last place; the exact form corrects it
+  ldexp: {f32: v_ldexp_f32}              # dst = src0 * 2^src1
+  bfi: {x32: v_bfi_b32, f32: v_bfi_b32}  # dst = (mask & src1) | (~mask & src2)
+  # correctly rounded division (LLVM's sequence): scaled operands, a reciprocal refined in fma, a fix-up
+  div_scale: {f32: v_div_scale_f32}      # dst, flag (vcc or an SGPR pair), src0, src1, src2
+  div_fmas: {f32: v_div_fmas_f32}        # dst = src0 * src1 + src2, scaled back by the flag in vcc
+  div_fixup: {f32: v_div_fixup_f32}      # dst from the quotient, the denominator and the numerator (special values)
+  class: {f32: v_cmp_class_f32}          # which class of float (zero, infinity, ...) by a mask
   fma: {f32: v_fma_f32, f64: v_fma_f64}
   fma.tied: {f32: v_fmac_f32}            # dst = src0 * src1 + dst
   lt: {i32: v_cmp_lt_i32, u32: v_cmp_lt_u32, i64: v_cmp_lt_i64, u64: v_cmp_lt_u64, f32: v_cmp_lt_f32, f64: v_cmp_lt_f64}
@@ -129,6 +142,9 @@ limits:
   scalar_offset: [0, 1048575]            # immediate offset of a scalar load
   lds_offset: [0, 65535]                 # immediate offset of an LDS access
   float_sign_bit: {f32: 0x80000000}
+  # correctly rounded square root (LLVM's lowerFSQRTF32): below `tiny` the operand is scaled by `up` and the
+  # root by `down`; zeros and +infinity (class mask) are returned as they are
+  sqrt_f32: {tiny: 0x0f800000, up: 0x4f800000, down: 0x37800000, keep_class: 0x260}
   # kernel entry state (AMD HSA ABI, as amdclang's kernels use it)
   kernarg_pointer: "s[0:1]"
   first_workgroup_id_sgpr: 2

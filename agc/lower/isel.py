@@ -506,12 +506,28 @@ class Selector:
             else:
                 self.vop2(self.t.valu("sub", t), self.new(r), Imm("0"), self.src(a[0]))
             return
-        if n in ("not", "rcp"):
+        if n in ("not", "rcp", "rndne", "floor", "trunc", "exp2", "log2"):
             mn = self.t.valu(n, t)
             if mn is None:
                 raise LowerError(f"no per-lane `{n}` on {t} yet", s.site)
             self.b.emit(mn + "_e32", self.new(r), self.src(a[0]))
             return
+        if n == "abs":                                   # clear the sign bit
+            self.vop2(self.t.valu("and", Type("int", 32)), self.new(r), Imm(hex(self.t.limit("float_sign_bit")[str(t)] - 1)),
+                      self.src(a[0]))
+            return
+        if n == "ldexp":
+            self.vop3(self.t.valu("ldexp", t), self.new(r), self.src(a[0]), self.src(a[1]))
+            return
+        if n == "copysign":                              # the magnitude bits of a[0], the sign bit of a[1]
+            mask = self.to_v(Imm(hex(self.t.limit("float_sign_bit")[str(t)] - 1)))
+            x, y = (self.to_v(self.src(v)) for v in a)
+            self.b.emit(self.t.valu("bfi", t), self.new(r), mask, x, y)
+            return
+        if n == "sqrt":
+            return self.sqrt(s)
+        if n == "div" and t.is_float:
+            return self.fdiv(s)
         if n == "mul" and t.is_int and isinstance(a[1], Const) and int(a[1].value) > 0 and int(a[1].value) & (int(a[1].value) - 1) == 0:
             self.vop2(self.t.valu("shl.rev", t), self.new(r), Imm(str(int(a[1].value).bit_length() - 1)), self.src(a[0]))
             return
@@ -522,6 +538,77 @@ class Selector:
         if mn is None:
             raise LowerError(f"no per-lane `{n}` on {t} yet", s.site)
         self.vop2(mn, self.new(r), self.src(a[0]), self.src(a[1]), n in _COMMUTATIVE, self.t.valu(n + ".rev", t))
+
+    @staticmethod
+    def negated_reg(o: Reg) -> Reg:
+        return Reg(o.cls, o.index, o.count, True, o.abs, o.name)
+
+    def fdiv(self, s: Op) -> None:
+        """Floating-point division. `exact`: LLVM's correctly rounded sequence (both operands scaled, the
+        reciprocal of the denominator refined by three fma steps, the scaling undone, special values fixed up);
+        `rcp`: the numerator times the machine's reciprocal."""
+        r, (a, b) = s.result, s.args
+        t = r.type
+        if t.bits != 32:
+            raise LowerError(f"division on {t}", s.site)
+        how = self.plan.choose(s.site or "div", "fp.div", ["exact", "rcp"])
+        fit = lambda x: (lambda o: o if self.is_v(o) or (isinstance(x, Const) and self.is_inline(x)) else self.to_v(o))(self.src(x))
+        oa, ob = fit(a), fit(b)
+        if how == "rcp":
+            rc = self.b.v()
+            self.b.emit(self.t.valu("rcp", t) + "_e32", rc, ob)
+            self.vop2(self.t.valu("mul", t), self.new(r), oa, rc, True)
+            return
+        fma, fmac, mul = self.t.valu("fma", t), self.t.valu("fma.tied", t) + "_e32", self.t.valu("mul", t)
+        bs, rc, as_, e, q, tmp = (self.b.v() for _ in range(6))
+        self.b.emit(self.t.valu("div_scale", t), bs, self.b.s(2), ob, ob, oa)
+        self.b.emit(self.t.valu("rcp", t) + "_e32", rc, bs)
+        self.b.emit(self.t.valu("div_scale", t), as_, "vcc", oa, ob, oa)         # its flag stays in vcc for div_fmas
+        nbs = self.negated_reg(bs)
+        self.b.emit(fma, e, nbs, rc, 1.0)
+        self.b.emit(fmac, rc, e, rc)
+        self.b.emit(mul + "_e32", q, as_, rc)
+        self.b.emit(fma, e, nbs, q, as_)
+        self.b.emit(fmac, q, e, rc)
+        self.b.emit(fma, e, nbs, q, as_)
+        self.b.emit(self.t.valu("div_fmas", t), tmp, e, rc, q)
+        self.b.emit(self.t.valu("div_fixup", t), self.new(r), tmp, ob, oa)
+
+    def sqrt(self, s: Op) -> None:
+        """Square root. `exact`: `v_sqrt_f32`, then the neighbours one unit below and above are tried and the one
+        whose square does not exceed the operand is kept (LLVM's lowerFSQRTF32); `hw`: `v_sqrt_f32` alone."""
+        r, x = s.result, s.args[0]
+        t = r.type
+        raw = self.t.valu("sqrt.hw", t)
+        if raw is None:
+            raise LowerError(f"square root on {t}", s.site)
+        ox = self.to_v(self.src(x))
+        if self.plan.choose(s.site or "sqrt", "math.sqrt", ["exact", "hw"]) == "hw":
+            self.b.emit(raw + "_e32", self.new(r), ox)
+            return
+        k = self.t.limit("sqrt_f32")
+        i32, sel = Type("int", 32), self.t.valu("select", Type("int", 32)) + "_e64"
+        fma, mul = self.t.valu("fma", t), self.t.valu("mul", t) + "_e32"
+        tiny, small, cmask = self.b.s(), self.b.s(2), self.b.s(2)
+        up, x1, root, below, above, rb, ra, down, cls = (self.b.v() for _ in range(9))
+        self.b.emit(self.t.salu("mov", i32), tiny, k["tiny"])
+        self.b.emit(self.t.valu("gt", t) + "_e64", small, tiny, ox)              # the operand is below 2^-96: scale it
+        self.b.emit(mul, up, Imm(hex(k["up"])), ox)
+        self.b.emit(sel, x1, ox, up, small)
+        self.b.emit(raw + "_e32", root, x1)
+        self.b.emit(self.t.valu("add", i32) + "_e32", below, -1, root)
+        self.b.emit(self.t.valu("add", i32) + "_e32", above, 1, root)
+        self.b.emit(fma, rb, self.negated_reg(below), root, x1)
+        self.b.emit(fma, ra, self.negated_reg(above), root, x1)
+        self.b.emit(self.t.valu("ge", t) + "_e64", cmask, 0, rb)
+        self.b.emit(sel, root, root, below, cmask)
+        self.b.emit(self.t.valu("lt", t) + "_e64", cmask, 0, ra)
+        self.b.emit(sel, root, root, above, cmask)
+        self.b.emit(mul, down, Imm(hex(k["down"])), root)
+        self.b.emit(sel, root, root, down, small)
+        self.b.emit(self.mov_v(), cls, k["keep_class"])
+        self.b.emit(self.t.valu("class", t) + "_e64", cmask, x1, cls)            # zeros and +infinity: the operand itself
+        self.b.emit(sel, self.new(r), root, x1, cmask)
 
     def vector64(self, s: Op) -> None:
         n, r, a = s.name, s.result, s.args
