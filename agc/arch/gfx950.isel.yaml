@@ -1,0 +1,109 @@
+# Instruction selection for gfx950 (CDNA4): which instruction implements a `wir` operation.
+# Read by agc/lower/table.py; every mnemonic is checked against the ISA table when the file is loaded.
+# The first version follows LLVM's AMDGPU backend (SIInstructions.td, VOP*Instructions.td, SOPInstructions.td).
+#
+# Type keys: a `wir` type (`i32`, `u32`, `f32`, ...) or `x32` / `x64` (an integer of that width, either sign).
+# Whether an instruction has a 32-bit VOP form (second source must be a VGPR, first may be a literal) or
+# only the VOP3 form (any source a VGPR, an SGPR or an inline constant; no 32-bit literal) comes from the
+# ISA table, not from this file.
+
+# Per-lane (VALU) forms. `rev`: the instruction that computes `src1 OP src0`, which lets a scalar or a
+# constant second operand go first. Shifts exist only in that form (`v_lshlrev_b32 dst, count, value`).
+valu:
+  add: {x32: v_add_u32, f32: v_add_f32, f64: v_add_f64}
+  sub: {x32: v_sub_u32, f32: v_sub_f32}
+  sub.rev: {x32: v_subrev_u32, f32: v_subrev_f32}
+  mul: {x32: v_mul_lo_u32, f32: v_mul_f32, f64: v_mul_f64}
+  and: {x32: v_and_b32}
+  or: {x32: v_or_b32}
+  xor: {x32: v_xor_b32}
+  shl.rev: {x32: v_lshlrev_b32, x64: v_lshlrev_b64}
+  shr.rev: {i32: v_ashrrev_i32, u32: v_lshrrev_b32, i64: v_ashrrev_i64, u64: v_lshrrev_b64}
+  min: {i32: v_min_i32, u32: v_min_u32, f32: v_min_f32, f64: v_min_f64}
+  max: {i32: v_max_i32, u32: v_max_u32, f32: v_max_f32, f64: v_max_f64}
+  not: {x32: v_not_b32}
+  fma: {f32: v_fma_f32, f64: v_fma_f64}
+  fma.tied: {f32: v_fmac_f32}            # dst = src0 * src1 + dst
+  lt: {i32: v_cmp_lt_i32, u32: v_cmp_lt_u32, i64: v_cmp_lt_i64, u64: v_cmp_lt_u64, f32: v_cmp_lt_f32, f64: v_cmp_lt_f64}
+  le: {i32: v_cmp_le_i32, u32: v_cmp_le_u32, i64: v_cmp_le_i64, u64: v_cmp_le_u64, f32: v_cmp_le_f32, f64: v_cmp_le_f64}
+  gt: {i32: v_cmp_gt_i32, u32: v_cmp_gt_u32, i64: v_cmp_gt_i64, u64: v_cmp_gt_u64, f32: v_cmp_gt_f32, f64: v_cmp_gt_f64}
+  ge: {i32: v_cmp_ge_i32, u32: v_cmp_ge_u32, i64: v_cmp_ge_i64, u64: v_cmp_ge_u64, f32: v_cmp_ge_f32, f64: v_cmp_ge_f64}
+  eq: {i32: v_cmp_eq_i32, u32: v_cmp_eq_u32, i64: v_cmp_eq_i64, u64: v_cmp_eq_u64, f32: v_cmp_eq_f32, f64: v_cmp_eq_f64}
+  ne: {i32: v_cmp_ne_i32, u32: v_cmp_ne_u32, i64: v_cmp_ne_i64, u64: v_cmp_ne_u64, f32: v_cmp_neq_f32, f64: v_cmp_neq_f64}
+  select: {x32: v_cndmask_b32, f32: v_cndmask_b32}
+  mov: {x32: v_mov_b32, f32: v_mov_b32}
+  lshl_add: {x64: v_lshl_add_u64}        # dst = (src0 << count) + src2, count 0..max_lshl_add
+  bfe: {i32: v_bfe_i32, u32: v_bfe_u32}  # bit-field extract: dst = (src0 >> offset)[0:width], sign- or zero-extended
+  # value conversions, `from>to`
+  cast:
+    f32>i32: v_cvt_i32_f32
+    f32>u32: v_cvt_u32_f32
+    i32>f32: v_cvt_f32_i32
+    u32>f32: v_cvt_f32_u32
+    f32>f64: v_cvt_f64_f32
+    f64>f32: v_cvt_f32_f64
+    i32>f64: v_cvt_f64_i32
+    u32>f64: v_cvt_f64_u32
+    f64>i32: v_cvt_i32_f64
+    f64>u32: v_cvt_u32_f64
+    f16>f32: v_cvt_f32_f16
+    f32>f16: v_cvt_f16_f32
+
+# Scalar (SALU) forms: what a wave-uniform integer can be computed with. An operation that is not here is
+# computed per lane even when its operands are uniform (there is no scalar floating point, multiply-high
+# or divide).
+salu:
+  add: {x32: s_add_u32}
+  sub: {x32: s_sub_u32}
+  mul: {x32: s_mul_i32}
+  and: {x32: s_and_b32, x64: s_and_b64}
+  or: {x32: s_or_b32, x64: s_or_b64}
+  xor: {x32: s_xor_b32, x64: s_xor_b64}
+  shl: {x32: s_lshl_b32, x64: s_lshl_b64}
+  shr: {i32: s_ashr_i32, u32: s_lshr_b32, i64: s_ashr_i64, u64: s_lshr_b64}
+  min: {i32: s_min_i32, u32: s_min_u32}
+  max: {i32: s_max_i32, u32: s_max_u32}
+  not: {x32: s_not_b32}
+  lt: {i32: s_cmp_lt_i32, u32: s_cmp_lt_u32}
+  le: {i32: s_cmp_le_i32, u32: s_cmp_le_u32}
+  gt: {i32: s_cmp_gt_i32, u32: s_cmp_gt_u32}
+  ge: {i32: s_cmp_ge_i32, u32: s_cmp_ge_u32}
+  eq: {i32: s_cmp_eq_i32, u32: s_cmp_eq_u32}
+  ne: {i32: s_cmp_lg_i32, u32: s_cmp_lg_u32}
+  mov: {x32: s_mov_b32, f32: s_mov_b32, x64: s_mov_b64}
+  addc: {x32: s_addc_u32}                # add with the carry of the preceding s_add_u32
+  subb: {x32: s_subb_u32}
+  sext8: {x32: s_sext_i32_i8}
+  sext16: {x32: s_sext_i32_i16}
+
+memory:
+  load: {u8: global_load_ubyte, i8: global_load_sbyte, u16: global_load_ushort, i16: global_load_sshort,
+         x32: global_load_dword, f32: global_load_dword, x64: global_load_dwordx2, f64: global_load_dwordx2}
+  store: {x8: global_store_byte, x16: global_store_short, x32: global_store_dword, f32: global_store_dword,
+          x64: global_store_dwordx2, f64: global_store_dwordx2}
+  kernarg: {4: s_load_dword, 8: s_load_dwordx2}
+  # several consecutive 32-bit elements per lane in one access
+  load_wide: {2: global_load_dwordx2, 3: global_load_dwordx3, 4: global_load_dwordx4}
+  store_wide: {2: global_store_dwordx2, 3: global_store_dwordx3, 4: global_store_dwordx4}
+
+control:
+  where_enter: s_and_saveexec_b64        # save = exec; exec &= mask
+  where_else: s_andn2_b64                # exec = save & ~exec
+  where_leave: s_or_b64                  # exec |= save
+  skip_empty: s_cbranch_execz
+  branch_false: s_cbranch_scc0
+  jump: s_branch
+  mask_copy: s_mov_b64
+  cond_to_mask: s_cselect_b64            # a lane mask (all lanes or none) from the scalar condition code
+  end: s_endpgm
+
+limits:
+  inline_int: [-16, 64]                  # integers encodable without a literal word
+  inline_float: [0.0, 0.5, -0.5, 1.0, -1.0, 2.0, -2.0, 4.0, -4.0]
+  max_lshl_add: 4
+  flat_offset: [-4096, 4095]             # signed 13-bit immediate offset of a global load or store
+  float_sign_bit: {f32: 0x80000000}
+  # kernel entry state (AMD HSA ABI, as amdclang's kernels use it)
+  kernarg_pointer: "s[0:1]"
+  first_workgroup_id_sgpr: 2
+  first_workitem_id_vgpr: 0

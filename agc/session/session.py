@@ -30,7 +30,8 @@ from ..runtime.executor import ExecutorError
 from ..runtime.timing import PROTOCOL_VERSION, TimingProtocol
 from ..store import Store
 
-KINDS = ("parse", "parameter", "unknown", "static", "unverified", "verification", "toolchain", "gpu", "internal")
+KINDS = ("parse", "parameter", "unknown", "static", "unverified", "verification", "toolchain", "gpu", "internal",
+         "frontend", "unsupported")       # the last two: agc's own lowering refuses the source or a construct
 _NUMBERED = re.compile(r"^\s*\[\d+\]\s*")
 
 
@@ -629,7 +630,9 @@ class Session:
     def actions(self, ref: str = "ref") -> dict:
         """What can be done to a state."""
         self.resolve(ref)
-        return {"levels": {"source": "a rewritten HIP source compiled by amdclang into a new root state (may change the launch)",
+        return {"levels": {"lower": "the HIP source through agc's own lowering (lower, plan, replan, ir): every lowering "
+                                    "decision is recorded and can be changed",
+                           "source": "a rewritten HIP source compiled by amdclang into a new root state (may change the launch)",
                            "program": "the manifest's tensor program compiled by a generator template (generate)",
                            "mir": "machine IR: edit, edit_ir, apply"},
                 "launch": "relaunch(ref, launch) or the `launch` argument of source / edit_ir: grid, block, lds, appended args",
@@ -890,6 +893,86 @@ class Session:
         except gen.GenError as e:
             raise SessionError("parameter", str(e), suggestion="program() lists the templates and their parameters") from None
         return self._put(None, c.module, {"name": "generate", "template": c.template, "params": c.params, "launch": c.launch})
+
+    # ---- agc's own lowering from HIP (roadmap phase 2) ------------------------------------------
+    def lower(self, overrides: dict | None = None, note: str = "") -> dict:
+        """The manifest's HIP source through agc's own lowering (Clang parses; kir → wir → mir) → a new root
+        state. `overrides` picks alternatives of lowering decisions: `{"if0.branch.skip_empty": "none"}` for
+        one site, `{"fp.contract": "off"}` for every site that takes that decision. The result carries the
+        plan: every decision taken, its alternatives, and which were overridden."""
+        from .. import lower as own
+        from ..frontend import FrontendError
+        if self.manifest.source is None:
+            raise SessionError("parameter", "this manifest has no HIP source to lower", suggestion="generate() compiles its tensor program")
+        if overrides is not None and not isinstance(overrides, dict):
+            raise SessionError("parameter", "overrides is an object {decision or site.decision: alternative}")
+        try:
+            r = own.compile_hip(self.manifest, overrides)
+        except FrontendError as e:
+            raise SessionError("frontend", e.message, values={"unsupported": e.items[:20]},
+                               suggestion="the supported subset: agc.frontend.SUPPORTED; `ref` (amdclang's build) remains available") from None
+        except own.LowerError as e:
+            raise SessionError("unsupported", e.message, location=e.site,
+                               suggestion="the lowering does not do this yet; `ref` (amdclang's build) remains available") from None
+        except own.PlanError as e:
+            raise SessionError("parameter", e.message, values=e.values, suggestion="plan(ref) lists a state's decisions") from None
+        action = {"name": "lower", "overrides": r.overrides, "strict": True}
+        if note:
+            action["note"] = note
+        st = self._put(None, r.module, action)
+        self.store.put_result(st["id"], "lowering", {"plan": r.plan, "kir": r.kir, "wir": r.wir, "overrides": r.overrides})
+        return {**st, "overrides": r.overrides, "decisions": len(r.plan),
+                "overridden": [f"{e['site']}.{e['decision']}={e['chosen']}" for e in r.plan if e["by"] == "override"]}
+
+    def _lowering(self, ref: str) -> tuple[str, dict]:
+        sid = self.resolve(ref)
+        for st in reversed(self.store.ancestry(sid)):
+            data = self.store.get_result(st.id, "lowering")
+            if data is not None:
+                return st.id, data
+        raise SessionError("parameter", f"state {sid} was not made by lower()", suggestion="lower() compiles the HIP source through agc's own path")
+
+    def plan(self, ref: str) -> dict:
+        """The lowering decisions behind a state made by `lower`: per site the alternative chosen, the default
+        (what amdclang does) and the other alternatives, with what each decision means."""
+        from ..lower import DECISIONS
+        sid, data = self._lowering(ref)
+        return {"id": sid, "overrides": data["overrides"],
+                "decisions": [{**e, "doc": DECISIONS[e["decision"]]["doc"], "kb": DECISIONS[e["decision"]].get("kb")} for e in data["plan"]],
+                "how": 'replan(ref, {"site.decision": alternative}) lowers again with one or more decisions changed'}
+
+    def explain(self, ref: str, site: str) -> dict:
+        """One decision site of a lowered state: the statement in the `kir` and the `wir`, the decisions taken
+        there with their alternatives and what each means."""
+        from ..lower import DECISIONS
+        sid, data = self._lowering(ref)
+        entries = [{**e, "doc": DECISIONS[e["decision"]]["doc"]} for e in data["plan"] if e["site"] == site]
+        lines = {lvl: [ln.strip() for ln in data[lvl].splitlines() if ln.rstrip().endswith(f"@{site}") or f"@{site} " in ln]
+                 for lvl in ("kir", "wir")}
+        if not entries and not any(lines.values()):
+            raise SessionError("unknown", f"no site {site!r} in state {sid}",
+                               values={"sites": sorted({e["site"] for e in data["plan"]})})
+        return {"id": sid, "site": site, "kir": lines["kir"], "wir": lines["wir"], "decisions": entries}
+
+    def replan(self, ref: str, changes: dict, note: str = "") -> dict:
+        """Backtrack: lower again with the decisions of `ref` except those in `changes`
+        (`{"site.decision": alternative}`; the default alternative removes an override)."""
+        if not isinstance(changes, dict) or not changes:
+            raise SessionError("parameter", "changes is a non-empty object {decision or site.decision: alternative}")
+        _, data = self._lowering(ref)
+        defaults = {f"{e['site']}.{e['decision']}": e["default"] for e in data["plan"]}
+        defaults.update({e["decision"]: e["default"] for e in data["plan"]})
+        merged = {**data["overrides"], **changes}
+        merged = {k: v for k, v in merged.items() if defaults.get(k, object()) != v}
+        return self.lower(merged, note)
+
+    def ir(self, ref: str, level: str = "wir") -> dict:
+        """The program of a lowered state above the assembly: `kir` (one thread's program, with the decision
+        sites) or `wir` (one wave's schedule)."""
+        if level not in ("kir", "wir"):
+            raise SessionError("parameter", "level is `kir` or `wir`")
+        sid, data = self._lowering(ref)
+        return {"id": sid, "level": level, "text": data[level]}
 
     def apply(self, ref: str, name: str, params: dict | None = None) -> dict:
         pid = self.resolve(ref)

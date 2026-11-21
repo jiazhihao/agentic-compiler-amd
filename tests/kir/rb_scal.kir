@@ -1,0 +1,47 @@
+kir func rb_scal(%n: i32, %alpha: f32, %x: ptr<f32>) {
+  %bid_x: u32 = bid.x
+  %t: u32 = mul %bid_x, 256:u32
+  %tid_x: u32 = tid.x
+  %t0: u32 = add %t, %tid_x
+  %tid: u32 = mul %t0, 2:u32
+  %t2: i1 = ne %alpha, 1.0:f32
+  if %t2 @if0 {
+    %t3: u32 = add %tid, 1:u32
+    %t4: u32 = cast %n
+    %t5: i1 = lt %t3, %t4
+    if %t5 @if1 {
+      loop @loop0 {
+        carry %j: i32 = 0:i32, %t15 -> %j16
+        %t6: i1 = lt %j, 2:i32
+        while %t6
+        %t7: u32 = cast %j
+        %t8: u32 = add %tid, %t7
+        %t9: i64 = cast %t8
+        %p: ptr<f32> = gep %x, %t9
+        %v: f32 = load %p @load0
+        %res: f32 = mul %v, %alpha
+        %t11: u32 = cast %j
+        %t12: u32 = add %tid, %t11
+        %t13: i64 = cast %t12
+        %p14: ptr<f32> = gep %x, %t13
+        store %p14, %res @store0
+        %t15: i32 = add %j, 1:i32
+      }
+    }
+    %t17: i32 = rem %n, 2:i32
+    %t18: i1 = ne %t17, 0:i32
+    %t19: i32 = sub[nsw=true] %n, 1:i32
+    %t20: u32 = cast %t19
+    %t21: i1 = eq %tid, %t20
+    %c: i1 = and %t18, %t21
+    if %c @if2 {
+      %t22: i64 = cast %tid
+      %p23: ptr<f32> = gep %x, %t22
+      %v24: f32 = load %p23 @load1
+      %res26: f32 = mul %v24, %alpha
+      %t27: i64 = cast %tid
+      %p28: ptr<f32> = gep %x, %t27
+      store %p28, %res26 @store1
+    }
+  }
+}

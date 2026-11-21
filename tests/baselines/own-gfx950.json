@@ -1,0 +1,384 @@
+{
+ "kernels": {
+  "attn_decode": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "attn_decode.hip: 1 construct(s) outside the supported subset: call of `online_softmax_row`: several functions have this name and signature at 19:3"
+  },
+  "axpy": {
+   "stage": "battery",
+   "instructions": 22,
+   "amdclang_instructions": 21,
+   "decisions": [
+    "kernel.fp.contract",
+    "if0.branch.skip_empty"
+   ],
+   "battery": "49/49",
+   "bit_identical": true,
+   "speed_over_amdclang": 1.0068,
+   "ci95": [
+    0.9987,
+    1.0149
+   ],
+   "amdclang_ms": 0.1671,
+   "own_ms": 0.1666,
+   "outcome": "parity"
+  },
+  "cast_bf16": {
+   "stage": "battery",
+   "instructions": 24,
+   "amdclang_instructions": 25,
+   "decisions": [
+    "kernel.fp.contract",
+    "if0.branch.skip_empty"
+   ],
+   "battery": "49/49",
+   "bit_identical": true,
+   "speed_over_amdclang": 1.0015,
+   "ci95": [
+    0.9961,
+    1.007
+   ],
+   "amdclang_ms": 0.15466,
+   "own_ms": 0.15414,
+   "outcome": "parity"
+  },
+  "fa_attention": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "fa_attention.hip: 3 construct(s) outside the supported subset: `ConditionalOperator` as an assignable location at 1334:10; `min` does not end with a return at 13:31; call of `online_softmax_row`: several functions have this name and signature at 14:3"
+  },
+  "fa_attention_causal": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "fa_attention.hip: 3 construct(s) outside the supported subset: `ConditionalOperator` as an assignable location at 1334:10; `min` does not end with a return at 13:31; call of `online_softmax_row`: several functions have this name and signature at 14:3"
+  },
+  "fi_fused_add_rmsnorm": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "fi_fused_add_rmsnorm.hip: 40 construct(s) outside the supported subset: type `T` at 11:65; type `T` at 11:88; type `T` at 12:65; type `float[]` at 22:27; reference to `smem` (VarDecl) at 23:19; type `flashinfer::vec_t<float, 4>` at 28:24 ..."
+  },
+  "fi_gelu_tanh_and_mul": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "fi_gelu_tanh_and_mul.hip: 1 construct(s) outside the supported subset: expression `NonTypeTemplateParmDecl` at 18:67"
+  },
+  "fi_merge_state": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "fi_merge_state.hip: 12 construct(s) outside the supported subset: call of `__builtin_fmaxf`, which has no body in this translation unit at 1341:42; `max` does not end with a return at 20:17; reference to `s_max` (VarDecl) at 23:42; reference to `s_max` (VarDecl) at 24:42; type `flashinfer::vec_t<float, 4>` at 28:26; type `flashinfer::vec_t<float, 4>` at 28:35 ..."
+  },
+  "fi_merge_state_in_place": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "fi_merge_state_in_place.hip: 12 construct(s) outside the supported subset: expression `CXXNullPtrLiteralExpr` at 16:15; call of `__builtin_fmaxf`, which has no body in this translation unit at 1341:42; `max` does not end with a return at 23:17; reference to `s_max` (VarDecl) at 26:38; reference to `s_max` (VarDecl) at 27:50; type `flashinfer::vec_t<float, 4>` at 31:26 ..."
+  },
+  "fi_merge_states": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "fi_merge_states.hip: 17 construct(s) outside the supported subset: type `flashinfer::vec_t<float, 4>` at 20:29; expression `CXXMemberCallExpr` at 21:5; expression `CXXMemberCallExpr` at 22:5; expression `CXXNullPtrLiteralExpr` at 23:32; a `return` that is not the last statement of its function at 26:5; type `flashinfer::vec_t<float, 4>` at 30:29 ..."
+  },
+  "fi_rmsnorm": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "fi_rmsnorm.hip: 27 construct(s) outside the supported subset: type `T` at 11:55; type `T` at 11:78; type `T` at 11:102; type `float[]` at 22:27; type `flashinfer::vec_t<float, 4>` at 27:24; expression `CXXMemberCallExpr` at 28:5 ..."
+  },
+  "fi_rope": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "fi_rope.hip: 25 construct(s) outside the supported subset: type `DType` at 41:12; type `DType` at 41:22; type `DType` at 41:32; type `DType` at 41:47; type `IdType` at 41:76; type `flashinfer::vec_t<float, 4>` at 50:26 ..."
+  },
+  "fi_silu_and_mul": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "fi_silu_and_mul.hip: 1 construct(s) outside the supported subset: expression `NonTypeTemplateParmDecl` at 16:67"
+  },
+  "gelu": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "gelu.hip: 2 construct(s) outside the supported subset: call of `__ocml_tanh_f32`, which has no body in this translation unit at 728:33; `tanhf` does not end with a return at 8:35"
+  },
+  "gemm_bf16": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "gemm_bf16.hip: 1 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 10:27"
+  },
+  "gemm_fp8": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "gemm_fp8.hip: 5 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 15:27; call of `__builtin_amdgcn_ldexpf`, which has no body in this translation unit at 510:43; `ldexpf` does not end with a return at 8:32; reference to `mag` (VarDecl) at 9:26; `e4m3_to_float` does not end with a return at 19:40"
+  },
+  "gemm_naive": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "gemm_naive.hip: 1 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 7:27"
+  },
+  "gemm_tiled": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "gemm_tiled.hip: 8 construct(s) outside the supported subset: type `float[16][16]` at 7:22; type `float[16][16]` at 8:22; reference to `As` (VarDecl) at 14:9; reference to `Bs` (VarDecl) at 15:9; call of `__builtin_amdgcn_fence`, which has no body in this translation unit at 677:5; call of `__builtin_amdgcn_s_barrier`, which has no body in this translation unit at 678:5 ..."
+  },
+  "kda_step": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "kda_step.hip: 13 construct(s) outside the supported subset: type `float[256]` at 17:20; type `float[256]` at 18:20; type `float[256]` at 19:20; reference to `s_decay` (VarDecl) at 22:5; reference to `s_k` (VarDecl) at 23:5; reference to `s_q` (VarDecl) at 24:5 ..."
+  },
+  "layernorm": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "layernorm.hip: 6 construct(s) outside the supported subset: type `float[256]` at 6:22; type `(lambda at tests/kernels/layernorm.hip:9:16)` at 9:10; reference to `red` (VarDecl) at 12:31; reference to `mean` (VarDecl) at 14:72; reference to `red` (VarDecl) at 15:45; reference to `mean` (VarDecl) at 16:76"
+  },
+  "matvec": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "matvec.hip: 1 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 6:20"
+  },
+  "mla_decode": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "mla_decode.hip: 1 construct(s) outside the supported subset: call of `online_softmax_row`: several functions have this name and signature at 19:3"
+  },
+  "mo_active_fwd": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "mo_active_fwd.hip: 6 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 56:9; type `float[4]` at 58:13; type `float[4]` at 59:13; reference to `data` (VarDecl) at 61:26; a reference parameter of `ActivationFunction` at 63:24; type `float * __attribute__((ext_vector_type(4)))` at 65:7"
+  },
+  "mo_adam": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "mo_adam.hip: 10 construct(s) outside the supported subset: call of `__ocml_pow_f64`, which has no body in this translation unit at 1025:45; `pow` does not end with a return at 539:1; `-` on f64 and i32 at 39:27; `-` on f64 and i32 at 40:27; call of `__builtin_fmaxf`, which has no body in this translation unit at 1341:42; `max` does not end with a return at 68:35 ..."
+  },
+  "mo_bn_infer": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "mo_bn_infer.hip: 12 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 111:9; type `float[4]` at 118:17; type `float[4]` at 119:17; type `float[4]` at 120:17; type `float[4]` at 121:17; type `float[4]` at 122:17 ..."
+  },
+  "mo_glu_fwd": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "mo_glu_fwd.hip: 5 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 17:9; call of `exp`: several functions have this name and signature at 8:71; `sigmoid` does not end with a return at 20:24; reference to `val2` (VarDecl) at 21:31; reference to `val` (VarDecl) at 22:24"
+  },
+  "mo_prelu_bwd": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "mo_prelu_bwd.hip: 3 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 24:9; expression `CXXNullPtrLiteralExpr` at 29:22; expression `CXXNullPtrLiteralExpr` at 35:33"
+  },
+  "mo_reduce_sum": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "mo_reduce_sum.hip: 1 construct(s) outside the supported subset: call of `block_reduce`: several functions have this name and signature at 17:23"
+  },
+  "mo_rope_fwd": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "mo_rope_fwd.hip: 1 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 20:9"
+  },
+  "mo_t5_layernorm": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "mo_t5_layernorm.hip: 12 construct(s) outside the supported subset: type `float[256]` at 28:28; reference to `ltmp` (VarDecl) at 39:5; call of `__builtin_amdgcn_fence`, which has no body in this translation unit at 677:5; call of `__builtin_amdgcn_s_barrier`, which has no body in this translation unit at 678:5; call of `__builtin_amdgcn_fence`, which has no body in this translation unit at 679:5; r"
+  },
+  "moe_gate_topk": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "moe_gate_topk.hip: 10 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 16:24; call of `__builtin_inff`, which has no body in this translation unit at 19:14; reference to `m` (VarDecl) at 20:41; reference to `m` (VarDecl) at 22:60; type `int[16]` at 24:7; call of `__builtin_inff`, which has no body in this translation unit at 27:21 ..."
+  },
+  "rb_axpy": {
+   "stage": "battery",
+   "instructions": 42,
+   "amdclang_instructions": 41,
+   "decisions": [
+    "kernel.fp.contract",
+    "load0.access.width",
+    "load1.access.width",
+    "store0.access.width",
+    "if0.branch.skip_empty",
+    "if1.branch.skip_empty",
+    "if2.branch.skip_empty"
+   ],
+   "battery": "49/49",
+   "bit_identical": true,
+   "speed_over_amdclang": 0.9957,
+   "ci95": [
+    0.9898,
+    1.0017
+   ],
+   "amdclang_ms": 0.15642,
+   "own_ms": 0.15684,
+   "outcome": "parity"
+  },
+  "rb_copy": {
+   "stage": "battery",
+   "instructions": 35,
+   "amdclang_instructions": 30,
+   "decisions": [
+    "kernel.fp.contract",
+    "load0.access.width",
+    "store0.access.width",
+    "if0.branch.skip_empty",
+    "if1.branch.skip_empty"
+   ],
+   "battery": "49/49",
+   "bit_identical": true,
+   "speed_over_amdclang": 1.0042,
+   "ci95": [
+    0.9982,
+    1.0102
+   ],
+   "amdclang_ms": 0.10976,
+   "own_ms": 0.10908,
+   "outcome": "parity"
+  },
+  "rb_dot": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "rb_dot.hip: 6 construct(s) outside the supported subset: reference to `ONE_BLOCK` (VarDecl) at 30:21; reference to `ONE_BLOCK` (VarDecl) at 35:16; reference to `i0` (VarDecl) at 36:15; reference to `i` (VarDecl) at 37:31; expression `CXXMemberCallExpr` at 42:8; reference to `ONE_BLOCK` (VarDecl) at 17:12"
+  },
+  "rb_gemvn": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "rb_gemvn.hip: 57 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 190:9; a `return` that is not the last statement of its function at 194:9; a `return` that is not the last statement of its function at 34:9; type `float[4096]` at 43:22; type `float[4]` at 45:11; type `float[4]` at 46:11 ..."
+  },
+  "rb_gemvt": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "rb_gemvt.hip: 6 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 88:9; a `return` that is not the last statement of its function at 29:9; type `float[256]` at 39:22; reference to `sdata` (VarDecl) at 50:5; reference to `sdata` (VarDecl) at 55:38; reference to `sdata` (VarDecl) at 73:41"
+  },
+  "rb_ger": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "rb_ger.hip: 1 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 23:9"
+  },
+  "rb_nrm2": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "rb_nrm2.hip: 2 construct(s) outside the supported subset: expression `CXXOperatorCallExpr` at 40:16; expression `CXXMemberCallExpr` at 42:8"
+  },
+  "rb_rot": {
+   "stage": "battery",
+   "instructions": 28,
+   "amdclang_instructions": 28,
+   "decisions": [
+    "kernel.fp.contract",
+    "if0.branch.skip_empty"
+   ],
+   "battery": "49/49",
+   "bit_identical": true,
+   "speed_over_amdclang": 1.0025,
+   "ci95": [
+    0.9904,
+    1.0147
+   ],
+   "amdclang_ms": 0.20496,
+   "own_ms": 0.20418,
+   "outcome": "parity"
+  },
+  "rb_scal": {
+   "stage": "battery",
+   "instructions": 38,
+   "amdclang_instructions": 36,
+   "decisions": [
+    "kernel.fp.contract",
+    "load0.access.width",
+    "store0.access.width",
+    "if0.branch.skip_empty",
+    "if1.branch.skip_empty",
+    "if2.branch.skip_empty"
+   ],
+   "battery": "49/49",
+   "bit_identical": true,
+   "speed_over_amdclang": 1.0004,
+   "ci95": [
+    0.9871,
+    1.0138
+   ],
+   "amdclang_ms": 0.1043,
+   "own_ms": 0.10386,
+   "outcome": "parity"
+  },
+  "rb_swap": {
+   "stage": "battery",
+   "instructions": 41,
+   "amdclang_instructions": 36,
+   "decisions": [
+    "kernel.fp.contract",
+    "load0.access.width",
+    "load1.access.width",
+    "store0.access.width",
+    "store1.access.width",
+    "if0.branch.skip_empty",
+    "if1.branch.skip_empty"
+   ],
+   "battery": "49/49",
+   "bit_identical": true,
+   "speed_over_amdclang": 1.0047,
+   "ci95": [
+    0.9917,
+    1.018
+   ],
+   "amdclang_ms": 0.1814,
+   "own_ms": 0.18104,
+   "outcome": "parity"
+  },
+  "rmsnorm": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "rmsnorm.hip: 5 construct(s) outside the supported subset: type `float[256]` at 5:22; reference to `red` (VarDecl) at 10:23; call of `__builtin_sqrtf`, which has no body in this translation unit at 722:33; `sqrtf` does not end with a return at 11:26; reference to `scale` (VarDecl) at 12:75"
+  },
+  "row_argmax": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "row_argmax.hip: 5 construct(s) outside the supported subset: type `Best[256]` at 7:21; type `Best` at 9:10; `MemberExpr` as an assignable location at 11:22; expression `CXXOperatorCallExpr` at 12:5; `MemberExpr` as an assignable location at 13:45"
+  },
+  "row_sum": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "row_sum.hip: 3 construct(s) outside the supported subset: type `float[256]` at 5:22; reference to `red` (VarDecl) at 9:28; reference to `s` (VarDecl) at 10:45"
+  },
+  "softmax": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "softmax.hip: 7 construct(s) outside the supported subset: type `float[256]` at 5:22; call of `__builtin_inff`, which has no body in this translation unit at 8:16; reference to `m` (VarDecl) at 9:57; reference to `m` (VarDecl) at 10:5; reference to `m` (VarDecl) at 12:76; reference to `red` (VarDecl) at 13:22 ..."
+  },
+  "transpose": {
+   "stage": "lower",
+   "stopped": "unsupported",
+   "reason": "no per-lane `mul` on u64 yet (roadmap M13)"
+  },
+  "vl_fused_add_rms_norm": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "vl_fused_add_rms_norm.hip: 17 construct(s) outside the supported subset: type `scalar_t` at 12:28; type `scalar_t` at 14:28; type `scalar_t` at 15:34; reference to `input` (ParmVarDecl) at 22:18; reference to `z` (VarDecl) at 23:5; reference to `z` (VarDecl) at 24:22 ..."
+  },
+  "vl_moe_align": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "vl_moe_align.hip: 1 construct(s) outside the supported subset: expression `CXXNullPtrLiteralExpr` at 145:24"
+  },
+  "vl_rms_norm": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "vl_rms_norm.hip: 28 construct(s) outside the supported subset: type `scalar_t` at 15:28; type `scalar_t` at 16:34; type `scalar_t` at 22:34; type `scalar_t` at 30:19; type `scalar_t` at 31:19; reference to `input_row` (VarDecl) at 34:5 ..."
+  },
+  "vl_rotary_embedding": {
+   "stage": "frontend",
+   "stopped": "frontend",
+   "reason": "vl_rotary_embedding.hip: 2 construct(s) outside the supported subset: expression `NonTypeTemplateParmDecl` at 13:53; expression `CXXNullPtrLiteralExpr` at 63:14"
+  }
+ },
+ "protocol": "agc-timing-amd-2",
+ "toolchain": {
+  "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
+  "rocm": "7.14.60850"
+ },
+ "recorded": "2026-11-21",
+ "what": "agc's own lowering from HIP (default plan) against amdclang -O3 on the source as shipped",
+ "summary": {
+  "kernels": 50,
+  "frontend_ok": 8,
+  "battery_ok": 7,
+  "bit_identical": 7,
+  "geomean_speed_over_amdclang": 1.002,
+  "slowest": 0.9957
+ }
+}

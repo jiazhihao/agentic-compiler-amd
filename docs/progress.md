@@ -18,8 +18,58 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 | M9 Campaigns and report | #13 | PR #26 open |
 | Codex review fixes | #27 | PR open |
 | Stretch: machine-model calibration, attention, LDS GEMM | #7, #12, #23 | not scheduled |
+| Phase 2 roadmap: agc's own lowering | #77 | PR #78 open |
+| M11 Tracer bullet: HIP to the GPU, own path | #79 | PR open |
 
 ## Log
+
+### 2026-11-21 — M11: tracer bullet, HIP to the GPU with no amdclang code generation (#79)
+- **What.** agc's own lowering, end to end. `agc/frontend`: Clang's JSON AST (`-fsyntax-only`, cached) to
+  `kir` for a bounded subset (scalar and pointer locals, arithmetic, casts, `if`, `for` / `while` / `do`,
+  pointer arithmetic, the HIP builtin variables, inlined functions and template instantiations); every
+  unsupported construct is reported with its source location. `agc/kir`: the thread-level IR (structured
+  SSA with `if` merges and loop-carried values; text, parser, verifier, NumPy interpreter) and its passes
+  (folding, CSE, dead code, constant-trip loops unrolled, fma contraction, no-wrap index widening).
+  `agc/wir`: the wave-level IR (`u` / `v` values, `where` / `branch` regions, loads and stores with base,
+  index, scale and offset, wide accesses; verifier; an interpreter that also checks every `u` value is
+  uniform within a wave). `agc/lower`: wave lowering (uniformity from the selection table's scalar forms),
+  redundant-load elimination, adjacent accesses merged, instruction selection from
+  `agc/arch/gfx950.isel.yaml` into the existing virtual-register builder, allocator, `fix_waits`,
+  `fix_hazards` and `abi.make_kernel`.
+- **Decisions.** A compilation returns its plan. Three decisions so far, each with amdclang's behaviour as
+  the default: `fp.contract` (kernel), `access.width` (per access group: 4, 2, 1), `branch.skip_empty` (per
+  `where`). Session and MCP: `lower(overrides)`, `plan`, `replan` (lower again with some decisions changed;
+  the default alternative gives the first state back), `explain`, `ir`.
+- **Checks.** On the CPU, with no toolchain (CI): `kir` against the manifest's reference and `wir` against
+  `kir` on battery inputs at reduced shapes; the frontend's output is recorded in `tests/kir/`. On the
+  device: static check (strict), full battery, `equivalent` against amdclang's binary.
+- **Measured** (`scripts/own_path.py` → `tests/baselines/own-gfx950.json`, default plan, paired against
+  amdclang -O3 on the source as shipped):
+
+| Kernel | Battery | Bit-identical to amdclang | Speed over amdclang (95 % CI) | Instructions (own / amdclang) |
+|---|---|---|---|---|
+| `axpy` | 49/49 | yes | 1.007 (0.999 to 1.015) | 22 / 21 |
+| `cast_bf16` | 49/49 | yes | 1.002 (0.996 to 1.007) | 24 / 25 |
+| `rb_axpy` | 49/49 | yes | 0.996 (0.990 to 1.002) | 42 / 41 |
+| `rb_copy` | 49/49 | yes | 1.004 (0.998 to 1.010) | 35 / 30 |
+| `rb_rot` | 49/49 | yes | 1.003 (0.990 to 1.015) | 28 / 28 |
+| `rb_scal` | 49/49 | yes | 1.000 (0.987 to 1.014) | 38 / 36 |
+| `rb_swap` | 49/49 | yes | 1.005 (0.992 to 1.018) | 41 / 36 |
+
+  Seven of 50 kernels pass through the own path, all at parity (geomean 1.002, none below 0.996); the exit
+  asked for five at 0.90 or better. Of the other 43, 42 are refused by the frontend (early `return`, arrays,
+  records, `__shared__`, math calls, member calls) and one (`transpose`) by the lowering (64-bit multiply).
+- **What parity needed.** The first version was at 0.85 to 0.92 on the five rocBLAS kernels. The gap was
+  memory instructions, not arithmetic: amdclang reads `x[i]` and `x[i + 1]` with one `dwordx2` load (one
+  round trip to memory instead of two), and reads a value once where the source reads it twice. Merging
+  adjacent accesses needed `extend(i + 1) = extend(i) + 1`, which holds because `i` is even (known bits) or
+  signed (`nsw`). Arguments are assumed not to overlap each other: every tensor of a manifest is its own
+  allocation (D17), which amdclang only knows from `__restrict__`.
+- **Open.** Loops with a runtime trip count are parsed and interpreted but not lowered (M12). The selection
+  table covers 32-bit integer and float arithmetic, 64-bit add / shift / compare, and conversions; no
+  64-bit multiply, no division, no LDS, no math functions. Each kernel argument is loaded on its own at
+  entry (amdclang groups them and loads late; parity on these kernels). A uniform condition computed per
+  lane still becomes a `where` region, not a branch. The GPU test suite was run for the own-path tests only.
 
 ### 2026-11-21 — Roadmap, phase 2: agc's own lowering from HIP to assembly (#77)
 - **What.** Roadmap M11 to M21 (`docs/roadmap.md`, issue #77) and design decisions D3', D9', D12

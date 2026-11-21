@@ -1,0 +1,30 @@
+kir func rb_rot(%n: i32, %x: ptr<f32>, %y: ptr<f32>, %c: f32, %s: f32) {
+  %bid_x: u32 = bid.x
+  %bdim_x: u32 = bdim.x
+  %t: u32 = mul %bid_x, %bdim_x
+  %tid_x: u32 = tid.x
+  %t0: u32 = add %t, %tid_x
+  %tid: i64 = cast %t0
+  %t2: i64 = cast %n
+  %t3: i1 = lt %tid, %t2
+  if %t3 @if0 {
+    %p: ptr<f32> = gep %x, %tid
+    %v: f32 = load %p @load0
+    %t4: f32 = mul %c, %v
+    %p5: ptr<f32> = gep %y, %tid
+    %v6: f32 = load %p5 @load1
+    %t7: f32 = mul %s, %v6
+    %tempx: f32 = add %t4, %t7
+    %p9: ptr<f32> = gep %y, %tid
+    %v10: f32 = load %p9 @load2
+    %t11: f32 = mul %c, %v10
+    %p12: ptr<f32> = gep %x, %tid
+    %v13: f32 = load %p12 @load3
+    %t14: f32 = mul %s, %v13
+    %tempy: f32 = sub %t11, %t14
+    %p16: ptr<f32> = gep %y, %tid
+    store %p16, %tempy @store0
+    %p17: ptr<f32> = gep %x, %tid
+    store %p17, %tempx @store1
+  }
+}

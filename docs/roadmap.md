@@ -458,29 +458,38 @@ estimates of non-test Python; the total, about 30 k lines, is roughly 2.5 times 
 
 #### M11: tracer bullet, straight-line kernels from HIP to the GPU with no amdclang code generation
 
-- [ ] `agc/frontend`: Clang JSON AST (cached under the same key as HIP builds) to `kir`, subset
+- [x] `agc/frontend`: Clang JSON AST (cached under the same key as HIP builds) to `kir`, subset
       v0: one `extern "C" __global__` entry, scalar and pointer parameters, locals, arithmetic,
       casts, `if`, subscripts, `threadIdx` / `blockIdx` / `blockDim` / `gridDim`. An unsupported
       construct is a structured refusal (kind `frontend`, source location, every unsupported node
       listed at once).
-- [ ] `agc/kir`: types, IR, text, verifier, interpreter (ported).
-- [ ] `agc/wir` v0: `u` / `v` / `m` values, arithmetic, compare, `select`, `load` / `store`,
+- [x] `agc/kir`: types, IR, text, verifier, interpreter (ported).
+- [x] `agc/wir` v0: `u` / `v` / `m` values, arithmetic, compare, `select`, `load` / `store`,
       `where`; text, verifier, interpreter.
-- [ ] Wave lowering v0: uniformity lattice (constant, workgroup-uniform, wave-uniform, affine in
+- [x] Wave lowering v0: uniformity lattice (constant, workgroup-uniform, wave-uniform, affine in
       the lane with a stride, varying); `if` to a mask region.
-- [ ] Selection v0, table-driven; the patterns are data (`agc/arch/gfx950.isel.yaml`, checked
+- [x] Selection v0, table-driven; the patterns are data (`agc/arch/gfx950.isel.yaml`, checked
       against the ISA table), not Python. Then the existing allocator, `fix_waits`, `fix_hazards`,
       `abi.make_kernel` (hidden arguments for the grid and block sizes).
-- [ ] Plan framework: rule registry, sites, the plan stored with the state; `lower`, `actions`,
-      `explain`.
-- [ ] Session: state `src` (the `kir` of the source) next to `ref` and `baseline`.
-- [ ] `scripts/own_path.py` → `tests/baselines/own-gfx950.json`: per kernel, how far it gets
+- [x] Plan framework: decision registry, sites, the plan stored with the state; session and MCP
+      `lower`, `plan` (the decisions of a state, with alternatives), `replan`, `explain`, `ir`.
+- [x] Session: state `src` (the `kir` of the source) next to `ref` and `baseline`.
+- [x] `scripts/own_path.py` → `tests/baselines/own-gfx950.json`: per kernel, how far it gets
       (frontend, `kir` check, lowered, static check, battery) and its time over amdclang `-O3`.
+- [x] Brought forward because parity on the first kernels needed them: constant-trip loops in the
+      frontend and `kir` (unrolled), inlining of functions and template instantiations, `access.width`
+      (adjacent accesses merged into `dwordx2/x4`, from M13), redundant-load elimination and
+      store-to-load forwarding in `wir`, `extend(x + c)` → `extend(x) + c` from `nsw` and known bits.
+- [x] CPU translation checks (`agc/lower/checks.py`): `kir` against the reference, `wir` against `kir`;
+      the frontend's output is recorded as `tests/kir/*.kir`, so CI lowers and checks without Clang.
 
 Exit: at least five straight-line elementwise kernels (candidates `axpy`, `cast_bf16`, `rb_copy`,
 `rb_scal`, `rb_swap`; the frontend's coverage report decides) pass the full battery through the own
 path; bit-identical to amdclang by `equivalent`; each at 0.90 of amdclang's speed or better; the
 CPU translation checks run in CI. Size: about 3.5 k.
+
+Done (#79): seven kernels (`axpy`, `cast_bf16`, `rb_axpy`, `rb_copy`, `rb_rot`, `rb_scal`, `rb_swap`),
+all bit-identical to amdclang; numbers in `progress.md`.
 
 #### M12: control flow, loops, the first decisions that beat amdclang
 
