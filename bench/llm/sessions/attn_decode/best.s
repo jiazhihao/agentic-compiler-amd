@@ -106,6 +106,20 @@ attn_decode:
 	v_mov_b32_e32 v48, 0x7f800000
 	v_mov_b32_e32 v49, 0
 	v_writelane_b32 v88, s3, 17
+	v_and_b32_e32 v96, 31, v0
+	v_lshlrev_b32_e32 v96, 4, v96
+	v_mov_b32_e32 v97, 0
+	s_mov_b32 s12, s33
+	s_mov_b32 s13, s30
+	v_lshl_add_u64 v[102:103], v[96:97], 0, s[12:13]
+	global_load_dwordx4 v[92:95], v[102:103], off
+	v_and_b32_e32 v98, 0x3c0, v0
+	v_lshrrev_b32_e32 v99, 5, v0
+	v_and_b32_e32 v99, 1, v99
+	v_or_b32_e32 v98, v98, v99
+	v_lshlrev_b32_e32 v99, 2, v98
+	v_or_b32_e32 v99, 0x2000, v99
+	s_waitcnt vmcnt(0)
 	s_branch .LBB0_3
 .LBB0_2:
 	s_or_b64 exec, exec, s[6:7]
@@ -150,161 +164,500 @@ attn_decode:
 	v_or_b32_e32 v3, s86, v0
 	v_cmp_gt_i32_e64 s[6:7], s84, v3
 	v_mov_b32_e32 v2, 0xff800000
-	s_and_saveexec_b64 s[88:89], s[6:7]
-	s_cbranch_execz .LBB0_7
 .Lft1:
-	v_mad_u64_u32 v[4:5], s[8:9], s90, v3, 0
+	v_add_u32_e32 v6, s86, v98
+	v_mad_u64_u32 v[4:5], s[8:9], s90, v6, 0
 	v_mov_b32_e32 v2, v5
-	v_mad_u64_u32 v[2:3], s[8:9], s91, v3, v[2:3]
+	v_mov_b32_e32 v3, 0
+	v_mad_u64_u32 v[2:3], s[8:9], s91, v6, v[2:3]
 	v_mov_b32_e32 v5, v2
 	v_lshl_add_u64 v[2:3], v[4:5], 2, s[92:93]
-	s_mov_b64 s[34:35], 0
-	s_mov_b64 s[8:9], -1
-	v_mov_b32_e32 v4, 0
+	v_lshl_add_u64 v[2:3], v[96:97], 0, v[2:3]
+	s_lshl_b64 s[12:13], s[90:91], 3
+	s_mov_b64 s[14:15], exec
+	s_mov_b32 s16, 0x10000
+	s_mov_b32 s17, 0x10000
 .LBB0_5:
-	s_lshl_b64 s[12:13], s[34:35], 4
-	v_lshl_add_u64 v[36:37], v[2:3], 0, s[12:13]
-	global_load_dwordx4 v[6:9], v[36:37], off offset:240
-	global_load_dwordx4 v[10:13], v[36:37], off offset:224
-	global_load_dwordx4 v[14:17], v[36:37], off offset:208
-	global_load_dwordx4 v[18:21], v[36:37], off offset:192
-	global_load_dwordx4 v[22:25], v[36:37], off offset:144
-	global_load_dwordx4 v[26:29], v[36:37], off offset:128
-	global_load_dwordx4 v[30:33], v[36:37], off offset:112
-	global_load_dwordx4 v[52:55], v[36:37], off offset:96
-	global_load_dwordx4 v[56:59], v[36:37], off offset:80
-	global_load_dwordx4 v[60:63], v[36:37], off offset:64
-	global_load_dwordx4 v[64:67], v[36:37], off offset:48
-	global_load_dwordx4 v[68:71], v[36:37], off offset:32
-	global_load_dwordx4 v[72:75], v[36:37], off offset:16
-	global_load_dwordx4 v[76:79], v[36:37], off
-	global_load_dwordx4 v[80:83], v[36:37], off offset:160
-	global_load_dwordx4 v[84:87], v[36:37], off offset:176
-	s_add_u32 s2, s33, s12
-	s_addc_u32 s3, s30, s13
-	s_load_dwordx16 s[68:83], s[2:3], 0xc0
-	s_load_dwordx16 s[12:27], s[2:3], 0x0
-	s_load_dwordx16 s[36:51], s[2:3], 0x40
-	s_load_dwordx16 s[52:67], s[2:3], 0x80
-	v_cndmask_b32_e64 v5, 0, 1, s[8:9]
-	v_cmp_ne_u32_e32 vcc, 1, v5
-	s_mov_b64 s[34:35], 16
-	s_mov_b64 s[8:9], 0
-	s_and_b64 vcc, exec, vcc
-	s_waitcnt vmcnt(15) lgkmcnt(0)
-	v_pk_mul_f32 v[6:7], s[80:81], v[6:7]
-	s_waitcnt vmcnt(14)
-	v_pk_mul_f32 v[10:11], s[76:77], v[10:11]
-	s_waitcnt vmcnt(13)
-	v_pk_mul_f32 v[14:15], s[72:73], v[14:15]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[8:11], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[12:15], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[16:19], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[20:23], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[24:27], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[28:31], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[52:55], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[56:59], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[60:63], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[64:67], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[68:71], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[72:75], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[76:79], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[80:83], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[84:87], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[104:107], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	s_mov_b64 exec, s[14:15]
 	s_waitcnt vmcnt(12)
-	v_pk_mul_f32 v[18:19], s[68:69], v[18:19]
-	s_waitcnt vmcnt(11)
-	v_pk_mul_f32 v[22:23], s[56:57], v[22:23]
-	s_waitcnt vmcnt(10)
-	v_pk_mul_f32 v[26:27], s[52:53], v[26:27]
-	s_waitcnt vmcnt(9)
-	v_pk_mul_f32 v[30:31], s[48:49], v[30:31]
+	v_mul_f32_e32 v7, v92, v8
+	v_mul_f32_e32 v101, v92, v12
+	v_mul_f32_e32 v102, v92, v16
+	v_mul_f32_e32 v103, v92, v20
+	v_fmac_f32_e32 v7, v93, v9
+	v_fmac_f32_e32 v101, v93, v13
+	v_fmac_f32_e32 v102, v93, v17
+	v_fmac_f32_e32 v103, v93, v21
+	v_fmac_f32_e32 v7, v94, v10
+	v_fmac_f32_e32 v101, v94, v14
+	v_fmac_f32_e32 v102, v94, v18
+	v_fmac_f32_e32 v103, v94, v22
+	v_fmac_f32_e32 v7, v95, v11
+	v_fmac_f32_e32 v101, v95, v15
+	v_fmac_f32_e32 v102, v95, v19
+	v_fmac_f32_e32 v103, v95, v23
+	v_add_f32_dpp v7, v7, v7 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_bcast:15 row_mask:0xa bank_mask:0xf
+	s_mov_b64 exec, s[16:17]
+	ds_write_b32 v99, v7
+	ds_write_b32 v99, v101 offset:8
+	ds_write_b32 v99, v102 offset:16
+	ds_write_b32 v99, v103 offset:24
+	s_mov_b64 exec, s[14:15]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[8:11], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[12:15], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[16:19], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[20:23], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	s_mov_b64 exec, s[14:15]
+	s_waitcnt vmcnt(12)
+	v_mul_f32_e32 v7, v92, v24
+	v_mul_f32_e32 v101, v92, v28
+	v_mul_f32_e32 v102, v92, v52
+	v_mul_f32_e32 v103, v92, v56
+	v_fmac_f32_e32 v7, v93, v25
+	v_fmac_f32_e32 v101, v93, v29
+	v_fmac_f32_e32 v102, v93, v53
+	v_fmac_f32_e32 v103, v93, v57
+	v_fmac_f32_e32 v7, v94, v26
+	v_fmac_f32_e32 v101, v94, v30
+	v_fmac_f32_e32 v102, v94, v54
+	v_fmac_f32_e32 v103, v94, v58
+	v_fmac_f32_e32 v7, v95, v27
+	v_fmac_f32_e32 v101, v95, v31
+	v_fmac_f32_e32 v102, v95, v55
+	v_fmac_f32_e32 v103, v95, v59
+	v_add_f32_dpp v7, v7, v7 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_bcast:15 row_mask:0xa bank_mask:0xf
+	s_mov_b64 exec, s[16:17]
+	ds_write_b32 v99, v7 offset:32
+	ds_write_b32 v99, v101 offset:40
+	ds_write_b32 v99, v102 offset:48
+	ds_write_b32 v99, v103 offset:56
+	s_mov_b64 exec, s[14:15]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[24:27], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[28:31], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[52:55], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[56:59], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	s_mov_b64 exec, s[14:15]
+	s_waitcnt vmcnt(12)
+	v_mul_f32_e32 v7, v92, v60
+	v_mul_f32_e32 v101, v92, v64
+	v_mul_f32_e32 v102, v92, v68
+	v_mul_f32_e32 v103, v92, v72
+	v_fmac_f32_e32 v7, v93, v61
+	v_fmac_f32_e32 v101, v93, v65
+	v_fmac_f32_e32 v102, v93, v69
+	v_fmac_f32_e32 v103, v93, v73
+	v_fmac_f32_e32 v7, v94, v62
+	v_fmac_f32_e32 v101, v94, v66
+	v_fmac_f32_e32 v102, v94, v70
+	v_fmac_f32_e32 v103, v94, v74
+	v_fmac_f32_e32 v7, v95, v63
+	v_fmac_f32_e32 v101, v95, v67
+	v_fmac_f32_e32 v102, v95, v71
+	v_fmac_f32_e32 v103, v95, v75
+	v_add_f32_dpp v7, v7, v7 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_bcast:15 row_mask:0xa bank_mask:0xf
+	s_mov_b64 exec, s[16:17]
+	ds_write_b32 v99, v7 offset:64
+	ds_write_b32 v99, v101 offset:72
+	ds_write_b32 v99, v102 offset:80
+	ds_write_b32 v99, v103 offset:88
+	s_mov_b64 exec, s[14:15]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[60:63], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[64:67], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[68:71], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[72:75], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	s_mov_b64 exec, s[14:15]
+	s_waitcnt vmcnt(12)
+	v_mul_f32_e32 v7, v92, v76
+	v_mul_f32_e32 v101, v92, v80
+	v_mul_f32_e32 v102, v92, v84
+	v_mul_f32_e32 v103, v92, v104
+	v_fmac_f32_e32 v7, v93, v77
+	v_fmac_f32_e32 v101, v93, v81
+	v_fmac_f32_e32 v102, v93, v85
+	v_fmac_f32_e32 v103, v93, v105
+	v_fmac_f32_e32 v7, v94, v78
+	v_fmac_f32_e32 v101, v94, v82
+	v_fmac_f32_e32 v102, v94, v86
+	v_fmac_f32_e32 v103, v94, v106
+	v_fmac_f32_e32 v7, v95, v79
+	v_fmac_f32_e32 v101, v95, v83
+	v_fmac_f32_e32 v102, v95, v87
+	v_fmac_f32_e32 v103, v95, v107
+	v_add_f32_dpp v7, v7, v7 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_bcast:15 row_mask:0xa bank_mask:0xf
+	s_mov_b64 exec, s[16:17]
+	ds_write_b32 v99, v7 offset:96
+	ds_write_b32 v99, v101 offset:104
+	ds_write_b32 v99, v102 offset:112
+	ds_write_b32 v99, v103 offset:120
+	s_mov_b64 exec, s[14:15]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[76:79], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[80:83], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[84:87], v[2:3], off
+	v_add_u32_e32 v6, 2, v6
+	v_lshl_add_u64 v[2:3], v[2:3], 0, s[12:13]
+	v_cmpx_gt_i32_e32 vcc, s84, v6
+	global_load_dwordx4 v[104:107], v[2:3], off
+	s_mov_b64 exec, s[14:15]
+	s_waitcnt vmcnt(12)
+	v_mul_f32_e32 v7, v92, v8
+	v_mul_f32_e32 v101, v92, v12
+	v_mul_f32_e32 v102, v92, v16
+	v_mul_f32_e32 v103, v92, v20
+	v_fmac_f32_e32 v7, v93, v9
+	v_fmac_f32_e32 v101, v93, v13
+	v_fmac_f32_e32 v102, v93, v17
+	v_fmac_f32_e32 v103, v93, v21
+	v_fmac_f32_e32 v7, v94, v10
+	v_fmac_f32_e32 v101, v94, v14
+	v_fmac_f32_e32 v102, v94, v18
+	v_fmac_f32_e32 v103, v94, v22
+	v_fmac_f32_e32 v7, v95, v11
+	v_fmac_f32_e32 v101, v95, v15
+	v_fmac_f32_e32 v102, v95, v19
+	v_fmac_f32_e32 v103, v95, v23
+	v_add_f32_dpp v7, v7, v7 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_bcast:15 row_mask:0xa bank_mask:0xf
+	s_mov_b64 exec, s[16:17]
+	ds_write_b32 v99, v7 offset:128
+	ds_write_b32 v99, v101 offset:136
+	ds_write_b32 v99, v102 offset:144
+	ds_write_b32 v99, v103 offset:152
+	s_mov_b64 exec, s[14:15]
 	s_waitcnt vmcnt(8)
-	v_pk_mul_f32 v[52:53], s[44:45], v[52:53]
-	s_waitcnt vmcnt(7)
-	v_pk_mul_f32 v[56:57], s[40:41], v[56:57]
-	s_waitcnt vmcnt(6)
-	v_pk_mul_f32 v[60:61], s[36:37], v[60:61]
-	s_waitcnt vmcnt(5)
-	v_pk_mul_f32 v[64:65], s[24:25], v[64:65]
+	v_mul_f32_e32 v7, v92, v24
+	v_mul_f32_e32 v101, v92, v28
+	v_mul_f32_e32 v102, v92, v52
+	v_mul_f32_e32 v103, v92, v56
+	v_fmac_f32_e32 v7, v93, v25
+	v_fmac_f32_e32 v101, v93, v29
+	v_fmac_f32_e32 v102, v93, v53
+	v_fmac_f32_e32 v103, v93, v57
+	v_fmac_f32_e32 v7, v94, v26
+	v_fmac_f32_e32 v101, v94, v30
+	v_fmac_f32_e32 v102, v94, v54
+	v_fmac_f32_e32 v103, v94, v58
+	v_fmac_f32_e32 v7, v95, v27
+	v_fmac_f32_e32 v101, v95, v31
+	v_fmac_f32_e32 v102, v95, v55
+	v_fmac_f32_e32 v103, v95, v59
+	v_add_f32_dpp v7, v7, v7 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_bcast:15 row_mask:0xa bank_mask:0xf
+	s_mov_b64 exec, s[16:17]
+	ds_write_b32 v99, v7 offset:160
+	ds_write_b32 v99, v101 offset:168
+	ds_write_b32 v99, v102 offset:176
+	ds_write_b32 v99, v103 offset:184
+	s_mov_b64 exec, s[14:15]
 	s_waitcnt vmcnt(4)
-	v_pk_mul_f32 v[68:69], s[20:21], v[68:69]
-	s_waitcnt vmcnt(3)
-	v_pk_mul_f32 v[72:73], s[16:17], v[72:73]
-	s_waitcnt vmcnt(2)
-	v_pk_mul_f32 v[76:77], s[12:13], v[76:77]
-	v_pk_mul_f32 v[78:79], s[14:15], v[78:79]
-	v_add_f32_e32 v4, v4, v76
-	v_add_f32_e32 v4, v4, v77
-	v_add_f32_e32 v4, v4, v78
-	v_add_f32_e32 v4, v4, v79
-	v_add_f32_e32 v4, v4, v72
-	v_pk_mul_f32 v[74:75], s[18:19], v[74:75]
-	v_add_f32_e32 v4, v4, v73
-	v_add_f32_e32 v4, v4, v74
-	v_add_f32_e32 v4, v4, v75
-	v_add_f32_e32 v4, v4, v68
-	v_pk_mul_f32 v[70:71], s[22:23], v[70:71]
-	v_add_f32_e32 v4, v4, v69
-	v_add_f32_e32 v4, v4, v70
-	v_add_f32_e32 v4, v4, v71
-	v_add_f32_e32 v4, v4, v64
-	v_pk_mul_f32 v[66:67], s[26:27], v[66:67]
-	v_add_f32_e32 v4, v4, v65
-	v_add_f32_e32 v4, v4, v66
-	v_add_f32_e32 v4, v4, v67
-	v_add_f32_e32 v4, v4, v60
-	v_pk_mul_f32 v[62:63], s[38:39], v[62:63]
-	v_add_f32_e32 v4, v4, v61
-	v_add_f32_e32 v4, v4, v62
-	v_add_f32_e32 v4, v4, v63
-	v_add_f32_e32 v4, v4, v56
-	v_pk_mul_f32 v[58:59], s[42:43], v[58:59]
-	v_add_f32_e32 v4, v4, v57
-	v_add_f32_e32 v4, v4, v58
-	v_add_f32_e32 v4, v4, v59
-	v_add_f32_e32 v4, v4, v52
-	v_pk_mul_f32 v[54:55], s[46:47], v[54:55]
-	v_add_f32_e32 v4, v4, v53
-	v_add_f32_e32 v4, v4, v54
-	v_add_f32_e32 v4, v4, v55
-	v_add_f32_e32 v4, v4, v30
-	v_pk_mul_f32 v[32:33], s[50:51], v[32:33]
-	v_add_f32_e32 v4, v4, v31
-	v_add_f32_e32 v4, v4, v32
-	v_add_f32_e32 v4, v4, v33
-	v_add_f32_e32 v4, v4, v26
-	v_pk_mul_f32 v[28:29], s[54:55], v[28:29]
-	v_add_f32_e32 v4, v4, v27
-	v_add_f32_e32 v4, v4, v28
-	v_add_f32_e32 v4, v4, v29
-	v_add_f32_e32 v4, v4, v22
-	v_pk_mul_f32 v[24:25], s[58:59], v[24:25]
-	v_add_f32_e32 v4, v4, v23
-	v_add_f32_e32 v4, v4, v24
-	s_waitcnt vmcnt(1)
-	v_pk_mul_f32 v[80:81], s[60:61], v[80:81]
-	v_add_f32_e32 v4, v4, v25
-	v_add_f32_e32 v4, v4, v80
-	v_pk_mul_f32 v[82:83], s[62:63], v[82:83]
-	v_add_f32_e32 v4, v4, v81
-	v_add_f32_e32 v4, v4, v82
+	v_mul_f32_e32 v7, v92, v60
+	v_mul_f32_e32 v101, v92, v64
+	v_mul_f32_e32 v102, v92, v68
+	v_mul_f32_e32 v103, v92, v72
+	v_fmac_f32_e32 v7, v93, v61
+	v_fmac_f32_e32 v101, v93, v65
+	v_fmac_f32_e32 v102, v93, v69
+	v_fmac_f32_e32 v103, v93, v73
+	v_fmac_f32_e32 v7, v94, v62
+	v_fmac_f32_e32 v101, v94, v66
+	v_fmac_f32_e32 v102, v94, v70
+	v_fmac_f32_e32 v103, v94, v74
+	v_fmac_f32_e32 v7, v95, v63
+	v_fmac_f32_e32 v101, v95, v67
+	v_fmac_f32_e32 v102, v95, v71
+	v_fmac_f32_e32 v103, v95, v75
+	v_add_f32_dpp v7, v7, v7 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_bcast:15 row_mask:0xa bank_mask:0xf
+	s_mov_b64 exec, s[16:17]
+	ds_write_b32 v99, v7 offset:192
+	ds_write_b32 v99, v101 offset:200
+	ds_write_b32 v99, v102 offset:208
+	ds_write_b32 v99, v103 offset:216
+	s_mov_b64 exec, s[14:15]
 	s_waitcnt vmcnt(0)
-	v_pk_mul_f32 v[84:85], s[64:65], v[84:85]
-	v_add_f32_e32 v4, v4, v83
-	v_add_f32_e32 v4, v4, v84
-	v_pk_mul_f32 v[36:37], s[66:67], v[86:87]
-	v_add_f32_e32 v4, v4, v85
-	v_add_f32_e32 v4, v4, v36
-	v_add_f32_e32 v4, v4, v37
-	v_add_f32_e32 v4, v4, v18
-	v_pk_mul_f32 v[20:21], s[70:71], v[20:21]
-	v_add_f32_e32 v4, v4, v19
-	v_add_f32_e32 v4, v4, v20
-	v_add_f32_e32 v4, v4, v21
-	v_add_f32_e32 v4, v4, v14
-	v_pk_mul_f32 v[16:17], s[74:75], v[16:17]
-	v_add_f32_e32 v4, v4, v15
-	v_add_f32_e32 v4, v4, v16
-	v_add_f32_e32 v4, v4, v17
-	v_add_f32_e32 v4, v4, v10
-	v_pk_mul_f32 v[12:13], s[78:79], v[12:13]
-	v_add_f32_e32 v4, v4, v11
-	v_add_f32_e32 v4, v4, v12
-	v_add_f32_e32 v4, v4, v13
-	v_add_f32_e32 v4, v4, v6
-	v_pk_mul_f32 v[8:9], s[82:83], v[8:9]
-	v_add_f32_e32 v4, v4, v7
-	v_add_f32_e32 v4, v4, v8
-	v_add_f32_e32 v4, v4, v9
-	s_cbranch_vccz .LBB0_5
+	v_mul_f32_e32 v7, v92, v76
+	v_mul_f32_e32 v101, v92, v80
+	v_mul_f32_e32 v102, v92, v84
+	v_mul_f32_e32 v103, v92, v104
+	v_fmac_f32_e32 v7, v93, v77
+	v_fmac_f32_e32 v101, v93, v81
+	v_fmac_f32_e32 v102, v93, v85
+	v_fmac_f32_e32 v103, v93, v105
+	v_fmac_f32_e32 v7, v94, v78
+	v_fmac_f32_e32 v101, v94, v82
+	v_fmac_f32_e32 v102, v94, v86
+	v_fmac_f32_e32 v103, v94, v106
+	v_fmac_f32_e32 v7, v95, v79
+	v_fmac_f32_e32 v101, v95, v83
+	v_fmac_f32_e32 v102, v95, v87
+	v_fmac_f32_e32 v103, v95, v107
+	v_add_f32_dpp v7, v7, v7 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 quad_perm:[1,0,3,2] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 quad_perm:[2,3,0,1] row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_half_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_mirror row_mask:0xf bank_mask:0xf
+	v_add_f32_dpp v7, v7, v7 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v101, v101, v101 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v102, v102, v102 row_bcast:15 row_mask:0xa bank_mask:0xf
+	v_add_f32_dpp v103, v103, v103 row_bcast:15 row_mask:0xa bank_mask:0xf
+	s_mov_b64 exec, s[16:17]
+	ds_write_b32 v99, v7 offset:224
+	ds_write_b32 v99, v101 offset:232
+	ds_write_b32 v99, v102 offset:240
+	ds_write_b32 v99, v103 offset:248
+	s_mov_b64 exec, s[14:15]
 .Lft2:
+	ds_read_b32 v4, v40
+	v_mov_b32_e32 v2, 0xff800000
+	s_waitcnt lgkmcnt(0)
+	s_and_saveexec_b64 s[88:89], s[6:7]
 	v_mul_f32_e32 v2, s87, v4
 .LBB0_7:
 	s_or_b64 exec, exec, s[88:89]
@@ -836,9 +1189,9 @@ attn_decode:
 		.amdhsa_system_sgpr_workgroup_id_z 0
 		.amdhsa_system_sgpr_workgroup_info 0
 		.amdhsa_system_vgpr_workitem_id 0
-		.amdhsa_next_free_vgpr 89
+		.amdhsa_next_free_vgpr 108
 		.amdhsa_next_free_sgpr 100
-		.amdhsa_accum_offset 92
+		.amdhsa_accum_offset 108
 		.amdhsa_reserve_vcc 1
 		.amdhsa_float_round_mode_32 0
 		.amdhsa_float_round_mode_16_64 0
@@ -913,7 +1266,7 @@ amdhsa.kernels:
   .symbol: attn_decode.kd
   .uniform_work_group_size: 1
   .uses_dynamic_stack: false
-  .vgpr_count: 89
+  .vgpr_count: 108
   .vgpr_spill_count: 0
   .wavefront_size: 64
 amdhsa.target: amdgcn-amd-amdhsa--gfx950

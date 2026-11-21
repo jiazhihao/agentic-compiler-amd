@@ -28,7 +28,10 @@ def run(name: str) -> dict:
     rows = []
     for values in itertools.product(*space.values()):
         params = dict(zip(space, values))
-        c = gen.generate(m, template, params)
+        try:
+            c = gen.generate(m, template, params)
+        except gen.GenError:
+            continue                                        # a combination the template does not have
         st = check.static_check(c.module, strict=True)
         row = {"params": params, "instructions": sum(1 for _ in c.module.kernel().insts()), "static": st["ok"]}
         if st["ok"]:

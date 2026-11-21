@@ -111,5 +111,24 @@
   "llm",
   "port",
   "attention"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/mla_decode.hip",
+  "flags": [
+   "-ffast-math"
+  ],
+  "launch": {
+   "grid": [
+    "cdiv(H, 2)",
+    "B",
+    1
+   ],
+   "block": [
+    1024,
+    1,
+    1
+   ],
+   "lds": 0
+  }
+ }
 }

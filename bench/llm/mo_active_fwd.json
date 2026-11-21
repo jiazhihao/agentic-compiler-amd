@@ -78,5 +78,26 @@
   "llm",
   "miopen",
   "elementwise"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/mo_active_fwd.hip",
+  "flags": [
+   "-ffast-math"
+  ],
+  "defines": {
+   "LSZ": "64"
+  },
+  "launch": {
+   "grid": [
+    "cdiv(Q, LSZ)",
+    1,
+    1
+   ],
+   "block": [
+    "LSZ",
+    1,
+    1
+   ]
+  }
+ }
 }

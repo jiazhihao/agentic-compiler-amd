@@ -5,6 +5,16 @@ agc-timing-amd-2 (the Codex review of #16): as agc-timing-amd-1, and the launch 
   holds only the submission call and the kernel. Measurements of the two versions are not comparable
   for short kernels.
 
+Placements (issue #66; an option of paired comparisons, recorded as `placements` in the result): the
+  time of a memory-bound kernel depends on where its tensors were allocated, by up to 6 % and
+  differently for each code object, and stays the same for the life of the allocation. The same
+  virtual addresses give different times, so it is not visible from user space. One allocation
+  therefore measures one placement: on `rb_axpy` the speedup of one candidate over the baseline was
+  0.97 to 1.05 across allocations with within-allocation CIs of +/- 0.5 %. With `placements` = K the
+  tensors are freed and allocated again K times (a kept spacer in between), the pairs are spread
+  evenly, and the statistic is the mean over the placements of the median log ratio with Student's t
+  CI over the placements. The session uses 10 pairs per placement; the harness verifies with 24.
+
 agc-timing-amd-1:
   - one stream owned by the harness; `hipEvent`s around a single launch
   - before every launch: outputs re-poisoned and inout tensors restored (device-side copies),
@@ -37,6 +47,7 @@ class TimingProtocol:
     target_rel_ci: float = 0.02
     cache: str = "flush"             # "flush" | "warm"
     pairs: int = 60                  # paired comparison: launches of each code object
+    placements: int = 1              # paired comparison: allocations of the tensors the pairs are spread over
     noise_floor: float = 0.01        # a paired result is a win or a loss only beyond 1 +/- this (the A/A band)
     case_distribution: str = "normal"
     case_seed: int = 0
@@ -93,14 +104,32 @@ def paired_orders(pairs: int, seed: int = 0) -> list[bool]:
     return [bool(x) for x in first]
 
 
-def paired_summary(ref_ms: list[float], cand_ms: list[float], noise_floor: float = 0.0) -> dict:
+def paired_summary(ref_ms: list[float], cand_ms: list[float], noise_floor: float = 0.0, per_placement: int | None = None) -> dict:
     """Speedup of the candidate over the reference from interleaved samples. `win` / `loss` need
-    the whole 95 % CI beyond the noise floor: the within-run CI does not see run-to-run effects
-    (placement, clock level), which the A/A controls put at up to about 1 %."""
+    the whole 95 % CI beyond the noise floor.
+
+    With `per_placement` (pairs per allocation of the tensors) the unit of the statistic is the placement:
+    the speedup is the mean of the placements' median log ratios and the CI is Student's t over them, so
+    it covers what differs between allocations as well as within one."""
     r, c = np.asarray(ref_ms, np.float64), np.asarray(cand_ms, np.float64)
     logs = np.log(r / c)
-    lo, hi = bootstrap_median_ci(logs, reps=1000)
-    speedup, interval = float(np.exp(np.median(logs))), [float(np.exp(lo)), float(np.exp(hi))]
+    extra = {}
+    if per_placement and logs.size >= 3 * per_placement:
+        meds = np.array([np.median(logs[i:i + per_placement]) for i in range(0, logs.size, per_placement)])
+        k = meds.size
+        half = float(_T975[min(k - 1, len(_T975) - 1)] * meds.std(ddof=1) / np.sqrt(k))
+        mid, lo, hi = float(meds.mean()), float(meds.mean()) - half, float(meds.mean()) + half
+        refs = [float(np.median(r[i:i + per_placement])) for i in range(0, r.size, per_placement)]
+        extra = {"placements": int(k), "placement_speedups": [float(x) for x in np.exp(meds)], "placement_reference_ms": refs}
+    else:
+        lo, hi = bootstrap_median_ci(logs, reps=1000)
+        mid = float(np.median(logs))
+    speedup, interval = float(np.exp(mid)), [float(np.exp(lo)), float(np.exp(hi))]
     outcome = "win" if interval[0] > 1.0 + noise_floor else "loss" if interval[1] < 1.0 / (1.0 + noise_floor) else "parity"
-    return {"speedup": speedup, "speedup_ci95": interval, "outcome": outcome, "pairs": int(r.size),
+    return {"speedup": speedup, "speedup_ci95": interval, "outcome": outcome, "pairs": int(r.size), **extra,
             "reference": summarize(ref_ms), "candidate": summarize(cand_ms)}
+
+
+# two-sided 95 % quantiles of Student's t by degrees of freedom (index 0 unused)
+_T975 = (0.0, 12.706, 4.303, 3.182, 2.776, 2.571, 2.447, 2.365, 2.306, 2.262, 2.228, 2.201, 2.179, 2.160, 2.145, 2.131,
+         2.120, 2.110, 2.101, 2.093, 2.086, 2.080, 2.074, 2.069, 2.064, 2.060, 2.056, 2.052, 2.048, 2.045, 2.042)

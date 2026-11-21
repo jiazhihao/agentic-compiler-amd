@@ -100,5 +100,10 @@
   "llm",
   "flashinfer",
   "rowwise"
- ]
+ ],
+ "baseline": {
+  "flags": [
+   "-ffast-math"
+  ]
+ }
 }

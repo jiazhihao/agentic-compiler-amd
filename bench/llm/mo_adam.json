@@ -193,5 +193,22 @@
   "llm",
   "miopen",
   "elementwise"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/mo_adam.hip",
+  "flags": [
+   "-ffast-math"
+  ],
+  "defines": {
+   "EPT": "1"
+  },
+  "launch": {
+   "grid": [
+    "cdiv(N, EPT * 256)"
+   ],
+   "block": [
+    256
+   ]
+  }
+ }
 }

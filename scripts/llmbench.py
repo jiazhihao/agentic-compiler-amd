@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-"""The LLM-kernel benchmark (`bench/llm`): the default policy against amdclang on every kernel.
+"""The LLM-kernel benchmark (`bench/llm`): the default policy on every kernel, against the kernel's baseline
+(the strongest amdclang build, `scripts/strong_baseline.py`; amdclang -O3 on the source as shipped where there is none).
 
     .venv/bin/python scripts/llmbench.py [kernel ...]   -> tests/baselines/llm-gfx950.json
     .venv/bin/python scripts/llmbench.py --table        -> the Markdown table of the recorded results
@@ -40,28 +41,59 @@ def summarize(kernels: dict) -> dict:
             "geomean": round(math.exp(sum(map(math.log, sp)) / len(sp)), 3) if sp else None}
 
 
+def warm_cell(c: dict) -> str:
+    w = c.get("warm")
+    if not w or not w.get("speedup"):
+        return ""
+    return f"{w['speedup']:.2f} ({w['speedup_ci95'][0]:.2f} to {w['speedup_ci95'][1]:.2f})"
+
+
 def table(out: dict) -> str:
-    rows = ["| kernel | library | amdclang ms | agc ms | speedup (95% CI) | how | bit-identical |", "|---|---|---|---|---|---|---|"]
+    rows = ["| kernel | library | baseline ms | agc ms | speedup (95% CI) | with warm caches | how | bit-identical |", "|---|---|---|---|---|---|---|---|"]
     for n, k in out["kernels"].items():
         c = k["chosen"]
         if k["fallback"]:
-            rows.append(f"| `{n}` | {k['library']} | {k['amdclang_ms']:.4f} | | fallback (no verified win) | | |")
+            rows.append(f"| `{n}` | {k['library']} | {k['amdclang_ms']:.4f} | | fallback (no verified win) | | | |")
         else:
             rows.append(f"| `{n}` | {k['library']} | {c['amdclang_ms']:.4f} | {c['ms']:.4f} | **{c['speedup']:.2f}** "
-                        f"({c['ci95'][0]:.2f} to {c['ci95'][1]:.2f}) | `{c['how']}` | {'yes' if c['bit_identical'] else 'no'} |")
+                        f"({c['ci95'][0]:.2f} to {c['ci95'][1]:.2f}) | {warm_cell(c)} | `{c['how']}` | {'yes' if c['bit_identical'] else 'no'} |")
     s = out["summary"]
+    rows.append("")
+    rows.append("Speedups are measured with the caches flushed before every launch (the protocol's default). Results that use "
+                "non-temporal loads (`stream_loads`) depend on that: the `with warm caches` column is the same paired timing with "
+                "the caches as the previous launch left them.")
     rows.append("")
     rows.append(f"{s['wins']} wins and {s['fallbacks']} fallbacks over {s['kernels']} kernels; geomean {s['geomean']} "
                 f"with fallbacks counted as 1.0. Protocol `{out['protocol']}`, recorded {out['recorded']}.")
     return "\n".join(rows)
 
 
+def warm(only: list[str]) -> None:
+    """The warm-cache control for every chosen result that uses non-temporal loads and has none yet."""
+    from agc.session.policy import rebuild, warm_control
+    out = json.loads(OUT.read_text())
+    root = tempfile.mkdtemp(prefix="agc-llm-warm-")
+    for n, k in out["kernels"].items():
+        c = k["chosen"]
+        if k["fallback"] or "stream_loads" not in c["how"] or (only and n not in only) or (c.get("warm") and not only):
+            continue
+        s = Session.open(BENCH / f"{n}.json", root)
+        sid = rebuild(s, c)
+        s.check(sid)
+        c["warm"] = warm_control(s, sid)
+        OUT.write_text(json.dumps(out, indent=1) + "\n")
+        print(f"{n:22s} {c['how']:44s} flush {c['speedup']:.3f}  warm {c['warm'].get('speedup')} {c['warm'].get('speedup_ci95')}", flush=True)
+
+
 def main(argv) -> int:
+    if argv[:1] == ["--warm"]:
+        warm(argv[1:])
+        return 0
     if argv == ["--table"]:
         print(table(json.loads(OUT.read_text())))
         return 0
     out = json.loads(OUT.read_text()) if OUT.exists() and argv else {"kernels": {}}
-    out.update(protocol=PROTOCOL_VERSION, toolchain=toolchain.identity(), baseline="amdclang -O3", recorded=time.strftime("%Y-%m-%d"))
+    out.update(protocol=PROTOCOL_VERSION, toolchain=toolchain.identity(), baseline="the strongest amdclang build per kernel (tests/baselines/llm-strong-gfx950.json)", recorded=time.strftime("%Y-%m-%d"))
     root = tempfile.mkdtemp(prefix="agc-llm-")
     for n in argv or names():
         s = Session.open(BENCH / f"{n}.json", root)
@@ -69,7 +101,7 @@ def main(argv) -> int:
         c = r["chosen"]
         ref_ms = c.get("amdclang_ms") or next((row["amdclang_ms"] for row in r["candidates"] if row.get("amdclang_ms")), None)
         if ref_ms is None:
-            ref_ms = s.bench("ref")["candidate_ms"]            # no candidate was timed: time amdclang's build itself
+            ref_ms = s.bench("baseline")["candidate_ms"]       # no candidate was timed: time the baseline itself
         out["kernels"][n] = {"library": library(s.manifest), "amdclang_ms": ref_ms, "fallback": r["fallback"],
                              "chosen": {k: v for k, v in c.items() if k != "state"},
                              "candidates": [{k: v for k, v in row.items() if k != "state"} for row in r["candidates"]]}

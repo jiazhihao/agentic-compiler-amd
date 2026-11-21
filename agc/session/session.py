@@ -24,7 +24,7 @@ from ..isa import table
 from ..manifest import Manifest, ManifestError
 from ..mir import abi, asm, check as mircheck, emit
 from ..mir.analysis import cfg
-from ..mir.ir import Block, Kernel, Module
+from ..mir.ir import Block, Kernel, Module, Reg
 from ..runtime import harness, toolchain
 from ..runtime.executor import ExecutorError
 from ..runtime.timing import PROTOCOL_VERSION, TimingProtocol
@@ -48,6 +48,7 @@ class SessionError(Exception):
         return d
 
 
+PAIRS_PER_PLACEMENT = 10               # paired timings: pairs per allocation of the tensors
 TRANSFORMS: dict[str, dict] = {}       # name -> {"fn": fn(module, kernel_name, **params) -> Module, "doc", "params"}
 
 
@@ -61,12 +62,76 @@ def transform(name: str, doc: str, params: dict | None = None, launch: bool = Fa
     return deco
 
 
+_REP = re.compile(r"^\s*%rep\s+([A-Za-z_]\w*)\s+(.+?)\s*$")
+_FOR = re.compile(r"^\s*%for\s+([A-Za-z_]\w*)\s+in\s+(.+?)\s*$")
+_END = re.compile(r"^\s*%end\s*$")
+
+
+def expand(text: str) -> str:
+    """Repetition in edit text, for unrolled code written once:
+
+        %rep i 16                    ; i = 0 .. 15  (`%rep i 4 12`: 4 .. 11; `%rep i 0 64 4`: 0, 4, .. 60)
+          global_load_dwordx4 v[{20 + 4*i}:{23 + 4*i}], v[2:3], off, off offset:{64*i}
+        %end
+
+    `{expression}` is integer arithmetic over the enclosing counters (+ - * // % and parentheses). Blocks nest.
+    `%for d in 22 26 30 62` ... `%end` runs over listed values (register bases that are not contiguous)."""
+    if "%rep" not in text and "%end" not in text and "%for" not in text:
+        return text
+    from ..manifest import eval_expr
+
+    def subst(line: str, env: dict) -> str:
+        try:
+            return re.sub(r"\{([^{}]+)\}", lambda m: str(eval_expr(m.group(1), env)), line)
+        except ManifestError as e:
+            raise SessionError("parse", f"%rep: {e}", location={"text": line}) from None
+
+    def block(lines: list[str], pos: int, env: dict, top: bool) -> tuple[list[str], int]:
+        out = []
+        while pos < len(lines):
+            line = lines[pos]
+            m = _REP.match(line.split(";")[0])
+            f = _FOR.match(line.split(";")[0])
+            if m or f:
+                try:
+                    nums = [eval_expr(x, env) for x in (m or f).group(2).replace(",", " ").split()]
+                except ManifestError as e:
+                    raise SessionError("parse", f"%rep: {e}", location={"text": line}) from None
+                if f:
+                    rng = nums                               # the listed values, in order
+                    m = f
+                elif not 1 <= len(nums) <= 3:
+                    raise SessionError("parse", "%rep NAME COUNT | NAME START STOP [STEP]", location={"text": line})
+                else:
+                    rng = range(*nums)
+                if len(rng) > 4096:
+                    raise SessionError("parse", "%rep: more than 4096 repetitions", location={"text": line})
+                end = pos + 1
+                for v in rng or [None]:
+                    body, end = block(lines, pos + 1, {**env, m.group(1): v if v is not None else 0}, False)
+                    if v is not None:
+                        out += body
+                pos = end
+            elif _END.match(line.split(";")[0]):
+                if top:
+                    raise SessionError("parse", "%end without %rep", location={"text": line})
+                return out, pos + 1
+            else:
+                out.append(subst(line, env) if env else line)
+                pos += 1
+        if not top:
+            raise SessionError("parse", "%rep without %end")
+        return out, pos
+    return "\n".join(block(text.splitlines(), 0, {}, True)[0])
+
+
 class Session:
     def __init__(self, manifest: Manifest, store: Store, root: Path, quick: bool = False):
         self.manifest, self.store, self.root, self.quick = manifest, store, root, quick
         self.arch = load_arch(manifest.arch)
         self._modules: dict[str, Module] = {}
-        self.ref_id: str | None = None
+        self.ref_id: str | None = None      # amdclang -O3 on the source as shipped
+        self.base_id: str | None = None     # what candidates are timed against: the manifest's `baseline` build, else `ref`
 
     # ---- opening ---------------------------------------------------------------
     @classmethod
@@ -75,6 +140,10 @@ class Session:
             m = Manifest.load(manifest_path)
         except (ManifestError, OSError) as e:
             raise SessionError("parameter", f"cannot load the manifest: {e}") from None
+        return cls.from_manifest(m, root, quick)
+
+    @classmethod
+    def from_manifest(cls, m: Manifest, root: str | Path | None = None, quick: bool = False) -> "Session":
         base = Path(root) if root else Path(os.environ.get("AGC_ROOT", ".agc"))
         ident = cls.identity(m)
         sroot = base / "sessions" / f"{m.name}-{ident}"
@@ -89,8 +158,17 @@ class Session:
         s._kernel(module)                                   # the entry exists
         st = s.store.put("mir", asm.print_module(module), None,
                          {"name": "import", "source": "amdclang", "flags": b.flags, "toolchain": toolchain.identity()["clang"]})
-        s.ref_id = st.id
+        s.ref_id = s.base_id = st.id
         s.store.tag("ref", st.id)
+        bl = m.baseline
+        if bl:                                              # the strongest amdclang build: another source, flags or launch
+            try:
+                text = (m.path.parent / bl["source"]).read_text() if bl.get("source") else Path(m.source).read_text()
+            except OSError as e:
+                raise SessionError("parameter", f"cannot read the baseline source: {e}") from None
+            s.base_id = s.source(text, launch=bl.get("launch"), flags=bl.get("flags"), defines=bl.get("defines"), short_defines=True,
+                                 note=bl.get("note") or "the manifest's baseline: the strongest amdclang build")["id"]
+        s.store.tag("baseline", s.base_id)
         return s
 
     @staticmethod
@@ -101,12 +179,14 @@ class Session:
         parts: list = [m.to_dict(), toolchain.identity(), PROTOCOL_VERSION]
         if m.source is not None:
             parts.append(toolchain.hip_key(m.source, [*toolchain.HIP_FLAGS, *m.hip_flags], m.arch))
-        for spec in (m.reference, m.program):
-            if spec is not None and spec.file:
-                try:
-                    parts.append(hashlib.sha256((m.path.parent / spec.file).read_bytes()).hexdigest())
-                except OSError as e:
-                    raise SessionError("parameter", f"cannot read {spec.file}: {e}") from None
+        files = [spec.file for spec in (m.reference, m.program) if spec is not None and spec.file]
+        if m.baseline and m.baseline.get("source"):
+            files.append(m.baseline["source"])
+        for file in files:
+            try:
+                parts.append(hashlib.sha256((m.path.parent / file).read_bytes()).hexdigest())
+            except OSError as e:
+                raise SessionError("parameter", f"cannot read {file}: {e}") from None
         return hashlib.sha256(json.dumps(parts, sort_keys=True, default=str).encode()).hexdigest()[:10]
 
     @property
@@ -116,6 +196,8 @@ class Session:
     def info(self) -> dict:
         m = self.manifest
         return {"session": self.id, "manifest": m.name, "entry": m.entry, "arch": m.arch, "ref": self.ref_id,
+                "baseline": {"id": self.base_id, "what": "amdclang -O3 on the source as shipped" if self.base_id == self.ref_id else
+                             {**m.baseline, "what": "the strongest amdclang build found for this kernel; `ref` is -O3 on the source as shipped"}},
                 "params": [p.to_dict() for p in m.params], "shapes": m.shapes, "bench_shapes": m.timing_symbols(),
                 "launch": {"grid": m.grid, "block": m.block, "lds": m.lds},
                 "tolerance": {p.name: {"rtol": m.tolerance_for(p.name)[0], "atol": m.tolerance_for(p.name)[1],
@@ -184,7 +266,7 @@ class Session:
     SOURCE_FLAGS = re.compile(r"^-(f[\w=-]+|m[\w=-]+|O[0-3s])$")
 
     def source(self, text: str = "", launch: dict | None = None, note: str = "", defines: dict | None = None,
-               flags: list | None = None, like: str | None = None) -> dict:
+               flags: list | None = None, like: str | None = None, short_defines: bool = False) -> dict:
         """A new root state from a rewritten HIP source: compiled with amdclang (same flags as the
         baseline), imported into machine IR. The kernel must keep the manifest's entry name and
         parameters; `launch` may change the grid and block and append arguments. The state starts
@@ -200,6 +282,12 @@ class Session:
                 text = Path(src.action["file"]).read_text()
             if launch is None:
                 launch = src.action.get("launch_given")
+            inherited = dict(src.action.get("defines") or
+                             dict(f[2:].split("=", 1) for f in src.action.get("flags", []) if f.startswith("-D")))
+            defines = {**inherited, **{str(k): v for k, v in (defines or {}).items()}}     # the copied state's knobs, overridden
+            short_defines = short_defines or any(len(k) < 3 for k in inherited)
+            if flags is None:                                # and its flags, unless others are given
+                flags = [f for f in src.action.get("flags", []) if not f.startswith("-D")]
         if not text.strip():
             raise SessionError("parameter", "source needs `text`, or `like` naming a state made by source")
         given = copy.deepcopy(launch)
@@ -217,7 +305,7 @@ class Session:
             launch = subst(launch)
         extra = []
         for key, val in (defines or {}).items():
-            if len(str(key)) < 3:
+            if len(str(key)) < 3 and not short_defines:
                 raise SessionError("parameter", f"define {key!r}: use names of three or more characters "
                                                 "(short names collide with template parameters in the HIP headers)")
             if not re.fullmatch(r"[A-Za-z_]\w*", str(key)) or not re.fullmatch(r"[\w.+-]*", str(val)):
@@ -239,6 +327,7 @@ class Session:
             raise SessionError("toolchain", f"cannot import amdclang's assembly: {e.message}", location={"line": e.line, "text": e.text}) from None
         self._kernel(module)
         action = {"name": "source", "note": note, "file": str(path), "sha": path.stem, **({"flags": extra} if extra else {}),
+                  **({"defines": {str(k): str(v) for k, v in defines.items()}} if defines else {}),
                   **({"launch_given": given} if given is not None else {})}
         if launch is not None:
             action["launch"] = self._launch(None, launch)
@@ -323,14 +412,43 @@ class Session:
                 raise SessionError("unverified", f"state {sid} has no passing battery", suggestion="check it first")
         try:
             r = harness.paired(self.manifest, self._hsaco(ia), self._hsaco(ib), root=self.root,
-                               protocol=TimingProtocol(pairs=pairs) if pairs else None, reference_launch=self.launch_of(ia), candidate_launch=self.launch_of(ib))
+                               protocol=self._protocol(pairs), reference_launch=self.launch_of(ia), candidate_launch=self.launch_of(ib))
         except ExecutorError as e:
             raise SessionError("gpu", str(e)[:1500]) from None
         if not r.get("ok"):
             return {"ok": False, "error": r.get("error"), "failed": r.get("failed")}
-        return {"ok": True, "a": ia, "b": ib, "outcome_b_vs_a": r["outcome"], "speedup_b_over_a": round(r["speedup"], 4),
-                "ci95": [round(x, 4) for x in r["speedup_ci95"]], "a_ms": round(r["reference"]["median_ms"], 5),
-                "b_ms": round(r["candidate"]["median_ms"], 5)}
+        out = {"ok": True, "a": ia, "b": ib, "outcome_b_vs_a": r["outcome"], "speedup_b_over_a": round(r["speedup"], 4),
+               "ci95": [round(x, 4) for x in r["speedup_ci95"]], "a_ms": round(r["reference"]["median_ms"], 5),
+               "b_ms": round(r["candidate"]["median_ms"], 5)}
+        self.store.put_result(ib, "compare", {"against": ia, "outcome": out["outcome_b_vs_a"], "speedup": out["speedup_b_over_a"],
+                                              "ci95": out["ci95"]})    # shown by list_states: the state was measured
+        return out
+
+    def equivalent(self, ref: str, original: str = "ref") -> dict:
+        """Differential check: the state's binary and the original binary (amdclang -O3 on the source as shipped,
+        or another state) run on the same inputs, every battery case and one case at the bench shapes, and their
+        outputs are compared with each other. `bit_identical`: every output of every case has the same bits;
+        otherwise the largest differences, and whether every case stays within the manifest's tolerance."""
+        ia, ib = self.resolve(original), self.resolve(ref)
+        try:
+            r = harness.diff(self.manifest, self._hsaco(ia), self._hsaco(ib), root=self.root,
+                             original_launch=self.launch_of(ia), candidate_launch=self.launch_of(ib))
+        except ExecutorError as e:
+            raise SessionError("gpu", str(e)[:1500]) from None
+        if not r.get("ok"):
+            return {"ok": False, "error": r.get("error")}
+        cases = r["cases"]
+        worst = max((c for c in cases if "max_rel_err" in c), key=lambda c: c["max_abs_err"], default=None)
+        out = {"ok": all(c["within_tolerance"] for c in cases), "original": ia, "candidate": ib, "cases": len(cases),
+               "bit_identical": all(c["bit_identical"] for c in cases),
+               "bit_identical_cases": sum(c["bit_identical"] for c in cases),
+               "within_tolerance": all(c["within_tolerance"] for c in cases),
+               "max_abs_err": max((c.get("max_abs_err", 0.0) for c in cases), default=0.0),
+               "max_rel_err": max((c.get("max_rel_err", 0.0) for c in cases), default=0.0),
+               "worst_case": worst["case"] if worst and not worst["bit_identical"] else None,
+               "failing": [c["case"] for c in cases if not c["within_tolerance"]][:5]}
+        self.store.put_result(ib, "equivalent", out)
+        return out
 
     def verify(self, ref: str, pairs: int | None = None) -> dict:
         """Static check, full battery and paired timing of a state, all run again (no cached result is trusted)."""
@@ -361,7 +479,7 @@ class Session:
 
     def _put(self, parent: str | None, module: Module, action: dict) -> dict:
         text = asm.print_module(module)
-        if parent is not None and text == self.store.get(parent).ir and action.get("name") != "relaunch":
+        if parent is not None and text == self.store.get(parent).ir and action.get("name") not in ("relaunch", "throttle"):
             raise SessionError("parameter", "the result is identical to the parent state", suggestion="nothing to do")
         st = self.store.put("mir", text, parent, action)
         self._modules[st.id] = module
@@ -444,7 +562,20 @@ class Session:
         used["v"] |= set(range(k.descriptor.get("system_vgpr_workitem_id", 0) + 1))
         free = {"v": [i for i in range(self.arch.res("max_arch_vgprs")) if i not in used["v"]][:64],
                 "s": [i for i in range(self.arch.res("max_sgprs")) if i not in used["s"]][:32]}
+        cl = liveness(g, masked_defs_kill=True)            # a vector write ends the old value: true where EXEC covers every lane read later
+        cin = (set(cl[idx][0]) - set(infos[0].defs)) | infos[0].uses if infos else set()
+        cout = set(cl[idx][-1]) if infos else set()
+        named = {u for i in infos for u in (i.uses | i.defs)}
+        dead = {c: [n for n in range(self.arch.res("max_arch_vgprs" if c == "v" else "max_sgprs"))
+                    if (c, n) not in cin and (c, n) not in cout and (c, n) not in named][:96] for c in ("v", "s")}
         return {"block": block, "live_in": fmt(before(0)) if infos else {}, "live_out": fmt(after[idx][-1]) if infos else {},
+                "if_vector_writes_cover_all_lanes": {
+                    "what": "the classical analysis: a vector write ends the register's old value. Valid when the writes that "
+                            "redefine a register run under an EXEC covering every lane that later reads it (straight-line code and "
+                            "loops whose mask only shrinks); check that before relying on it",
+                    "live_in": fmt(cin), "live_out": fmt(cout),
+                    "dead_across_block": {"what": "not live into or out of the block and not named in it: usable as temporaries "
+                                                  "inside this block (SGPRs: exact; VGPRs: under the condition above)", **dead}},
                 "never_named_in_kernel": free}
 
     def list_states(self) -> list[dict]:
@@ -452,6 +583,9 @@ class Session:
         for s in self.store.all_states():
             r = self.store.record(s.id)
             out.append({"id": s.id, "parent": s.parent, "action": s.action.get("name"), "note": s.action.get("note", ""),
+                        **({"params": s.action["params"]} if s.action.get("params") else {}),
+                        **({"flags": s.action["flags"]} if s.action.get("flags") else {}),
+                        **({"compared": r["compare"]} if r.get("compare") else {}),
                         "static": (r.get("static") or {}).get("ok"), "check": (r.get("check") or {}).get("ok"),
                         "bench": {k: (r.get("bench") or {}).get(k) for k in ("outcome", "speedup")} if r.get("bench") else None,
                         "names": [n for n, v in self.store.tags().items() if v == s.id]})
@@ -514,6 +648,78 @@ class Session:
                 "registers": {"a": fa["registers"], "b": fb["registers"]},
                 "occupancy": {"a": fa["occupancy"], "b": fb["occupancy"]}}
 
+    @staticmethod
+    def _class(info) -> str:
+        """The class of an instruction for the instruction mix (what it costs, not what it computes)."""
+        x, name = info.inst, info.name
+        if name == "s_waitcnt":
+            return "wait"
+        if name == "s_nop":
+            return "nop"
+        if name == "s_barrier":
+            return "barrier"
+        if info.lds_dma:
+            return "load_into_lds"
+        if info.ds:
+            return "lds_read" if info.load else "lds_write"
+        if info.vmem and (info.load or info.store):
+            words = next((o.count for o in x.operands if isinstance(o, Reg) and o.cls == "v" and not o.special), 1) if info.load else \
+                next((o.count for o in x.operands[1:2] if isinstance(o, Reg)), 1)
+            return ("scratch_" if name.startswith("scratch") else "vector_") + ("load" if info.load else "store") + f"_{4 * words}B"
+        if info.smem and info.load:
+            return f"scalar_load_{4 * x.operands[0].count}B"
+        if info.branch:
+            return "branch"
+        if info.mfma:
+            return "mfma"
+        if info.valu:
+            stem = name[2:]
+            fam = ("dpp" if info.dpp else "transcendental" if info.trans else "fma" if stem.startswith(("fma", "pk_fma", "mad", "pk_mad"))
+                   else "mul" if stem.startswith(("mul", "pk_mul")) else "add_sub" if stem.startswith(("add", "sub", "pk_add", "pk_sub", "lshl_add"))
+                   else "compare" if stem.startswith("cmp") else "select" if stem.startswith("cndmask") else "move" if stem.startswith(("mov", "readlane", "readfirstlane", "writelane"))
+                   else "min_max" if stem.startswith(("min", "max", "pk_min", "pk_max")) else "convert" if stem.startswith("cvt")
+                   else "bit_ops")
+            return "valu_" + fam
+        return "salu" if info.salu else "other"
+
+    def mix(self, ref: str = "baseline", blocks: list | None = None) -> dict:
+        """The instruction mix of a state by cost class (loads and stores by width, LDS, barriers, waits and how many
+        wait for everything, VALU by family, scalar work, branches, nop wait states): the whole kernel, and each loop
+        block. `blocks`: also these blocks."""
+        sid = self.resolve(ref)
+        k = self._kernel(self.module(sid))
+        g = cfg(k, table(), self.arch)
+
+        def count(infos) -> dict:
+            c = collections.Counter(self._class(i) for i in infos)
+            out = dict(sorted(c.items()))
+            out["instructions"] = len(infos)
+            out["nop_wait_states"] = sum(i.wait_states for i in infos if i.name == "s_nop")
+            full = sum(1 for i in infos if i.name == "s_waitcnt" and all(getattr(o, "args", ("1",))[0] == "0" for o in i.inst.operands))
+            if c.get("wait"):
+                out["waits_for_everything"] = full
+            return out
+        loops = sorted({s for b, ss in enumerate(g.succ) for s in ss if s <= b})
+        want = [b.label for b in k.blocks if b.label in (blocks or [])]
+        return {"id": sid, "kernel": count([i for b in g.infos for i in b]),
+                "loop_blocks": {k.blocks[b].label: count(g.infos[b]) for b in loops},
+                **({"blocks": {l: count(g.infos[[b.label for b in k.blocks].index(l)]) for l in want}} if want else {}),
+                "note": "counts are static (instructions in the code), not executed counts: a loop block runs its count per iteration"}
+
+    def isa_diff(self, a: str, b: str) -> dict:
+        """Instruction-mix difference of two states (`b` minus `a`) by cost class: what one code does that the other
+        does not (wider or fewer loads, fewer waits, DPP in place of LDS, fewer VALU of a family), for the whole kernel
+        and for the loop blocks of each."""
+        ma, mb = self.mix(a), self.mix(b)
+        keys = sorted(set(ma["kernel"]) | set(mb["kernel"]))
+        rows = {key: {"a": ma["kernel"].get(key, 0), "b": mb["kernel"].get(key, 0), "delta": mb["kernel"].get(key, 0) - ma["kernel"].get(key, 0)}
+                for key in keys if ma["kernel"].get(key, 0) != mb["kernel"].get(key, 0)}
+        fa, fb = self.features(a), self.features(b)
+        return {"a": ma["id"], "b": mb["id"], "differences": rows,
+                "registers": {"a": fa["registers"], "b": fb["registers"]}, "block": {"a": fa["block"], "b": fb["block"]},
+                "launch": {"a": self.launch_of(ma["id"]), "b": self.launch_of(mb["id"])},
+                "loop_blocks": {"a": ma["loop_blocks"], "b": mb["loop_blocks"]}}
+
     def trace(self, ref: str) -> list[dict]:
         return self.store.export_trace(self.resolve(ref))["steps"]
 
@@ -531,6 +737,7 @@ class Session:
         dialect (a numbered listing is accepted). Register counts in the descriptor follow the code.
         The state starts unverified."""
         pid = self.resolve(parent)
+        text = expand(text)
         if ".amdgcn_target" in text:
             try:
                 module = asm.parse(text)
@@ -576,8 +783,10 @@ class Session:
 
     def edit(self, parent: str, ops: list[dict], note: str = "") -> dict:
         """Structured edits. Each op: {"op": "replace" | "insert" | "delete", "block": label, "index": i,
-        "text": instructions (replace / insert; one per line), "expect": the instruction now at that
-        address (optional, checked), "count": instructions to delete (delete only, default 1)}. `insert` places
+        "text": instructions (replace / insert; one per line; `%rep` blocks are expanded, see `expand`),
+        "expect": the instruction now at that address (optional, checked), "count": instructions to delete
+        or to replace (default 1; "end": to the end of the block)}. A `label:` line in the text starts a
+        new block there (a loop or a branch target added by the edit); a replace with empty text deletes. `insert` places
         the text before `index` (index = length appends). Addresses refer to the parent state; ops are applied from the last address backwards."""
         pid = self.resolve(parent)
         k0 = self._kernel(self.module(pid))
@@ -587,6 +796,7 @@ class Session:
             raise SessionError("parameter", "ops must be a non-empty list")
         order = {b.label: n for n, b in enumerate(blocks)}
         parsed = []
+        fresh: set = set()                                   # labels the edit introduces
         for n, op in enumerate(ops):
             kind, label, i = op.get("op"), op.get("block"), op.get("index")
             if kind not in ("replace", "insert", "delete"):
@@ -601,15 +811,27 @@ class Session:
                                    values={"expect": op["expect"], "found": str(index[label].insts[i])},
                                    suggestion="re-read the state's listing: addresses refer to the parent state")
             new = []
+            if kind == "replace" and not str(op.get("text", "")).strip():
+                kind = "delete"                              # replaced by nothing
             if kind != "delete":
                 try:
-                    new = [asm.parse_inst(l) for l in str(op.get("text", "")).splitlines() if l.strip()]
+                    for l in expand(str(op.get("text", ""))).splitlines():
+                        code = l.split(";")[0].strip()
+                        if re.fullmatch(r"[.\w$]+:", code):   # a label: a new block starts here
+                            if code[:-1] in index or code[:-1] in fresh:
+                                raise SessionError("parameter", f"ops[{n}]: label {code[:-1]} already exists")
+                            fresh.add(code[:-1])
+                            new.append(code[:-1])
+                        elif l.strip():
+                            new.append(asm.parse_inst(l))
                 except asm.AsmError as e:
                     raise SessionError("parse", f"ops[{n}]: {e.message}", location={"op": n, "text": e.text}) from None
                 if not new:
                     raise SessionError("parameter", f"ops[{n}]: {kind} needs `text`")
-            count = op.get("count", 1) if kind == "delete" else 1
-            if type(count) is not int or count < 1 or (kind == "delete" and i + count > size):
+            count = op.get("count", 1) if kind != "insert" else 1
+            if count in ("end", -1):                         # to the end of the block
+                count = size - i
+            if type(count) is not int or count < 1 or (kind != "insert" and i + count > size):
                 raise SessionError("parameter", f"ops[{n}]: count {count!r} runs past the end of block {label} ({size} instructions)", values=op)
             parsed.append((order[label], i, kind, label, new, count))
         seen = set()
@@ -628,7 +850,19 @@ class Session:
             elif kind == "delete":
                 del insts[i:i + count]
             else:
-                insts[i:i + 1] = new
+                insts[i:i + count] = new
+        if fresh:                                            # label lines in the text split their block
+            split = []
+            for bl in blocks:
+                cur = Block(bl.label, [], bl.align)
+                split.append(cur)
+                for x in bl.insts:
+                    if isinstance(x, str):
+                        cur = Block(x, [])
+                        split.append(cur)
+                    else:
+                        cur.insts.append(x)
+            blocks = split
         blocks = asm.split_at_branches(blocks)
         if not any(b.insts for b in blocks):
             raise SessionError("parameter", "the edit leaves no instructions")
@@ -679,6 +913,8 @@ class Session:
         except ValueError as e:
             raise SessionError("parameter", f"{name}: {e}") from None
         abi.sync_resources(self._kernel(out), self.arch)
+        if name.startswith("fix_") and asm.print_module(out) == self.store.get(pid).ir:
+            return {**self.state(pid, include_ir=False), "unchanged": f"{name} found nothing to repair: this is the parent state"}
         return self._put(pid, out, action)
 
     # ---- validate and measure --------------------------------------------------
@@ -720,13 +956,46 @@ class Session:
             self.store.put_result(sid, "check", cached)
         return {"id": sid, **{k: v for k, v in cached.items() if k != "t"}}
 
+    def bench_warm(self, ref: str, pairs: int | None = None) -> dict:
+        """The paired timing of `bench` with the caches as the previous launch left them, instead of flushed
+        before every launch: a control for results that depend on what the caches hold (non-temporal loads).
+        Not stored as the state's bench result."""
+        sid, base = self.resolve(ref), self.base_id
+        ck = self.store.get_result(sid, "check")
+        if not (ck and ck.get("ok")):
+            raise SessionError("unverified", f"state {sid} has no passing battery", suggestion="check it first")
+        if base is None:
+            raise SessionError("parameter", "no baseline to time against")
+        proto = self._protocol(pairs)
+        proto.cache = "warm"
+        try:
+            r = harness.paired(self.manifest, self._hsaco(base), self._hsaco(sid), root=self.root, protocol=proto,
+                               reference_launch=self.launch_of(base), candidate_launch=self.launch_of(sid))
+        except ExecutorError as e:
+            raise SessionError("gpu", str(e)[:1500]) from None
+        if not r.get("ok"):
+            return {"ok": False, "error": r.get("error"), "failed": r.get("failed")}
+        out = {"ok": True, "cache": "warm", "outcome": r["outcome"], "speedup": round(r["speedup"], 4),
+               "speedup_ci95": [round(x, 4) for x in r["speedup_ci95"]], "reference_ms": round(r["reference"]["median_ms"], 5),
+               "candidate_ms": round(r["candidate"]["median_ms"], 5), "pairs": r["pairs"]}
+        self.store.put_result(sid, "bench_warm", out)
+        return {"id": sid, **out}
+
+    @staticmethod
+    def _protocol(pairs: int | None) -> TimingProtocol:
+        """Paired timings are spread over several allocations of the tensors (10 pairs each): the time of a
+        memory-bound kernel depends on where its tensors are, differently for each code object."""
+        n = pairs or TimingProtocol().pairs
+        return TimingProtocol(pairs=n, placements=max(1, n // PAIRS_PER_PLACEMENT))
+
     def bench(self, ref: str, pairs: int | None = None) -> dict:
-        """Paired timing against `ref` (amdclang) at the manifest's bench shapes. Needs a passing
-        battery. For `ref` itself this is the A/A control. `pairs`: more launches per code object than
+        """Paired timing against `baseline` (the strongest amdclang build; `ref` when the manifest names
+        none) at the manifest's bench shapes. Needs a passing battery. For the baseline itself this is
+        the A/A control. `pairs`: more launches per code object than
         the protocol's default, for effects of a few percent (the CI narrows with the square root)."""
         if pairs is not None and (type(pairs) is not int or not 60 <= pairs <= 1000):
             raise SessionError("parameter", "pairs must be an integer from 60 to 1000")
-        proto = TimingProtocol(pairs=pairs) if pairs else None
+        proto = self._protocol(pairs)
         sid = self.resolve(ref)
         hsaco = self._hsaco(sid)
         ck = self.store.get_result(sid, "check")
@@ -736,7 +1005,13 @@ class Session:
             raise SessionError("verification", f"state {sid} fails the battery; it is not timed",
                                values={"failures": ck.get("failures"), "error": ck.get("error")},
                                suggestion="a wrong kernel has no speedup: fix it or roll back")
-        if self.ref_id is None:                             # no HIP baseline: an absolute timing only
+        base = self.base_id
+        if base is not None and base != self.ref_id and base != sid:
+            bk = self.store.get_result(base, "check") or self.check(base)
+            if not bk["ok"]:
+                raise SessionError("verification", f"the manifest's baseline (state {base}) fails the battery",
+                                   values={"failures": bk.get("failures"), "error": bk.get("error")})
+        if base is None:                                    # no HIP baseline: an absolute timing only
             try:
                 r = harness.bench(self.manifest, hsaco, root=self.root, launch=self.launch_of(sid))
             except ExecutorError as e:
@@ -747,15 +1022,15 @@ class Session:
             self.store.put_result(sid, "bench", data)
             return {"id": sid, **data}
         try:
-            r = harness.paired(self.manifest, self._hsaco(self.ref_id), hsaco, root=self.root, protocol=proto,
-                               reference_launch=self.launch_of(self.ref_id), candidate_launch=self.launch_of(sid))
+            r = harness.paired(self.manifest, self._hsaco(base), hsaco, root=self.root, protocol=proto,
+                               reference_launch=self.launch_of(base), candidate_launch=self.launch_of(sid))
         except ExecutorError as e:
             raise SessionError("gpu", str(e)[:1500]) from None
         if not r.get("ok"):
-            data = {"ok": False, "against": self.ref_id, "failed": r.get("failed"), "error": r.get("error"),
+            data = {"ok": False, "against": base, "failed": r.get("failed"), "error": r.get("error"),
                     "verification": r.get("verification")}
         else:
-            data = {"ok": True, "against": self.ref_id, "outcome": "control" if sid == self.ref_id else r["outcome"],
+            data = {"ok": True, "against": base, "outcome": "control" if sid == base else r["outcome"],
                     "speedup": round(r["speedup"], 4), "speedup_ci95": [round(x, 4) for x in r["speedup_ci95"]],
                     "reference_ms": round(r["reference"]["median_ms"], 5), "candidate_ms": round(r["candidate"]["median_ms"], 5),
                     "pairs": r["pairs"], "case": r["case"], "protocol_version": r["protocol"]["version"],
@@ -763,16 +1038,20 @@ class Session:
                     "traffic": self.traffic(r["candidate"]["median_ms"]),
                     "reference_headroom": self.traffic(r["reference"]["median_ms"]).get("headroom")}
             width = (r["speedup_ci95"][1] - r["speedup_ci95"][0]) / r["speedup"]
+            if r.get("placements"):
+                ps = r["placement_speedups"]
+                data.update(placements=r["placements"], placement_speedups=[round(min(ps), 4), round(max(ps), 4)])
             if width > 0.04:
-                data["disturbed"] = (f"the CI is {width:.0%} of the speedup: something else ran on the device; "
-                                     "time this state again before using the number")
+                data["disturbed"] = (f"the CI is {width:.0%} of the speedup: the speedup differs between allocations of the "
+                                     "tensors (see placement_speedups: lowest and highest) or something else ran on the "
+                                     "device; pass pairs=240 for more allocations before using the number")
         self.store.put_result(sid, "bench", data)
         return {"id": sid, **data}
 
     # ---- organize --------------------------------------------------------------
     def tag(self, ref: str, name: str) -> dict:
-        if name == "ref":
-            raise SessionError("parameter", "`ref` is reserved for the amdclang build")
+        if name in ("ref", "baseline"):
+            raise SessionError("parameter", f"`{name}` is reserved for the amdclang build")
         try:
             self.store.tag(name, self.resolve(ref))
         except ValueError as e:

@@ -180,9 +180,20 @@ win is reported with its pass.
 - [x] The default policy on every kernel (the floor): 10 wins, 26 fallbacks.
 - [x] The harness (`agc.agent`, #34): headless agent session per kernel, independent
       verification, recipes, replay; source level, launch changes, traffic and headroom.
-- [ ] An agent session per fallback kernel (#35 to #60) until it is 1.5x faster than amdclang
-      or at its memory floor.
-- [x] First customization promoted to a pass: `coarsen` (#30). Further ones as sessions find them.
+- [x] An agent session per fallback kernel (#35 to #60), first round: against `-O3` on the
+      shipped source. The audit showed these wins to be amdclang's own on a rewritten source.
+- [x] Stronger baseline (#62): the strongest amdclang build per kernel (restructured source,
+      `-ffast-math`, own launch); sessions, policy and report measure against it.
+- [x] Second round of sessions against the stronger baseline: machine-level gain. 4 kernels
+      at or above 1.5x, 11 more with a gain, 21 without (memory floor or parity, explained).
+- [x] ISA-level campaign over the 21 kernels without a gain (#64): differential check against
+      the original binary in the verification, per-kernel analyses (`docs/kernels/`), knowledge
+      base (`.claude/skills/agc-notes/kb/`), 44 sessions. `vl_moe_align` 1.55x; four more with
+      about 1.02x; 16 measured at the memory floor (touch-once), without a gain.
+- [x] Customizations promoted to passes: `coarsen` (#30), `throttle` (#64), `stream_loads` (#67); to a
+      template: `attention_mfma` (#71). Further ones as sessions find them.
+- [x] Placement-aware paired timing (#66); knowledge base with catalog, recipes and search (#67);
+      fusion of two tensor programs into one kernel (#73).
 - **Exit:** per-kernel table (policy and session results against amdclang, fallbacks
   reported as fallbacks) in the report and on #29.
 
@@ -192,8 +203,8 @@ win is reported with its pass.
 |---|---|
 | Machine-model calibration beyond M7's microbenchmarks (#7) | A scheduler decision needs a latency that is not measured |
 | Attention, prefill and decode (#12) | M7's exit is met |
-| GEMM with LDS-shared macro-tiles (#23) | M7 measured a 2.8x gap to hipBLASLt, bound by operand loads |
-| FP8 GEMM | M7's exit is met |
+| GEMM with LDS-shared macro-tiles (#23): **done**, 1.4x to 1.6x hipBLASLt's time (was 2.5x to 2.8x) | M7 measured a 2.8x gap to hipBLASLt, bound by operand loads |
+| FP8 GEMM (#75): **done**, 1.2x to 1.3x hipBLASLt's FP8 time | M7's exit is met |
 | Re-allocation of imported code (physical → virtual → physical) | An imported kernel is measured to be occupancy-limited |
 | Wave64 `mir` interpreter | A class of bug reaches the GPU that the static checkers and the battery miss |
 | `rocprofv3` profiler action | The agent loop lacks stall evidence that timing alone cannot give |

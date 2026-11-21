@@ -119,5 +119,27 @@
   "llm",
   "port",
   "attention"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/fa_attention.hip",
+  "flags": [
+   "-ffast-math"
+  ],
+  "launch": {
+   "grid": [
+    "cdiv(NQ, 4)",
+    1,
+    1
+   ],
+   "block": [
+    256,
+    1,
+    1
+   ],
+   "lds": 0
+  }
+ },
+ "program": {
+  "file": "fa_attention.tair"
+ }
 }

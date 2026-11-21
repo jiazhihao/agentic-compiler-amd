@@ -136,5 +136,28 @@
   "llm",
   "port",
   "recurrent"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/kda_step.hip",
+  "flags": [
+   "-fno-slp-vectorize",
+   "-fno-vectorize",
+   "-ffast-math"
+  ],
+  "defines": {
+   "LPOOL": "4096"
+  },
+  "launch": {
+   "grid": [
+    "H",
+    1,
+    1
+   ],
+   "block": [
+    256,
+    1,
+    1
+   ]
+  }
+ }
 }

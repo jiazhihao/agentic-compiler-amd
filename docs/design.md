@@ -129,7 +129,8 @@ recomputes register counts and `accum_offset` from the instruction stream.
 (one launched workgroup runs `factor` consecutive workgroups of the original: the kernel body
 becomes a loop over virtual workgroup ids that starts every iteration from the entry state, the
 launch shrinks to `ceil(grid_x / factor)`, and one appended argument carries the original
-`grid_x`). A transformation that changes the launch records the new launch (grid, block,
+`grid_x`), and `throttle` (the same code launched with an LDS reservation that limits the
+workgroups resident per compute unit). A transformation that changes the launch records the new launch (grid, block,
 appended arguments) with the state; the runtime launches the state that way.
 
 **Checks** before any GPU job: verifier, hazard checker, waitcnt checker, and
@@ -182,18 +183,31 @@ offending location and values, and a suggestion.
 1. The default policy runs first; its results stay in the session's store.
 2. A headless agent (Claude Code) gets the agc MCP tools as its only way to change anything,
    read access to the repository, the `agc` and `agc-notes` skills, a budget and a target
-   (1.5x, or the memory floor when the kernel is bound by memory). It works across the levels:
-   restructure at the source level, generate from a tensor program, apply passes, edit `mir`.
+   (1.5x over the baseline, or the memory floor when the kernel is bound by memory). It works
+   across the levels: restructure at the source level, generate from a tensor program, apply
+   passes, edit `mir`.
 3. The agent ends with `report(best, summary, tried, friction, lessons)`. Nothing in it is
    trusted. The harness reruns the static check and the full battery on the named state and
    times it with 240 pairs until two timings are valid (a timing whose 95 % CI is wider than
    4 % was disturbed and is discarded, whatever its direction). The state is a win only when
    both are wins; the lower one is recorded.
 4. A verified win becomes a recipe (`bench/llm/sessions/<kernel>/`: module text, launch, the
-   rewritten source if any, the verified numbers). `agc replay` rebuilds and re-measures every
-   recipe without the agent. A later session replaces a recipe only by beating it.
+   verified numbers). `agc replay` rebuilds and re-measures every recipe without the agent.
+   A later session replaces a recipe only by beating it.
 5. `friction` (what the tools, transforms or IR lacked) becomes compiler work; `lessons`
    (measured facts) go into the `agc-notes` skill, which the next session reads.
+
+**The baseline is the strongest amdclang build, not `-O3` on the source as shipped.** The first
+round of sessions showed that most of their speedups were source restructurings that amdclang
+compiles by itself, and that `-ffast-math` alone is worth up to 2x on some kernels. A manifest
+therefore names a `baseline` (`source`, `flags`, `defines`, `launch`): the best amdclang build
+found for the kernel, chosen by `scripts/strong_baseline.py` among the shipped and the
+restructured source, each with and without `-ffast-math`, each passing the battery. The session
+imports it as state `baseline`; `bench`, the default policy and the harness measure against it,
+and `ref` stays `-O3` on the shipped source for orientation. A session may still rewrite the
+source, but the harness credits that to amdclang: when the session's own `source` state beats
+the baseline it becomes a baseline candidate, and the final state is a win only if it beats
+that build too. What is reported as agc's result is the gain at its own levels.
 
 `bench` reports a kernel's memory traffic against a copy model measured on the device
 (`time = 20 us + bytes / 5.95 TB/s`). Its ratio to the kernel's time, the headroom, says

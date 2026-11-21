@@ -65,5 +65,27 @@
   "llm",
   "flashinfer",
   "rowwise"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/fi_silu_and_mul.hip",
+  "launch": {
+   "grid": [
+    "B * cdiv(D4, 64)",
+    1,
+    1
+   ],
+   "block": [
+    64,
+    1,
+    1
+   ],
+   "lds": 0,
+   "args": [
+    {
+     "dtype": "u32",
+     "value": "cdiv(D4, 64)"
+    }
+   ]
+  }
+ }
 }

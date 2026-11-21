@@ -14,9 +14,14 @@ from .ir import Call, Imm, Inst, Kernel, Module
 _LIMIT = 10_000
 
 
-def fix_waits(k: Kernel, arch: Arch | None = None) -> int:
-    """Insert `s_waitcnt` where the waitcnt checker needs one. Returns the number inserted."""
+def fix_waits(k: Kernel, arch: Arch | None = None, rewrite: bool = False) -> int:
+    """Insert `s_waitcnt` where the waitcnt checker needs one. Returns the number inserted. `rewrite`: drop
+    every wait the code has first, so that each one comes back as late and as weak as the checker allows
+    (after an edit put more loads in flight, the old waits still wait for all of them)."""
     arch = arch or load_arch()
+    if rewrite:
+        for b in k.blocks:
+            b.insts = [x for x in b.insts if x.mnemonic != "s_waitcnt"]
     added = 0
     for _ in range(_LIMIT):
         found = waitcnt.check(k, cfg(k, arch=arch), arch)
@@ -78,13 +83,15 @@ def legalize(k: Kernel, arch: Arch | None = None) -> dict:
 def register_transforms() -> None:
     from ..session.session import transform
 
-    @transform("fix_waits", "insert the s_waitcnt instructions the waitcnt checker asks for, as late as possible")
-    def _fix_waits(m: Module, kernel: str) -> Module:
-        fix_waits(m.kernel(kernel))
+    @transform("fix_waits", "insert the s_waitcnt instructions the waitcnt checker asks for, as late as possible; "
+               "rewrite=true first removes every existing wait, so all waits end up as late and as weak as is legal",
+               {"rewrite": [False, True]})
+    def _fix_waits(m: Module, kernel: str, rewrite: bool = False) -> Module:
+        fix_waits(m.kernel(kernel), rewrite=bool(rewrite))
         return m
 
-    @transform("unroll_loads", "unroll a counted loop so that `factor` iterations' loads are in flight per wait (wide or "
-               "offset loads; arithmetic in the original order: bit-identical)",
+    @transform("unroll_loads", "unroll a counted loop, or an exec-mask loop driven by a per-lane counter, so that `factor` iterations' loads "
+               "are in flight per wait (wide or offset loads; arithmetic in the original order: bit-identical)",
                {"factor": [2, 4, 8, 16], "loop": "label of the loop block (default: the first applicable)", "wide": [True, False]})
     def _unroll(m: Module, kernel: str, factor: int = 4, loop: str | None = None, wide: bool = True) -> Module:
         from . import loops
@@ -96,9 +103,52 @@ def register_transforms() -> None:
         fix_hazards(m.kernel(kernel))
         return m
 
+    @transform("stream_loads", "mark every vector load non-temporal (`nt`, with the widest cache scope `sc0 sc1`): the data is not "
+               "kept in the caches on its way in. For kernels that read each element once (bit-identical; 1.09x to 1.14x "
+               "on a plain copy); it loses when the kernel reads the same data again",
+               {"scope": ["all", "none"]})
+    def _stream_loads(m: Module, kernel: str, scope: str = "all") -> Module:
+        if scope not in ("all", "none"):
+            raise ValueError("scope is `all` (sc0 sc1 nt) or `none` (nt)")
+        want = ("sc0", "sc1", "nt") if scope == "all" else ("nt",)
+        n = 0
+        for b in m.kernel(kernel).blocks:
+            for inst in b.insts:
+                if inst.mnemonic.startswith("global_load_") and "lds" not in inst.mnemonic:
+                    have = {k for k, _ in inst.mods}
+                    add = [(k, None) for k in want if k not in have]
+                    if add:
+                        inst.mods = list(inst.mods) + add
+                        n += 1
+        if not n:
+            raise ValueError("no vector load to mark (or all are marked already)")
+        return m
+
+    @transform("throttle", "the same code launched with an LDS reservation that lets only `workgroups_per_cu` workgroups share a "
+               "compute unit (bit-identical; fewer waves compete for the memory pipeline: 1.02x to 1.04x measured on "
+               "memory-bound reductions, see the knowledge base)", {"workgroups_per_cu": "integer of at least 1 (the policy tries 2 and 4)"},
+               launch=True)
+    def _throttle(m: Module, kernel: str, launch: dict, workgroups_per_cu: int = 4):
+        from ..arch.model import load as load_arch
+        arch = load_arch()
+        n = int(workgroups_per_cu)
+        if n < 1:
+            raise ValueError("workgroups_per_cu must be at least 1")
+        k = m.kernel(kernel)
+        g = arch.res("lds_granule")
+        total = min(arch.res("lds_per_cu") // n // g * g, arch.res("lds_per_workgroup"))
+        extra = total - k.descriptor.get("group_segment_fixed_size", 0)
+        cur = launch.get("lds", 0)
+        if not isinstance(cur, int):
+            raise ValueError(f"the launch already has a dynamic LDS size ({cur}); set the reservation with relaunch")
+        if extra <= cur:
+            raise ValueError(f"the kernel already reserves {total - extra + cur} bytes of LDS: {n} workgroups per compute unit is no restriction")
+        launch["lds"] = extra
+        return m, launch
+
     @transform("coarsen", "one launched workgroup runs `factor` consecutive workgroups of the original (the kernel body in a "
                "loop over virtual workgroup ids; bit-identical); the launch shrinks to ceil(grid_x / factor) and one "
-               "argument carrying the original grid_x is appended", {"factor": [2, 4, 8, 16]}, launch=True)
+               "argument carrying the original grid_x is appended", {"factor": "any integer of at least 2 (the policy tries 2, 4, 8)"}, launch=True)
     def _coarsen(m: Module, kernel: str, launch: dict, factor: int = 4):
         from . import coarsen
         k = m.kernel(kernel)

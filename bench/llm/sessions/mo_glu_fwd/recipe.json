@@ -1,0 +1,138 @@
+{
+ "kernel": "mo_glu_fwd",
+ "launch": {
+  "grid": [
+   "cdiv(cdiv(N, 256), 4)",
+   1,
+   1
+  ],
+  "block": [
+   256,
+   1,
+   1
+  ],
+  "lds": 0,
+  "args": [
+   {
+    "dtype": "u32",
+    "value": "cdiv(N, 256)"
+   }
+  ]
+ },
+ "strict": false,
+ "attribution": {
+  "levels": [
+   "mir",
+   "source"
+  ],
+  "baseline": {
+   "flags": [
+    "-ffast-math"
+   ]
+  },
+  "over_strongest_amdclang": 1.0527,
+  "over_shipped_O3": 1.146
+ },
+ "path": [
+  "source",
+  "coarsen"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 1.0527,
+  "speedup_ci95": [
+   1.0503,
+   1.055
+  ],
+  "reference_ms": 0.17538,
+  "candidate_ms": 0.16646,
+  "cases": 49,
+  "protocol_version": "agc-timing-amd-2",
+  "equivalent": {
+   "ok": true,
+   "cases": 50,
+   "bit_identical": false,
+   "bit_identical_cases": 10,
+   "within_tolerance": true,
+   "max_abs_err": 0.125,
+   "max_rel_err": 1.0,
+   "worst_case": "large_exponent/seed2[N=10001]",
+   "failing": [],
+   "error": null
+  },
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 1.0527,
+    "ci95": [
+     1.0503,
+     1.055
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 1.056,
+    "ci95": [
+     1.0538,
+     1.0582
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "Memory-floor case: the kernel reads 537 MB and writes 268 MB once each, and the baseline already runs at headroom 1.06 (0.175 ms against a 0.164 ms floor), so 1.5x is out of reach without touching fewer bytes, which an elementwise kernel cannot do. The shipped state is amdclang's -ffast-math code with `coarsen` factor 4 (one launched workgroup runs four consecutive original workgroups, bit-identical arithmetic): 1.045x over the baseline (240 pairs, CI 1.0425 to 1.0482), headroom 1.01. No source rewrite of my own was made; one launch-only variant of amdclang's build (block 1024) measured 1.032x and is below the shipped state.",
+ "tried": [
+  {
+   "what": "coarsen factor 4 on the -ffast-math baseline",
+   "state": "9b4dc005a829b86d",
+   "outcome": "win (60 pairs 1.046, CI 1.0415-1.0496; 240 pairs 1.0447, CI 1.0425-1.0482); same transform as the earlier session's 0c760acea739653a (1.045)",
+   "speedup": 1.0447
+  },
+  {
+   "what": "coarsen factor 2 on the baseline",
+   "state": "494f190b3a4d9c48",
+   "outcome": "not checked or timed this session; the earlier session's equivalent 8ed01da89327ed1d measured 1.028",
+   "speedup": null
+  },
+  {
+   "what": "hand-written machine IR: 4 contiguous elements per lane with global_load_dwordx4 x2 and global_store_dwordx4, grid cdiv(N,1024) block 256, arguments loaded once, exp range handling dropped (5 VALU per element instead of 9, within rtol 1e-3), masked dword tail for N not a multiple of 4",
+   "state": "a70900ca40621842",
+   "outcome": "win, but below coarsen (60 pairs, CI 1.0179-1.032); battery 49/49",
+   "speedup": 1.0221
+  },
+  {
+   "what": "launch only: amdclang's baseline code at block 1024, grid cdiv(N,1024) (made with source(like=baseline); credited to amdclang; its creation note wrongly says block 64, corrected in a note)",
+   "state": "25fb7381d02b3280",
+   "outcome": "win (60 pairs, CI 1.0269-1.0356), below coarsen 4",
+   "speedup": 1.032
+  },
+  {
+   "what": "coarsen factor 2 on the block-1024 launch",
+   "state": "3c2381825af8b549",
+   "outcome": "win (60 pairs, CI 1.0243-1.0353), no gain over block 1024 alone and below coarsen 4 at block 256",
+   "speedup": 1.0303
+  }
+ ],
+ "friction": [
+  "list_states showed the earlier session's coarsen states (factors unknown without trace) as children of an older copy of the baseline (a84509be6487cbe7), while the current `baseline` tag points at a new unverified copy (97c3fc46ad1265d8) of the same source; I had to re-apply, re-check and re-bench coarsen 4 to have a state on the current baseline. Showing the transform params in list_states and reusing the verified baseline state would save 3 GPU jobs.",
+  "source(like=...) requires a note at creation and notes cannot be edited: I mislabelled 25fb7381d02b3280 as 'block 64' (it is block 1024) and could only append a correcting note.",
+  "No direct way to ask 'what is the memory floor for this kernel' before the first bench; reference_headroom only appears in a bench result. I computed it by hand from the notes (20 us + read/4.5 + written/10.7) before deciding the lever.",
+  "coarsen keeps the per-iteration s_load of the kernargs and block size inside the workgroup loop (.Lagc_wg_body [0],[1] and .Lft0 [0] in 9b4dc005a829b86d); hoisting them is a hand edit. Not tried here because the state is already at headroom 1.01."
+ ],
+ "lessons": [
+  "mo_glu_fwd (two 4-byte input streams, one output, 2^26 elements, 1 element per lane, block 256) is at the memory floor: baseline headroom 1.06, 0.175 ms against a 0.164 ms floor. Everything tried landed between 1.02x and 1.045x; best is coarsen factor 4 at 1.045x (240 pairs), headroom 1.01.",
+  "Coarsen factors on this kernel: 2 -> 1.028, 4 -> 1.045, 8 -> 1.017 (earlier session, 60 pairs each); 4 reproduced at 1.0447 with 240 pairs.",
+  "Four contiguous elements per lane with x4 loads and store (1 KB per wave per stream) plus 45 % fewer VALU instructions per element measured only 1.022x here: the 1.5x of 'several elements per lane' on gelu/cast_bf16 does not carry over to a kernel already at headroom 1.06. Cheaper arithmetic bought nothing measurable.",
+  "Launch-only change block 256 -> 1024 on amdclang's unchanged code gave 1.032x; coarsen 2 on top of it added nothing (1.030x). Fewer, longer workgroups help a little by either route, and the routes do not stack.",
+  "Dropping the -ffast-math exp range handling (x > 87.34 branch: add, cmp, 2 cndmask, mul) passes the full battery including the large_exponent distribution at rtol 1e-3: bare v_mul / v_exp / v_add 1.0 / v_rcp is enough for sigmoid."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 1.1531064000000002,
+  "turns": 29,
+  "final": "The session is finished and the report is recorded: `mo_glu_fwd` is at the memory floor, and the best verified state is 1.045x over the baseline, well short of the 1.5x target.\n\n**Why 1.5x is out of reach:** the kernel reads 537 MB and writes 268 MB once each, and the baseline already runs at headroom 1.06 (0.175 ms against a 0.164 ms floor). An elementwise kernel cannot touch fewer bytes, so only a few percent were available.\n\n**Shipped state:** `9b4dc005a829b86d` is amdclang's `-ffast-math` code with `coarsen` factor 4, so one launched workgroup runs four consecutive original workgroups with bit-identical arithmetic. It passed the full battery (49/49) and measured 1.0447x at 240 pairs (CI 1.0425 to 1.0482), headroom 1.01. This is the same transform the earlier session found; I re-applied it because the `baseline` tag now points at a new, unverified copy of the same build.\n\n| What | State | Speedup | Pairs |\n|---|---|---|---|\n| `coarsen` factor 4 on the baseline | `9b4dc005a829b86d` | 1.045 | 240 |\n| amdclang's code at block 1024 (launch only) | `25fb7381d02b3280` | 1.032 | 60 |\n| `coarsen` factor 2 on the block-1024 launch | `3c2381825af8b549` | 1.030 | 60 |\n| Hand-written IR: 4 elements per lane, x4 loads and store, cheaper sigmoid | `a70900ca40621842` | 1.022 | 60 |\n\n- **Hand-written IR:** it cut the arithmetic from 9 to 5 VALU instructions per element by dropping the exp range handling, which the tolerance allows. That bought nothing measurable, which confirms the kernel is bound by memory and not arithmetic.\n- **Launch geometry:** fewer, longer workgroups help a little by either route (coarsen or a larger block), but the two do not stack.\n- **Not timed:** `coarsen` factor 2 on the current baseline (`494f190b3a4d9c48`) was created but not checked or benched; the earlier session's equivalent measured 1.028.\n\nThe creation note on `25fb7381d02b3280` says \"block 64\" by mistake; the launch is block 1024, and I appended a correcting note.\n\nI stopped after four timed ",
+  "seconds": 148,
+  "log": ".agc/sessions/mo_glu_fwd-aea3116d4d/agent/20261121-012217.jsonl"
+ },
+ "recorded": "2026-11-21"
+}

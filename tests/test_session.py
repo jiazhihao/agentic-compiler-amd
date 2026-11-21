@@ -62,7 +62,7 @@ def session(tmp_path):
 def test_open_state_and_features(session, tmp_path):
     from agc.session import Session
     info = session.info()
-    assert info["manifest"] == "axpy" and info["ref"] == session.ref_id and info["tags"] == {"ref": session.ref_id}
+    assert info["manifest"] == "axpy" and info["ref"] == session.ref_id and info["tags"] == {"ref": session.ref_id, "baseline": session.ref_id}
     assert info["tolerance"]["y"]["cond"] == 4e-7 and info["timing_protocol"] == PROTOCOL_VERSION
     st = session.state("ref")
     assert st["action"]["name"] == "import" and "axpy:\n  [0] s_load_dword s3, s[0:1], 0x24" in st["listing"]

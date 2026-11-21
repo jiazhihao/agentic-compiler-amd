@@ -59,5 +59,27 @@
   "llm",
   "miopen",
   "reduction"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/mo_reduce_sum.hip",
+  "flags": [
+   "-ffast-math"
+  ],
+  "defines": {
+   "EPL": "4"
+  },
+  "launch": {
+   "grid": [
+    "cdiv(cdiv(N, 256) * 64, 64)",
+    1,
+    1
+   ],
+   "block": [
+    64,
+    1,
+    1
+   ],
+   "lds": 0
+  }
+ }
 }

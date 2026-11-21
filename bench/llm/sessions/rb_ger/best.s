@@ -7,26 +7,25 @@
 	.type	rb_ger,@function
 rb_ger:
 	s_mov_b32 s12, s3
-	s_load_dword s3, s[0:1], 0x8
-	s_waitcnt lgkmcnt(0)
-	v_cmp_eq_f32_e64 s[4:5], s3, 0
-	s_and_b64 vcc, exec, s[4:5]
-	s_cbranch_vccnz .LBB0_12
-.Lft0:
-	s_load_dword s14, s[0:1], 0x0
+	s_load_dwordx4 s[16:19], s[0:1], 0x0
+	s_load_dwordx8 s[4:11], s[0:1], 0x10
 	s_lshl_b32 s15, s2, 8
 	v_lshlrev_b32_e32 v9, 2, v0
 	v_or_b32_e32 v2, s15, v9
-	s_waitcnt lgkmcnt(0)
-	v_cmp_gt_i32_e32 vcc, s14, v2
-	s_and_saveexec_b64 s[4:5], vcc
-	s_cbranch_execz .LBB0_12
-.Lft1:
-	s_load_dwordx8 s[4:11], s[0:1], 0x10
 	s_ashr_i32 s13, s12, 31
 	v_ashrrev_i32_e32 v3, 31, v2
 	v_lshlrev_b64 v[0:1], 2, v[2:3]
 	s_waitcnt lgkmcnt(0)
+	s_mov_b32 s14, s16
+	s_mov_b32 s3, s18
+	v_cmp_eq_f32_e64 s[16:17], s3, 0
+	s_and_b64 vcc, exec, s[16:17]
+	s_cbranch_vccnz .LBB0_12
+.Lft0:
+	v_cmp_gt_i32_e32 vcc, s14, v2
+	s_and_saveexec_b64 s[16:17], vcc
+	s_cbranch_execz .LBB0_12
+.Lft1:
 	s_mul_hi_u32 s1, s10, s12
 	s_mul_i32 s2, s10, s13
 	s_mul_i32 s11, s11, s12
@@ -39,28 +38,30 @@ rb_ger:
 	s_lshl_b64 s[12:13], s[12:13], 2
 	s_add_u32 s6, s6, s12
 	s_addc_u32 s7, s7, s13
-	s_load_dword s2, s[6:7], 0x0
+	s_load_dword s16, s[6:7], 0x0
 	v_lshl_add_u64 v[4:5], s[10:11], 0, v[0:1]
 	v_lshl_add_u64 v[6:7], s[4:5], 0, v[0:1]
+	v_mov_b32_e32 v0, s3
 	v_add_u32_e32 v1, 4, v2
 	v_cmp_ge_i32_e32 vcc, s14, v1
-	s_waitcnt lgkmcnt(0)
-	v_mov_b32_e32 v0, s2
-	v_mul_f32_e32 v0, s3, v0
 	s_and_saveexec_b64 s[2:3], vcc
 	s_xor_b64 s[2:3], exec, s[2:3]
 	s_cbranch_execz .LBB0_4
 .Lft2:
 	global_load_dwordx4 v[8:11], v[6:7], off
 	global_load_dwordx4 v[12:15], v[4:5], off
+	s_waitcnt lgkmcnt(0)
+	v_mul_f32_e32 v0, s16, v0
 	s_waitcnt vmcnt(0)
-	v_pk_fma_f32 v[6:7], v[0:1], v[8:9], v[12:13] op_sel_hi:[0,1,1]
-	v_pk_fma_f32 v[8:9], v[0:1], v[10:11], v[14:15] op_sel_hi:[0,1,1]
+	v_pk_fma_f32 v[6:7], v[8:9], v[0:1], v[12:13] op_sel_hi:[1,0,1]
+	v_pk_fma_f32 v[8:9], v[10:11], v[0:1], v[14:15] op_sel_hi:[1,0,1]
 	global_store_dwordx4 v[4:5], v[6:9], off
 .LBB0_4:
 	s_andn2_saveexec_b64 s[2:3], s[2:3]
 	s_cbranch_execz .LBB0_12
 .Lft3:
+	s_waitcnt lgkmcnt(0)
+	v_mul_f32_e32 v0, s16, v0
 	v_sub_u32_e32 v1, s14, v2
 	v_cmp_lt_u32_e32 vcc, 1, v1
 	s_mov_b64 s[6:7], -1
@@ -82,7 +83,7 @@ rb_ger:
 	s_or_b64 s[6:7], vcc, s[6:7]
 	v_lshl_add_u64 v[6:7], v[6:7], 0, 8
 	s_waitcnt vmcnt(0)
-	v_pk_fma_f32 v[12:13], v[0:1], v[12:13], v[14:15]
+	v_pk_fma_f32 v[12:13], v[12:13], v[0:1], v[14:15]
 	global_store_dwordx2 v[4:5], v[12:13], off
 	v_lshl_add_u64 v[4:5], v[4:5], 0, 8
 	s_andn2_b64 exec, exec, s[6:7]
@@ -115,7 +116,7 @@ rb_ger:
 	v_lshl_add_u64 v[2:3], v[2:3], 0, 4
 	s_or_b64 s[0:1], vcc, s[0:1]
 	s_waitcnt vmcnt(0)
-	v_fmac_f32_e32 v7, v0, v6
+	v_fmac_f32_e32 v7, v6, v0
 	global_store_dword v[4:5], v7, off
 	v_lshl_add_u64 v[4:5], v[4:5], 0, 4
 	s_andn2_b64 exec, exec, s[0:1]
@@ -146,7 +147,7 @@ rb_ger:
 		.amdhsa_system_sgpr_workgroup_info 0
 		.amdhsa_system_vgpr_workitem_id 0
 		.amdhsa_next_free_vgpr 16
-		.amdhsa_next_free_sgpr 16
+		.amdhsa_next_free_sgpr 20
 		.amdhsa_accum_offset 16
 		.amdhsa_reserve_vcc 1
 		.amdhsa_float_round_mode_32 0
@@ -211,7 +212,7 @@ amdhsa.kernels:
   .max_flat_workgroup_size: 64
   .name: rb_ger
   .private_segment_fixed_size: 0
-  .sgpr_count: 22
+  .sgpr_count: 26
   .sgpr_spill_count: 0
   .symbol: rb_ger.kd
   .uniform_work_group_size: 1

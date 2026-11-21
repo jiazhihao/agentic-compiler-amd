@@ -1,0 +1,191 @@
+{
+ "kernel": "fi_rmsnorm",
+ "launch": {
+  "grid": [
+   "B",
+   1,
+   1
+  ],
+  "block": [
+   32,
+   "cdiv(min(512, D4), 32)",
+   1
+  ],
+  "lds": "4 * cdiv(min(512, D4), 32)"
+ },
+ "strict": false,
+ "attribution": {
+  "levels": [
+   "mir",
+   "source"
+  ],
+  "baseline": {
+   "flags": [
+    "-ffast-math"
+   ]
+  },
+  "over_strongest_amdclang": 1.0726,
+  "over_shipped_O3": 1.1067
+ },
+ "path": [
+  "source",
+  "relaunch",
+  "edit_ir",
+  "fix_hazards"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 1.0726,
+  "speedup_ci95": [
+   1.068,
+   1.0772
+  ],
+  "reference_ms": 0.12686,
+  "candidate_ms": 0.11834,
+  "cases": 77,
+  "protocol_version": "agc-timing-amd-2",
+  "equivalent": {
+   "ok": true,
+   "cases": 78,
+   "bit_identical": false,
+   "bit_identical_cases": 12,
+   "within_tolerance": true,
+   "max_abs_err": 1.0,
+   "max_rel_err": 3.423080025791767e-07,
+   "worst_case": "large_exponent/seed0[B=38,D4=250]",
+   "failing": [],
+   "error": null
+  },
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 1.077,
+    "ci95": [
+     1.0743,
+     1.0797
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 1.0726,
+    "ci95": [
+     1.068,
+     1.0772
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "Best verified state 158e86783f0ad7d4: 1.071x over the baseline (240 pairs, CI [1.066, 1.077], 0.1171 ms vs 0.1253 ms). Most of that is NOT machine-level: relaunching amdclang's unchanged code with 512 threads per workgroup instead of 1024 (8 waves, 2 rounds per thread at the bench shape; state c58877b909110425) is already ~1.05-1.06x. The machine-level part, measured directly with compare(c58877b909110425, 158e86783f0ad7d4, 240 pairs), is 1.021x (CI [1.017, 1.025]): a straight-line fast path for rounds<=4 that issues all rounds' masked input loads before one wait, keeps them in v[24:39] across the LDS reduction so the second pass does not re-read the input, puts the weight loads in flight together, and stores without a loop; rounds>4 falls back to amdclang's loops. Case: memory floor. Each element is read once and written once (the second input read in the baseline is a cache hit and removing it measured parity); reference headroom 1.17-1.20, final headroom 1.12; a probe with the whole cross-wave reduction and barrier removed was only 0.8% faster. 1.5x is out of reach without moving fewer bytes, and there are none to save. Correctness note: the battery at the shipped launch only ever runs rounds=1, so I verified the multi-round fast path (rounds=3 with a tail, eb8e69637301f073) and the fallback (rounds=8, ced1eadc5fbb2e07) with test-only relaunches of the same code; both pass 77/77.",
+ "tried": [
+  {
+   "what": "Keep round-0 input in registers across the reduction, second pass skips the input re-read (1024-thread launch, 1 round)",
+   "state": "d26819eb18d63de1",
+   "outcome": "parity",
+   "speedup": 1.0033
+  },
+  {
+   "what": "On top: drop the second barrier and the smem[0] write/read; every wave reduces the per-warp partials itself after the first barrier",
+   "state": "b11355480c925b55",
+   "outcome": "parity",
+   "speedup": 1.0046
+  },
+  {
+   "what": "PROBE (not a result): barrier and cross-wave reduction removed entirely: 0.1215 ms against 0.1225 ms, the reduction costs under 1%",
+   "state": "aba3d4c88d1adae7",
+   "outcome": "diagnostic",
+   "speedup": null
+  },
+  {
+   "what": "coarsen factor 2 on b11355480c925b55 (1024-thread launch), 240 pairs",
+   "state": "98ebbec3d038238a",
+   "outcome": "win",
+   "speedup": 1.0262
+  },
+  {
+   "what": "Relaunch b11355480c925b55 with 512 threads per workgroup (8 waves, 2 rounds)",
+   "state": "d198537201f313a7",
+   "outcome": "win",
+   "speedup": 1.0618
+  },
+  {
+   "what": "Relaunch with 256 threads (4 waves, 4 rounds, one load per wait)",
+   "state": "8effb5b9db159922",
+   "outcome": "loss",
+   "speedup": 0.9432
+  },
+  {
+   "what": "Relaunch with 128 threads (2 waves, 8 rounds)",
+   "state": "a15f176bb0b0d819",
+   "outcome": "loss",
+   "speedup": 0.8575
+  },
+  {
+   "what": "coarsen factor 2 on the 512-thread state",
+   "state": "6b8c9da23991bfe3",
+   "outcome": "win, but worse than its parent (1.062)",
+   "speedup": 1.0258
+  },
+  {
+   "what": "unroll_loads on d198537201f313a7",
+   "state": null,
+   "outcome": "refused: no single-block loop (masked loop)",
+   "speedup": null
+  },
+  {
+   "what": "Control: amdclang's code unchanged, launch 512 threads only; compare against d198537201f313a7 gave 1.0024 (parity), so the 1.06x is the launch, not the edits",
+   "state": "c58877b909110425",
+   "outcome": "verified; launch-only, about 1.05-1.06x over baseline (not benched separately against baseline)",
+   "speedup": null
+  },
+  {
+   "what": "Hand-written rounds<=4 fast path (all loads in flight, input kept in registers, loop-free stores) + fallback, 512-thread launch, 240 pairs; 1.0207 over the launch-only control (compare, 240 pairs)",
+   "state": "158e86783f0ad7d4",
+   "outcome": "win",
+   "speedup": 1.0714
+  },
+  {
+   "what": "Same fast-path code, 256 threads (4 waves, 4 rounds in flight): the fast path turns 0.943 into 1.047 at this geometry",
+   "state": "7200109e94494a50",
+   "outcome": "win, below the 512-thread launch",
+   "speedup": 1.0468
+  },
+  {
+   "what": "Same code, 768 threads (12 waves, second round covers a third of the threads)",
+   "state": "b072df3f73cab240",
+   "outcome": "loss",
+   "speedup": 0.9208
+  },
+  {
+   "what": "Same code, 352 threads (11 warps, 3 rounds)",
+   "state": "a1dee7237b08a506",
+   "outcome": "win, equal to 512 within noise",
+   "speedup": 1.0621
+  }
+ ],
+ "friction": [
+  "edit() text does not accept label lines (ops[3]: bad mnemonic '.Lslow:'), so any edit that adds a branch target forces edit_ir with the whole 220-instruction body retyped. A 'split block here / new label' op would have saved most of the effort; I first worked around it by zeroing exec around a load (s_cselect_b64 exec, exec, 0).",
+  "The battery at the manifest launch never runs rounds>1 for this kernel (D4 <= 257 with block min(1024, D4)), yet the bench shape under a 512-thread launch runs rounds=2 and D4 > 1024 would run it at the shipped launch. A multi-round path can pass check untested. I had to create test-only relaunch states (block min(96, D4) and min(32, D4)) to cover it; a battery shape with D4 > 1024, or a way to run the battery under an alternate launch without creating states, would close this.",
+  "unroll_loads refuses masked multi-block loops ('no single-block loop'), which is exactly what amdclang emits for this library-style per-thread strided loop (mask, saveexec, branch, load, wait). The hand version was worth +11% at 4 rounds and +2% at 2 rounds.",
+  "It is unclear from the tools whether a relaunch (block size change on amdclang's unchanged code) counts as machine-level or as amdclang's build. I measured the control myself (c58877b909110425) to separate the two; bench could report this split when a state differs from the baseline in both launch and code.",
+  "No documented answer on whether a global_load with exec == 0 increments vmcnt; I avoided a pipelined vmcnt(3) wait and used vmcnt(0) because of it. arch('waitcnt') could state it."
+ ],
+ "lessons": [
+  "fi_rmsnorm (B=16384, d=4096, 268 MB read + 268 MB written) is at the memory floor: reference headroom 1.17-1.20, best state 1.12. Removing the whole cross-wave LDS reduction and its barrier in a probe gained 0.8%; removing the second barrier and the smem[0] round trip in a correct state was parity (1.005).",
+  "Keeping the input in registers across the reduction instead of re-reading it in the update pass was parity here (1.003), unlike mo_t5_layernorm / kda_step (1.7x). The re-read is of the 1 KB the same wave just loaded and hits cache; the lever only pays when the second read is cold.",
+  "Workgroup size is the main knob for one-workgroup-per-row kernels with 16 KB rows: threads per workgroup 1024 (16 waves, 1 round) 1.00; 768 0.92; 512 (8 waves, 2 rounds) 1.06; 352 1.06; 256 0.94 with amdclang's loop and 1.05 with all rounds' loads in flight; 128 0.86. 8 waves per workgroup beat 16 even though each thread then loops.",
+  "Loads in flight for a per-thread strided loop: +2.1% at 2 rounds (compare, 240 pairs, CI [1.017, 1.025]) and about +11% at 4 rounds (0.943 -> 1.047). The gain scales with the number of serial waits removed, but did not move the optimum geometry.",
+  "coarsen factor 2: 1.026 on the 16-wave launch, but it made the 8-wave launch worse (1.062 -> 1.026). Coarsening and a smaller workgroup do not combine.",
+  "A load can be made conditional without a branch or a new label: s_mov_b64 sN, exec; s_cmp; s_cselect_b64 exec, exec, 0; load; s_mov_b64 exec, sN. Passed static_check and the battery.",
+  "To test a rounds>1 path that the battery shapes never reach, relaunch the same code with a smaller block expression (min(96, D4) gave rounds=3 with a tail at D4=250) and run check on that state."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 2.9628390000000007,
+  "turns": 64,
+  "final": "The session is finished and the report is recorded. The best verified state is `158e86783f0ad7d4`, 1.071x over the baseline (240 pairs, CI [1.066, 1.077]) \u2014 well short of the 1.5x target, which is out of reach here.\n\n- **Why 1.5x is out of reach:** the kernel is at the memory floor. Each element is read once and written once, the baseline's headroom is 1.17\u20131.20, and a probe with the whole cross-wave reduction removed was only 0.8% faster.\n- **Where the 1.07x comes from:** mostly the launch, not the machine code. Running amdclang's unchanged code with 512 threads per workgroup instead of 1024 (state `c58877b909110425`) accounts for the bulk \u2014 about 1.06x measured with my parity edits on top; the control itself was not timed against the baseline.\n- **Machine-level gain:** 1.021x over that launch-only control (compare at 240 pairs, CI [1.017, 1.025]). It comes from a loop-free fast path for up to four rounds: all input loads issued before one wait, the input kept in registers across the reduction, and the weight loads in flight together. More rounds fall back to amdclang's loops.\n- **What did not pay:**\n  - Keeping the input in registers at the original launch was parity (1.003).\n  - Dropping the second barrier was parity (1.005).\n  - `coarsen` gave 1.026 at the original launch but made the 512-thread launch worse.\n  - Other workgroup sizes: 768 threads 0.92, 256 threads 0.94 with amdclang's loop (1.05 with my fast path), 128 threads 0.86; 352 threads tied with 512.\n\nThe battery at the shipped launch only ever runs one round per thread, so it never exercises the multi-round code that the bench shape uses. I covered it with two test-only relaunches of the same code (three rounds with a tail, and the eight-round fallback); both pass 77/77.\n\nThe harness may credit the launch change to amdclang and measure my state against that; in that case the result is the 1.02x.",
+  "seconds": 409,
+  "log": ".agc/sessions/fi_rmsnorm-427b718f73/agent/20261121-011434.jsonl"
+ },
+ "recorded": "2026-11-21"
+}

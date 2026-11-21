@@ -122,5 +122,27 @@
   "llm",
   "vllm",
   "rowwise"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/vl_rms_norm.hip",
+  "flags": [
+   "-ffast-math"
+  ],
+  "defines": {
+   "BLK": "1024",
+   "KCH": "1"
+  },
+  "launch": {
+   "grid": [
+    "B",
+    1,
+    1
+   ],
+   "block": [
+    "BLK",
+    1,
+    1
+   ]
+  }
+ }
 }

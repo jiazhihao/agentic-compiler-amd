@@ -8,6 +8,12 @@ description: What has been learned about optimizing kernels for AMD MI355X (gfx9
 Each note says what was measured and where. Numbers are paired speedups over `amdclang -O3` under
 the agc timing protocol unless stated.
 
+The knowledge base is `kb/` (see `kb/README.md`): `PATTERNS.md` (which kind of kernel is this),
+`OPTIMIZATIONS.md` (the catalog of every optimization: when it applies, how, what it measured),
+`RECIPES.md` (every verified result with its recipe), `INDEX.md` and one file per kernel. In a
+session, `kb(query)` searches it. The notes below are the older summary; where they disagree with
+the catalog, the catalog is newer.
+
 ## What pays
 
 - **Loads in flight per wait.** amdclang emits one load per loop iteration and a full
@@ -137,6 +143,30 @@ Measured on the LLM benchmark; recipes in `bench/llm/sessions/`.
   operands.
 - `headroom` assumes each tensor element is touched once. Attention-like kernels re-read their
   inputs hundreds of times: work out the real traffic before choosing a lever.
+
+- Strided reads (a column-major matrix walked by rows: 128 to 256-byte fragments at a 32 KB
+  stride, `rb_gemvn`) plateau at 2.6 to 2.9 TB/s against 4.5 TB/s for contiguous streams: read a
+  `headroom` of 1.2 to 1.3 on such a kernel as "at the floor". There the time is set by the
+  launch geometry, not the loop body: one workgroup per CU (256) with 8 waves each was best;
+  16 dword loads in flight with a pipelined `vmcnt(8)` wait and scalar operands was 0.92x
+  against amdclang's 10 loads and a full wait per iteration.
+- A lane group narrower than a wave is a source-level knob: block (32, 16) puts two 32-row
+  groups in one wave and doubles the workgroups at the same wave count (1.06x on `rb_gemvn`).
+- `global_load_dword vdst, v_off32, s[base:base+1]` (scalar base + 32-bit vector offset) is
+  legal and removes per-lane 64-bit address arithmetic.
+
+- **MFMA for attention** (`fa_attention`, 2.09x over the strongest amdclang build):
+  `v_mfma_f32_16x16x4_f32` computes 16 queries x 16 keys per tile, 16 MFMAs for the scores and
+  16 for the value update, so K and V are read once per 16 queries. Layout, verified by the
+  battery: lane l element of A is `A[l % 16][l // 16]`, of B is `B[l // 16][l % 16]`; result
+  register r lane l is `D[4 (l // 16) + r][l % 16]`.
+- A kernel that re-reads its inputs once per workgroup is not at the memory floor whatever
+  `headroom` says: the levers are fewer re-reads (more queries or heads per workgroup, MFMA
+  tiles), wave-uniform rows read with `s_load_dwordx16` and used as scalar operands, and 16 wide
+  loads in flight per wait (`mla_decode` 1.56x, `attn_decode` 1.55x, `fa_attention_causal` 1.99x).
+- Elementwise and reduction kernels that touch each element once measured parity for every
+  machine-level rewrite tried in round 2 (DPP in place of LDS trees, scalar loads, fewer VALU,
+  merged waits, coarsening): their time is the loads themselves.
 
 ## Rules that bit
 

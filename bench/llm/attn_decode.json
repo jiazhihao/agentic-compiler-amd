@@ -124,5 +124,21 @@
   "llm",
   "port",
   "attention"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/attn_decode.hip",
+  "launch": {
+   "grid": [
+    "Hk * G",
+    8,
+    1
+   ],
+   "block": [
+    1024,
+    1,
+    1
+   ],
+   "lds": 0
+  }
+ }
 }

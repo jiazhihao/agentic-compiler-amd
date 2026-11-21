@@ -17,6 +17,11 @@ The session is reached through the `agc` MCP server (`.mcp.json`), or from a she
    - `edit(parent, ops)`: `{"op": "replace"|"insert"|"delete", "block", "index", "text", "expect"}`.
      Always pass `expect` (the instruction now at that address). Addresses refer to the parent.
    - `edit_ir(parent, ir)`: the whole body (a numbered listing is accepted).
+   - Unrolled code is written once: `%rep i 16` ... `%end` in edit text repeats its lines with
+     `{20 + 4*i}` evaluated per copy (`%rep i 4 12`: 4..11; a third number is the step; blocks nest).
+     A whole block is `{"op": "replace", "block": L, "index": 0, "count": "end", "text": ...}`.
+   - `liveness(id, block)` lists the registers that are dead across a block (temporaries for an
+     edit inside it) under the classical rule; read its condition for vector registers.
    - `apply(ref, transform, params)`: a named pass from `actions(ref)`.
 4. `static_check(id)`: must pass before any GPU job. Findings say what is needed, for example
    "needs `s_waitcnt vmcnt(1)` first" or "insert `s_nop 0`".
@@ -49,6 +54,12 @@ v_add_f32_dpp v3, v2, v2 row_half_mirror row_mask:0xf bank_mask:0xf
 v_add_f32_dpp v4, v3, v3 row_mirror row_mask:0xf bank_mask:0xf
 ```
 
+A DPP instruction that reads a VGPR written by the instruction just before it needs 2 wait states
+(`dpp_reads_vgpr_after_write`), and `v_readlane` needs 1: `apply(id, "fix_hazards")` inserts
+`s_nop 1` between the steps above. Interleave two independent chains (or other work) instead and
+no nop is needed; that was worth 4 % on `attn_decode`. `row_bcast:15` / `row_bcast:31` and
+`v_cmpx_*` (the compare writes EXEC) are accepted.
+
 A 64-bit unsigned scalar compare is `s_sub_u32` / `s_subb_u32` and a branch on the borrow in SCC.
 
 ## Tensor programs
@@ -78,7 +89,10 @@ bit-identity with amdclang: say so when reporting.
   results need 4 to 20 depending on passes (see `arch("mfma")`). `arch("hazards")` lists all.
 - `isa(mnemonic)` gives operands and encodings from AMD's specification. `_e32` forms take one
   literal or scalar in SRC0 only; `_e64` (VOP3) forms take scalars and inline constants
-  (0..64, -1..-16, ±0.5, ±1.0, ±2.0, ±4.0) anywhere but no literal.
+  (0..64, -1..-16, ±0.5, ±1.0, ±2.0, ±4.0) anywhere but no literal. Constant bus: one VALU
+  instruction may name at most one distinct SGPR or literal among its sources, the mask pair of a
+  `v_cndmask_b32_e64` included (`v_max3_f32 v3, v76, s4, s5` is refused by the assembler): move
+  the second scalar into a VGPR first.
 
 ## What tends to pay (measure; do not assume)
 

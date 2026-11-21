@@ -1,0 +1,148 @@
+{
+ "kernel": "rb_copy",
+ "launch": {
+  "grid": [
+   "cdiv(cdiv(N, 512), 2)",
+   1,
+   1
+  ],
+  "block": [
+   256,
+   1,
+   1
+  ],
+  "lds": 0,
+  "args": [
+   {
+    "dtype": "u32",
+    "value": "cdiv(N, 512)"
+   }
+  ]
+ },
+ "strict": false,
+ "attribution": {
+  "levels": [
+   "import",
+   "mir"
+  ],
+  "baseline": "amdclang -O3 on the source as shipped",
+  "over_strongest_amdclang": 1.0159,
+  "over_shipped_O3": 1.0246
+ },
+ "path": [
+  "import",
+  "coarsen"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 1.0159,
+  "speedup_ci95": [
+   1.0111,
+   1.0208
+  ],
+  "reference_ms": 0.11044,
+  "candidate_ms": 0.10868,
+  "cases": 49,
+  "protocol_version": "agc-timing-amd-2",
+  "equivalent": {
+   "ok": true,
+   "cases": 50,
+   "bit_identical": true,
+   "bit_identical_cases": 50,
+   "within_tolerance": true,
+   "max_abs_err": 0.0,
+   "max_rel_err": 0.0,
+   "worst_case": null,
+   "failing": [],
+   "error": null
+  },
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 1.0176,
+    "ci95": [
+     1.0147,
+     1.0204
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 1.0159,
+    "ci95": [
+     1.0111,
+     1.0208
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "rb_copy is at the memory floor (baseline headroom 1.05-1.07 against the copy model, each element touched exactly once: 268 MB read + 268 MB written at 4.84 TB/s), so 1.5x is out of reach; no bytes can be saved in a copy. The shipped state 77237b7fd663ab44 is `coarsen` factor 2 on amdclang's code: each launched workgroup runs two consecutive original workgroups, so each wave copies one 512 B tile (load, wait, store) and then the tile 2048 B further, halving the workgroup count while keeping the short-contiguous-tile access pattern. Two 240-pair timings: 1.0355 (CI 1.031-1.039) and 1.0186 (CI 1.015-1.022), both wins; an earlier 60-pair timing was 1.0175 (parity by CI). No source state of mine was made (source variants from earlier sessions were all parity or loss).",
+ "tried": [
+  {
+   "what": "coarsen factor 2 on baseline (existing state, re-timed at 240 pairs twice)",
+   "state": "77237b7fd663ab44",
+   "outcome": "win",
+   "speedup": "1.0355 [1.031,1.039] and 1.0186 [1.015,1.022]"
+  },
+  {
+   "what": "lean hand-written x2-coarsened kernel: args loaded once, no per-iteration scalar loads/loop, two 512 B tiles serially per wave (second via load/store offset:2048), odd tail on a cold path, no appended arg",
+   "state": "510259cddab5f43d",
+   "outcome": "win vs baseline, parity vs coarsen state",
+   "speedup": "1.0168 [1.012,1.019]; compare to 77237b: 0.9966 [0.994,1.001]"
+  },
+  {
+   "what": "same, but both tiles' loads in flight before the first store (fix_waits applied)",
+   "state": "d195cc7eea80ca8f",
+   "outcome": "loss vs coarsen state",
+   "speedup": "0.971 [0.968,0.974] against 77237b"
+  },
+  {
+   "what": "hand-written loop-free 16 B per lane (global_load/store_dwordx4, 1 KB per wave), tail by nested exec masks, grid cdiv(N,1024)",
+   "state": "abcfcb390f77b35f",
+   "outcome": "parity",
+   "speedup": "1.0091 [1.005,1.013]"
+  },
+  {
+   "what": "coarsen factor 2 on that 16 B/lane state (2 KB per wave serially)",
+   "state": "685347869ffeb561",
+   "outcome": "loss",
+   "speedup": "0.943 [0.938,0.948]"
+  },
+  {
+   "what": "first draft of the 16 B/lane kernel used v_sub_nc_u32 (not in CDNA4)",
+   "state": "a7b4757c8810d395",
+   "outcome": "static refusal (unknown instruction), fixed with v_sub_u32",
+   "speedup": null
+  },
+  {
+   "what": "earlier sessions (not repeated): source E=2/4/8/16/64 per lane, block 64/256/1024, K lane-contiguous chunks, coarsen 4 and 8",
+   "state": "various",
+   "outcome": "parity (E=4: 1.012) or loss (0.75-0.99)",
+   "speedup": "see list_states"
+  }
+ ],
+ "friction": [
+  "list_states shows three `coarsen` children of the baseline without their factor; I had to open the state to see which was factor 2. Show transform params in list_states.",
+  "The stored 60-pair verdict of 77237b7fd663ab44 was `parity` at 1.0175 although it is a repeatable win at 240 pairs; states with a speedup above 1.01 but a CI touching the floor could be flagged 'retime with pairs=240' so they are not dismissed.",
+  "v_sub_nc_u32 (LLVM gfx10+ name) is not gfx950; isa('v_sub') lists similar names, but the static_check message for an unknown mnemonic could suggest the nearest valid one (v_sub_u32) directly.",
+  "Run-to-run drift of the same state against the same baseline was 1.7 % (1.0355 vs 1.0186, non-overlapping CIs), larger than the differences being ranked; only compare(a,b) was usable for ranking.",
+  "No way to express non-temporal / streaming stores or any cache hint, which is the only remaining machine-level idea for a pure copy at the memory floor."
+ ],
+ "lessons": [
+  "rb_copy (2^26 floats, 0.109 ms) is at the memory floor: headroom 1.05-1.07, 4.84 TB/s. Best verified gain is 1.02-1.035x from coarsen factor 2; 1.5x is not possible without touching fewer bytes.",
+  "What pays at the floor is the workgroup count with the per-wave access pattern unchanged: 2 serial 512 B tiles per wave (load, wait, store, then the next tile 2 KB away) = 1.02-1.035x; coarsen 4 = 0.99, coarsen 8 = 0.92.",
+  "Instruction count is irrelevant here: a lean hand-written x2 kernel (args loaded once, no loop bookkeeping, 25 hot instructions vs ~45) is parity with the generic coarsen pass (0.9966, CI 0.994-1.001).",
+  "Putting both tiles' loads in flight before the stores is a 3 % loss against serial load-wait-store per tile (0.971), consistent with the earlier K-chunk source study: for copies, loads in flight do not help, interleaving read and write per small tile does.",
+  "1 KB per wave in one x4 load/store (16 B per lane) is parity (1.009); coarsening that to 2 KB per wave loses (0.943). 512 B tile x 2 serial is the sweet spot measured.",
+  "A 60-pair timing of the same state read 1.0175 'parity' and two 240-pair timings read 1.0355 and 1.0186: retime any 60-pair result between 1.01 and 1.02 with pairs=240 before discarding it, and expect about 1.7 % drift between runs."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 1.4751231999999996,
+  "turns": 35,
+  "final": "`rb_copy` is at the memory floor, so 1.5x is out of reach; the best verified state is a small win of about 1.02\u20131.035x over the baseline.\n\n**Shipped:** `77237b7fd663ab44`, which is `coarsen` factor 2 applied to amdclang's code. Each wave copies one 512 B tile (load, wait, store) and then the tile 2 KB further on, which halves the workgroup count without changing the access pattern. It passes the full battery (49/49) and was a win in two 240-pair timings: 1.0355 (CI 1.031\u20131.039) and 1.0186 (CI 1.015\u20131.022). The harness takes the lower of two fresh timings, so expect about 1.02.\n\n**Why not more:** the baseline's headroom against the copy model is 1.05\u20131.07, with every element read once and written once (4.84 TB/s). A copy cannot touch fewer bytes, so only the launch geometry is left to tune.\n\n| Idea | State | Result |\n|---|---|---|\n| Lean hand-written version of the same two-tile scheme (arguments loaded once, tail on a cold path) | `510259cddab5f43d` | 1.017 vs baseline; parity with the shipped state (0.997) |\n| Same, with both tiles' loads in flight before the first store | `d195cc7eea80ca8f` | loss, 0.971 vs the shipped state |\n| Hand-written loop-free 16 B per lane (1 KB per wave) | `abcfcb390f77b35f` | parity, 1.009 |\n| `coarsen` 2 on that 16 B per lane state | `685347869ffeb561` | loss, 0.943 |\n\nThe shipped state already existed from an earlier session, recorded as parity at 60 pairs (1.0175); my contribution was re-timing it at 240 pairs and showing that hand-written variants do not beat it. Instruction count does not matter here: the hand-written kernel ties the generic pass.\n\nThe report is recorded at `.agc/sessions/rb_copy-adda5e537e/report.json`, including friction items and lessons for the shared notes.",
+  "seconds": 185,
+  "log": ".agc/sessions/rb_copy-adda5e537e/agent/20261121-013530.jsonl"
+ },
+ "recorded": "2026-11-21"
+}

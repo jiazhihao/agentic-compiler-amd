@@ -28,9 +28,15 @@ def load_text(m: Manifest, spec) -> Program:
     return _CACHE[text]
 
 
-def evaluate(m: Manifest, values: dict, resolved) -> dict:
-    """The oracle: the program in float64 on the manifest's inputs and scalars."""
-    prog = load_text(m, m.reference)
+def evaluate(m: Manifest, values: dict, resolved, magnitude: bool = False) -> dict:
+    """The oracle: the program in float64 on the manifest's inputs and scalars. `magnitude`: the reference's
+    `magnitude` program instead, when it names one (the scale of the `cond` tolerance)."""
+    if magnitude and m.reference.magnitude:
+        if m.reference.magnitude not in _CACHE:
+            _CACHE[m.reference.magnitude] = parse(m.reference.magnitude)
+        prog = _CACHE[m.reference.magnitude]
+    else:
+        prog = load_text(m, m.reference)
     args = {q.name: (values[q.name] if q.name in values else resolved.scalars[q.name]) for q in prog.params}
     out = _evaluate(prog, args, dtype=np.float64)
     # program outputs are matched to the manifest's outputs by position (an in-place manifest output

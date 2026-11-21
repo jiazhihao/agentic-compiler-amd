@@ -1,0 +1,786 @@
+{
+ "kernels": {
+  "attn_decode": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 99,
+    "bit_identical": false,
+    "bit_identical_cases": 0,
+    "within_tolerance": true,
+    "max_abs_err": 0.033203125,
+    "max_rel_err": 0.008724886488797375,
+    "worst_case": "large_exponent/seed0[G=2,Hk=4,S=300]"
+   },
+   "session recipe": {
+    "ok": true,
+    "cases": 99,
+    "bit_identical": false,
+    "bit_identical_cases": 0,
+    "within_tolerance": true,
+    "max_abs_err": 0.048828125,
+    "max_rel_err": 0.009711246083254408,
+    "worst_case": "large_exponent/seed0[G=2,Hk=4,S=300]"
+   }
+  },
+  "fa_attention": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 7,
+    "within_tolerance": true,
+    "max_abs_err": 0.0390625,
+    "max_rel_err": 0.5384615730589757,
+    "worst_case": "large_exponent/seed2[NK=150,NQ=37]"
+   },
+   "session recipe": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 0,
+    "within_tolerance": true,
+    "max_abs_err": 0.109375,
+    "max_rel_err": 0.28665819606079346,
+    "worst_case": "large_exponent/seed1[NK=150,NQ=37]"
+   },
+   "policy: attention_mfma(waves=4, ahead=1)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 0,
+    "within_tolerance": true,
+    "max_abs_err": 0.0859375,
+    "max_rel_err": 1.675031427447012,
+    "worst_case": "large_exponent/seed2[NK=150,NQ=37]"
+   }
+  },
+  "fa_attention_causal": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 2,
+    "within_tolerance": true,
+    "max_abs_err": 0.15625,
+    "max_rel_err": 0.03272597949206099,
+    "worst_case": "large_exponent/seed1[N=150]"
+   },
+   "session recipe": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 3,
+    "within_tolerance": true,
+    "max_abs_err": 0.15625,
+    "max_rel_err": 0.008340943077936928,
+    "worst_case": "large_exponent/seed0[N=149]"
+   }
+  },
+  "fi_fused_add_rmsnorm": {},
+  "fi_gelu_tanh_and_mul": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 23,
+    "within_tolerance": true,
+    "max_abs_err": 0.5,
+    "max_rel_err": 0.0003878936758852522,
+    "worst_case": "large_exponent/seed0[B=36,D4=300]"
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 23,
+    "within_tolerance": true,
+    "max_abs_err": 0.5,
+    "max_rel_err": 0.0003878936758852522,
+    "worst_case": "large_exponent/seed0[B=36,D4=300]"
+   }
+  },
+  "fi_merge_state": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 6,
+    "within_tolerance": true,
+    "max_abs_err": 0.125,
+    "max_rel_err": 0.8515611763074507,
+    "worst_case": "large_exponent/seed0[H=8,P=38]"
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 6,
+    "within_tolerance": true,
+    "max_abs_err": 0.125,
+    "max_rel_err": 0.8515611763074507,
+    "worst_case": "large_exponent/seed0[H=8,P=38]"
+   }
+  },
+  "fi_merge_state_in_place": {
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": true,
+    "bit_identical_cases": 78,
+    "within_tolerance": true,
+    "max_abs_err": 0.0,
+    "max_rel_err": 0.0,
+    "worst_case": null
+   }
+  },
+  "fi_merge_states": {
+   "session recipe": {
+    "ok": true,
+    "cases": 106,
+    "bit_identical": true,
+    "bit_identical_cases": 106,
+    "within_tolerance": true,
+    "max_abs_err": 0.0,
+    "max_rel_err": 0.0,
+    "worst_case": null
+   },
+   "policy: coarsen(factor=2) + stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 106,
+    "bit_identical": true,
+    "bit_identical_cases": 106,
+    "within_tolerance": true,
+    "max_abs_err": 0.0,
+    "max_rel_err": 0.0,
+    "worst_case": null
+   }
+  },
+  "fi_rmsnorm": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 12,
+    "within_tolerance": true,
+    "max_abs_err": 1.0,
+    "max_rel_err": 3.4357173279601767e-07,
+    "worst_case": "large_exponent/seed0[B=38,D4=250]"
+   },
+   "session recipe": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 12,
+    "within_tolerance": true,
+    "max_abs_err": 1.0,
+    "max_rel_err": 3.423080025791767e-07,
+    "worst_case": "large_exponent/seed0[B=38,D4=250]"
+   },
+   "policy: coarsen(factor=2)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 12,
+    "within_tolerance": true,
+    "max_abs_err": 1.0,
+    "max_rel_err": 3.4357173279601767e-07,
+    "worst_case": "large_exponent/seed0[B=38,D4=250]"
+   }
+  },
+  "fi_rope": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 99,
+    "bit_identical": false,
+    "bit_identical_cases": 0,
+    "within_tolerance": true,
+    "max_abs_err": 14.6328125,
+    "max_rel_err": 4.237768365366283,
+    "worst_case": "large_exponent/seed0[Hk=2,Hq=5,N=74]"
+   },
+   "session recipe": {
+    "ok": true,
+    "cases": 99,
+    "bit_identical": false,
+    "bit_identical_cases": 0,
+    "within_tolerance": true,
+    "max_abs_err": 14.6328125,
+    "max_rel_err": 4.237768365366283,
+    "worst_case": "large_exponent/seed0[Hk=2,Hq=5,N=74]"
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 99,
+    "bit_identical": false,
+    "bit_identical_cases": 0,
+    "within_tolerance": true,
+    "max_abs_err": 14.6328125,
+    "max_rel_err": 4.237768365366283,
+    "worst_case": "large_exponent/seed0[Hk=2,Hq=5,N=74]"
+   }
+  },
+  "fi_silu_and_mul": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 3,
+    "within_tolerance": true,
+    "max_abs_err": 1.0,
+    "max_rel_err": 1.0,
+    "worst_case": "large_exponent/seed2[B=37,D4=300]"
+   },
+   "session recipe": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 3,
+    "within_tolerance": true,
+    "max_abs_err": 1.0,
+    "max_rel_err": 1.0,
+    "worst_case": "large_exponent/seed2[B=37,D4=300]"
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 3,
+    "within_tolerance": true,
+    "max_abs_err": 1.0,
+    "max_rel_err": 1.0,
+    "worst_case": "large_exponent/seed2[B=37,D4=300]"
+   }
+  },
+  "kda_step": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 106,
+    "bit_identical": false,
+    "bit_identical_cases": 1,
+    "within_tolerance": true,
+    "max_abs_err": 5.902958103587057e+20,
+    "max_rel_err": 4.937599444863383,
+    "worst_case": "large_exponent/seed2[DK=100,DV=150,H=5]"
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 106,
+    "bit_identical": false,
+    "bit_identical_cases": 1,
+    "within_tolerance": true,
+    "max_abs_err": 5.902958103587057e+20,
+    "max_rel_err": 4.937599444863383,
+    "worst_case": "large_exponent/seed2[DK=100,DV=150,H=5]"
+   }
+  },
+  "mla_decode": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 99,
+    "bit_identical": false,
+    "bit_identical_cases": 0,
+    "within_tolerance": true,
+    "max_abs_err": 9.5367431640625e-07,
+    "max_rel_err": 0.0473946518178796,
+    "worst_case": "normal/seed0[B=2,H=6,S=300]"
+   },
+   "session recipe": {
+    "ok": true,
+    "cases": 99,
+    "bit_identical": false,
+    "bit_identical_cases": 7,
+    "within_tolerance": true,
+    "max_abs_err": 9.5367431640625e-07,
+    "max_rel_err": 0.014218109050386932,
+    "worst_case": "normal/seed0[B=2,H=3,S=300]"
+   }
+  },
+  "mo_active_fwd": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": true,
+    "bit_identical_cases": 50,
+    "within_tolerance": true,
+    "max_abs_err": 0.0,
+    "max_rel_err": 0.0,
+    "worst_case": null
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": true,
+    "bit_identical_cases": 50,
+    "within_tolerance": true,
+    "max_abs_err": 0.0,
+    "max_rel_err": 0.0,
+    "worst_case": null
+   }
+  },
+  "mo_adam": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 7,
+    "within_tolerance": true,
+    "max_abs_err": 1024.0,
+    "max_rel_err": 2.0509090423583984,
+    "worst_case": "large_exponent/seed1[N=10001]"
+   },
+   "session recipe": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 7,
+    "within_tolerance": true,
+    "max_abs_err": 1024.0,
+    "max_rel_err": 2.0509090423583984,
+    "worst_case": "large_exponent/seed1[N=10001]"
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 7,
+    "within_tolerance": true,
+    "max_abs_err": 1024.0,
+    "max_rel_err": 2.0509090423583984,
+    "worst_case": "large_exponent/seed1[N=10001]"
+   }
+  },
+  "mo_bn_infer": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 106,
+    "bit_identical": false,
+    "bit_identical_cases": 4,
+    "within_tolerance": true,
+    "max_abs_err": 32768.0,
+    "max_rel_err": 1.0792596047569012,
+    "worst_case": "large_exponent/seed0[C=80,HW4=300,N=30]"
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 106,
+    "bit_identical": false,
+    "bit_identical_cases": 4,
+    "within_tolerance": true,
+    "max_abs_err": 32768.0,
+    "max_rel_err": 1.0792596047569012,
+    "worst_case": "large_exponent/seed0[C=80,HW4=300,N=30]"
+   }
+  },
+  "mo_glu_fwd": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 10,
+    "within_tolerance": true,
+    "max_abs_err": 0.125,
+    "max_rel_err": 1.0,
+    "worst_case": "large_exponent/seed2[N=10001]"
+   },
+   "session recipe": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 10,
+    "within_tolerance": true,
+    "max_abs_err": 0.125,
+    "max_rel_err": 1.0,
+    "worst_case": "large_exponent/seed2[N=10001]"
+   },
+   "policy: coarsen(factor=4) + stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 10,
+    "within_tolerance": true,
+    "max_abs_err": 0.125,
+    "max_rel_err": 1.0,
+    "worst_case": "large_exponent/seed2[N=10001]"
+   }
+  },
+  "mo_prelu_bwd": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": true,
+    "bit_identical_cases": 50,
+    "within_tolerance": true,
+    "max_abs_err": 0.0,
+    "max_rel_err": 0.0,
+    "worst_case": null
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": true,
+    "bit_identical_cases": 50,
+    "within_tolerance": true,
+    "max_abs_err": 0.0,
+    "max_rel_err": 0.0,
+    "worst_case": null
+   }
+  },
+  "mo_reduce_sum": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 14,
+    "within_tolerance": true,
+    "max_abs_err": 0.5,
+    "max_rel_err": 0.3333333333333333,
+    "worst_case": "large_exponent/seed1[N=10001]"
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 14,
+    "within_tolerance": true,
+    "max_abs_err": 0.5,
+    "max_rel_err": 0.3333333333333333,
+    "worst_case": "large_exponent/seed1[N=10001]"
+   }
+  },
+  "mo_rope_fwd": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 29,
+    "within_tolerance": true,
+    "max_abs_err": 32768.0,
+    "max_rel_err": 1.3391939524706098,
+    "worst_case": "large_exponent/seed0[B=7,K=76]"
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 29,
+    "within_tolerance": true,
+    "max_abs_err": 32768.0,
+    "max_rel_err": 1.3391939524706098,
+    "worst_case": "large_exponent/seed0[B=7,K=76]"
+   }
+  },
+  "mo_t5_layernorm": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 11,
+    "within_tolerance": true,
+    "max_abs_err": 1.0,
+    "max_rel_err": 3.4308279331148657e-07,
+    "worst_case": "large_exponent/seed0[D=1000,R=74]"
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 11,
+    "within_tolerance": true,
+    "max_abs_err": 1.0,
+    "max_rel_err": 3.4308279331148657e-07,
+    "worst_case": "large_exponent/seed0[D=1000,R=74]"
+   }
+  },
+  "moe_gate_topk": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 7,
+    "within_tolerance": true,
+    "max_abs_err": 2.86102294921875e-06,
+    "max_rel_err": 1.0,
+    "worst_case": "sparse_spikes/seed0[E=60,T=301]"
+   },
+   "session recipe": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 7,
+    "within_tolerance": true,
+    "max_abs_err": 2.9802322387695312e-06,
+    "max_rel_err": 1.0,
+    "worst_case": "sparse_spikes/seed0[E=60,T=301]"
+   }
+  },
+  "rb_axpy": {
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": true,
+    "bit_identical_cases": 50,
+    "within_tolerance": true,
+    "max_abs_err": 0.0,
+    "max_rel_err": 0.0,
+    "worst_case": null
+   }
+  },
+  "rb_copy": {
+   "session recipe": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": true,
+    "bit_identical_cases": 50,
+    "within_tolerance": true,
+    "max_abs_err": 0.0,
+    "max_rel_err": 0.0,
+    "worst_case": null
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": true,
+    "bit_identical_cases": 50,
+    "within_tolerance": true,
+    "max_abs_err": 0.0,
+    "max_rel_err": 0.0,
+    "worst_case": null
+   }
+  },
+  "rb_dot": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 19,
+    "within_tolerance": true,
+    "max_abs_err": 262144.0,
+    "max_rel_err": 0.004098360655737705,
+    "worst_case": "large_exponent/seed0[N=40000]"
+   },
+   "session recipe": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 19,
+    "within_tolerance": true,
+    "max_abs_err": 262144.0,
+    "max_rel_err": 0.013114754098360656,
+    "worst_case": "large_exponent/seed0[N=40000]"
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 19,
+    "within_tolerance": true,
+    "max_abs_err": 262144.0,
+    "max_rel_err": 0.004098360655737705,
+    "worst_case": "large_exponent/seed0[N=40000]"
+   }
+  },
+  "rb_gemvn": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 29,
+    "within_tolerance": true,
+    "max_abs_err": 262144.0,
+    "max_rel_err": 0.0007431002100974088,
+    "worst_case": "large_exponent/seed0[M=300,N=200]"
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 29,
+    "within_tolerance": true,
+    "max_abs_err": 262144.0,
+    "max_rel_err": 0.0007431002100974088,
+    "worst_case": "large_exponent/seed0[M=300,N=200]"
+   }
+  },
+  "rb_gemvt": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 30,
+    "within_tolerance": true,
+    "max_abs_err": 393216.0,
+    "max_rel_err": 0.02786108155170746,
+    "worst_case": "large_exponent/seed2[M=1000,N=37]"
+   },
+   "session recipe": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 32,
+    "within_tolerance": true,
+    "max_abs_err": 393216.0,
+    "max_rel_err": 0.014881990466224857,
+    "worst_case": "large_exponent/seed2[M=1000,N=37]"
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 30,
+    "within_tolerance": true,
+    "max_abs_err": 393216.0,
+    "max_rel_err": 0.02786108155170746,
+    "worst_case": "large_exponent/seed2[M=1000,N=37]"
+   }
+  },
+  "rb_ger": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": true,
+    "bit_identical_cases": 78,
+    "within_tolerance": true,
+    "max_abs_err": 0.0,
+    "max_rel_err": 0.0,
+    "worst_case": null
+   },
+   "session recipe": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": true,
+    "bit_identical_cases": 78,
+    "within_tolerance": true,
+    "max_abs_err": 0.0,
+    "max_rel_err": 0.0,
+    "worst_case": null
+   }
+  },
+  "rb_nrm2": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 14,
+    "within_tolerance": true,
+    "max_abs_err": 4194304.0,
+    "max_rel_err": 2.3840692677021314e-07,
+    "worst_case": "large_exponent/seed0[N=40001]"
+   },
+   "session recipe": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 14,
+    "within_tolerance": true,
+    "max_abs_err": 8388608.0,
+    "max_rel_err": 2.3837959089294612e-07,
+    "worst_case": "large_exponent/seed2[N=40001]"
+   },
+   "policy: stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 14,
+    "within_tolerance": true,
+    "max_abs_err": 4194304.0,
+    "max_rel_err": 2.3840692677021314e-07,
+    "worst_case": "large_exponent/seed0[N=40001]"
+   }
+  },
+  "rb_rot": {
+   "policy: coarsen(factor=4) + stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": true,
+    "bit_identical_cases": 50,
+    "within_tolerance": true,
+    "max_abs_err": 0.0,
+    "max_rel_err": 0.0,
+    "worst_case": null
+   }
+  },
+  "rb_scal": {
+   "session recipe": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": true,
+    "bit_identical_cases": 50,
+    "within_tolerance": true,
+    "max_abs_err": 0.0,
+    "max_rel_err": 0.0,
+    "worst_case": null
+   },
+   "policy: coarsen(factor=2) + stream_loads(scope=all)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": true,
+    "bit_identical_cases": 50,
+    "within_tolerance": true,
+    "max_abs_err": 0.0,
+    "max_rel_err": 0.0,
+    "worst_case": null
+   }
+  },
+  "rb_swap": {},
+  "vl_fused_add_rms_norm": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 24,
+    "within_tolerance": true,
+    "max_abs_err": 0.5,
+    "max_rel_err": 3.5348108764245436e-07,
+    "worst_case": "large_exponent/seed0[B=37,D=1001]"
+   }
+  },
+  "vl_moe_align": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": true,
+    "bit_identical_cases": 78,
+    "within_tolerance": true,
+    "max_abs_err": 0.0,
+    "max_rel_err": 0.0,
+    "worst_case": null
+   },
+   "session recipe": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": true,
+    "bit_identical_cases": 78,
+    "within_tolerance": true,
+    "max_abs_err": 0.0,
+    "max_rel_err": 0.0,
+    "worst_case": null
+   }
+  },
+  "vl_rms_norm": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 8,
+    "within_tolerance": true,
+    "max_abs_err": 0.5,
+    "max_rel_err": 3.4889652171101644e-07,
+    "worst_case": "large_exponent/seed0[B=37,D4=250]"
+   }
+  },
+  "vl_rotary_embedding": {
+   "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 99,
+    "bit_identical": true,
+    "bit_identical_cases": 99,
+    "within_tolerance": true,
+    "max_abs_err": 0.0,
+    "max_rel_err": 0.0,
+    "worst_case": null
+   }
+  }
+ },
+ "what": "outputs of agc's states against the original binary (amdclang -O3, source as shipped) on the same inputs: the battery's cases and one case at the bench shapes",
+ "recorded": "2026-11-21"
+}

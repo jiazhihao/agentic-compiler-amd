@@ -158,5 +158,21 @@
   "llm",
   "miopen",
   "elementwise"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/mo_bn_infer.hip",
+  "defines": {
+   "BLK": "64",
+   "NPT": "1"
+  },
+  "launch": {
+   "grid": [
+    "cdiv(C * HW4, BLK)",
+    "cdiv(N, NPT)"
+   ],
+   "block": [
+    "BLK"
+   ]
+  }
+ }
 }

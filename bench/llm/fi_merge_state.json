@@ -116,5 +116,33 @@
   "llm",
   "flashinfer",
   "attention"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/fi_merge_state.hip",
+  "flags": [
+   "-ffast-math"
+  ],
+  "defines": {
+   "BLK": "64",
+   "RCP": "0"
+  },
+  "launch": {
+   "grid": [
+    "cdiv(P*H*32, BLK)",
+    1,
+    1
+   ],
+   "block": [
+    "BLK",
+    1,
+    1
+   ],
+   "args": [
+    {
+     "dtype": "u32",
+     "value": "P*H"
+    }
+   ]
+  }
+ }
 }

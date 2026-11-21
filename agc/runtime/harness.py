@@ -52,13 +52,28 @@ def bench(m: Manifest, hsaco: bytes, *, protocol: TimingProtocol | None = None, 
 
 def paired(m: Manifest, reference: bytes, candidate: bytes, *, protocol: TimingProtocol | None = None,
            symbols: dict | None = None, root: Path | None = None, reference_launch: dict | None = None,
-           candidate_launch: dict | None = None, **run) -> dict:
+           candidate_launch: dict | None = None, series: bool = False, **run) -> dict:
     """Speedup of `candidate` over `reference`, launched alternately in one process. `outcome` is
     `win` or `loss` only when the 95 % CI of the speedup excludes 1."""
     return run_job(_job(m, "paired", reference_hsaco=_b64(reference), candidate_hsaco=_b64(candidate),
                         protocol=(protocol or TimingProtocol()).to_dict(), symbols=symbols,
-                        reference_launch=reference_launch, candidate_launch=candidate_launch),
+                        reference_launch=reference_launch, candidate_launch=candidate_launch, series=series),
                    root=root or default_root(), **run)
+
+
+def diff(m: Manifest, original: bytes, candidate: bytes, *, root: Path | None = None, original_launch: dict | None = None,
+         candidate_launch: dict | None = None, bench_shapes: bool = True, **run) -> dict:
+    """Outputs of two code objects on the same inputs, compared with each other: every battery case, and one case
+    at the bench shapes (the shapes the timing uses)."""
+    from .inputs import Case
+    root = root or default_root()
+    cases = build_battery(m, hidden_secret(root))
+    if bench_shapes and m.timing_symbols() != m.shapes:
+        cases.append(Case("normal", 0, m.timing_symbols()))
+    r = run_job(_job(m, "diff", original_hsaco=_b64(original), candidate_hsaco=_b64(candidate), original_launch=original_launch,
+                     candidate_launch=candidate_launch, cases=[c.to_dict() for c in cases]), root=root,
+                timeout=run.pop("timeout", 1800.0), **run)
+    return r
 
 
 def run(m: Manifest, hsaco: bytes, *, distribution: str = "normal", seed: int = 0, symbols: dict | None = None,

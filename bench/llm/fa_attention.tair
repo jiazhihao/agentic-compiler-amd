@@ -1,0 +1,9 @@
+tair fa_attention(Q: f32[NQ, 64], K: f32[NK, 64], V: f32[NK, 64], scale: f32) -> (out: f32[NQ, 64], lse: f32[NQ]) {
+  S = einsum "qd,kd->qk"(Q, K)
+  m = reduce max(S * scale)
+  P = exp(S * scale - m)
+  s = reduce sum(P)
+  W = P / s
+  out = einsum "qk,kd->qd"(W, V)
+  lse = m + log(s)
+}

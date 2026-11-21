@@ -43,7 +43,7 @@ def _run(m: Manifest, values: dict[str, np.ndarray], resolved, magnitude: bool =
         out = got if isinstance(got, dict) else {outs[0].name: got}
     elif ref.kind == "tair":
         from ..tair.reference import evaluate as tair_evaluate
-        out = tair_evaluate(m, values, resolved)
+        out = tair_evaluate(m, values, resolved, magnitude=magnitude)
     else:
         raise ManifestError(f"reference kind {ref.kind!r} cannot be evaluated here")
     missing = [p.name for p in m.outputs() if p.name not in out]

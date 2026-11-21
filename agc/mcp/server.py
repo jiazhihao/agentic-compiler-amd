@@ -22,13 +22,13 @@ from ..session import Session, SessionError
 ROOT = Path(os.environ.get("AGC_ROOT", ".agc"))
 server = MCPServer("agc", instructions=(
     "agc: an agentic compiler session for AMD MI355X (gfx950). Call open(manifest_path) first. States are immutable "
-    "and addressed by id, tag or branch; `ref` is amdclang's build imported into machine IR (CDNA4 assembly). "
+    "and addressed by id, tag or branch; `ref` is amdclang's -O3 build of the source as shipped, imported into machine IR (CDNA4 assembly); `baseline` is the strongest amdclang build known for the kernel (another source, flags or launch when the manifest names one, else `ref`). "
     "A manifest may also carry a tensor program: program() shows it and generate(template, params) compiles it "
     "straight into machine IR (no HIP involved). "
     "Three levels: source(text, launch) compiles a rewritten HIP source into a new state (restructure the kernel, change "
     "the launch); generate compiles a tensor program; edit / edit_ir / apply work on machine IR. "
     "Loop: state(ref) to read the numbered listing -> edit / edit_ir / apply to make a new state -> static_check "
-    "(ISA legality, s_waitcnt, hazards, contract) -> check (battery on the GPU) -> bench (paired against ref; "
+    "(ISA legality, s_waitcnt, hazards, contract) -> check (battery on the GPU) -> bench (paired against baseline; "
     "`win` only if the whole 95% CI is beyond the 1% noise floor). isa(mnemonic) and arch(section) answer questions "
     "about instructions and the machine. A refusal is a JSON object with `error`, `kind` (parse, parameter, unknown, "
     "static, unverified, verification, toolchain, gpu, internal) and usually `location`, `values`, `suggestion`."))
@@ -77,25 +77,39 @@ def info() -> dict:
     return _s().info()
 
 
+def _short(st: dict) -> dict:
+    """A state as returned to the agent after an edit: long texts it just sent are not echoed back."""
+    a = st.get("action")
+    if isinstance(a, dict):
+        a = dict(a)
+        if isinstance(a.get("ops"), list):
+            a["ops"] = [{**o, "text": o["text"][:200] + f" ... ({len(o['text'].splitlines())} lines)"}
+                        if isinstance(o, dict) and len(str(o.get("text", ""))) > 240 else o for o in a["ops"]]
+        st = {**st, "action": a}
+    return st
+
+
 @tool
 def state(ref: str = "ref", include_ir: bool = True, blocks: list | None = None, full: bool = False) -> dict:
     """A state: its action, parent, children, what is known about it (static / check / bench), and the kernel body
     as a numbered listing (`label:` lines and `[index] instruction`), which is how `edit` addresses instructions.
     Kernels above 400 instructions come back as an outline (blocks, sizes, loop headers, successors): name the
     blocks to list with `blocks=[...]`, or pass full=True."""
-    return _s().state(ref, include_ir, blocks, full)
+    return _short(_s().state(ref, include_ir, blocks, full))
 
 
 @tool
 def find(ref: str, pattern: str) -> dict:
     """Instructions of a state matching a regular expression, as `block[index] instruction` (for example every
-    write of a register: "^\\S+ v12\\b", every scratch access: "^scratch_")."""
+    write of a register: "^\\S+ v12\\b", every scratch access: "^scratch_"). Register tuples print as `s[30:31]`: escape the brackets and do not put \\b after `]`."""
     return _s().find(ref, pattern)
 
 
 @tool
 def liveness(ref: str, block: str) -> dict:
-    """Registers live into and out of a block, and registers the kernel never names (free for an edit)."""
+    """Registers live into and out of a block (conservative: a vector write under EXEC does not end a value),
+    the same under the classical rule with the registers that are dead across the block (temporaries for an
+    edit inside it; read the stated condition), and registers the kernel never names."""
     return _s().liveness(ref, block)
 
 
@@ -135,9 +149,18 @@ def actions(ref: str = "ref") -> dict:
 def edit(parent: str, ops: list, note: str = "") -> dict:
     """Structured edits → a new state. ops: [{"op": "replace"|"insert"|"delete", "block": label, "index": i,
     "text": "one instruction per line", "expect": "the instruction now at block[index]" (optional, checked)}].
-    `insert` places text before index (index == block length appends). `delete` takes "count" for a run of
-    instructions. Addresses refer to the parent's listing."""
-    return _s().edit(parent, ops, note)
+    `insert` places text before index (index == block length appends). `delete` and `replace` take "count" for a
+    run of instructions ("end": to the end of the block, so a whole block is {"op": "replace", "index": 0,
+    "count": "end"}). Addresses refer to the parent's listing. Repetition in `text` (here and in edit_ir):
+        %rep i 16                  ; i = 0..15; `%rep i 4 12` is 4..11; `%rep i 0 64 4` steps by 4; blocks nest
+          v_fmac_f32 v{40 + i}, s{68 + i}, v{8 + i}
+        %end
+        %for d in 22 26 30 62      ; listed values
+          v_mov_b32 v{d}, 0
+        %end
+    `{...}` is integer arithmetic over the counters. A `label:` line in `text` starts a new block there (for a
+    loop or a branch target the edit adds). The result echoes each op's text only in short form."""
+    return _short(_s().edit(parent, ops, note))
 
 
 @tool
@@ -147,7 +170,7 @@ def edit_ir(parent: str, ir: str, note: str = "", launch: dict | None = None) ->
     `launch` (optional) changes how the state is launched: {"grid": [...], "block": [...], "lds": bytes,
     "args": [{"dtype": "u32", "value": "expression over the shape symbols"}]}; appended args get kernarg slots after
     the existing arguments (their offsets are returned in the state's action as `arg_offsets`)."""
-    return _s().edit_ir(parent, ir, note, launch)
+    return _short(_s().edit_ir(parent, ir, note, launch))
 
 
 @tool
@@ -161,19 +184,28 @@ def source(text: str = "", launch: dict | None = None, note: str = "", defines: 
     refine the result at the machine level with edit / apply. `defines` ({"UNR": 8}) become -D macros, so a sweep
     resends only the numbers when the text is unchanged; `flags` takes -f... / -m... compiler flags (for example
     "-fno-slp-vectorize", "-fno-vectorize"). `features(id)` warns when amdclang spilled registers to scratch.
-    Sweeps: `like=<state made by source>` reuses that state's text (and its launch unless one is given), so only
-    `defines` change; launch expressions may use the defines' names ("cdiv(N, EPT * 256)"). Define names need three
-    or more characters. A workgroup has at most 1024 threads."""
+    Sweeps: `like=<state made by source>` (`baseline` included, when it is a rewritten source or built with flags)
+    reuses that state's text, launch, flags and defines; `defines` given here override single knobs, `flags` given
+    here replace the copied ones. Launch expressions may use the defines' names ("cdiv(N, EPT * 256)"). New define
+    names need three or more characters. A workgroup has at most 1024 threads."""
     return _s().source(text, launch, note, defines, flags, like)
 
 
 @tool
 def hip_source() -> dict:
-    """The manifest's HIP source text (the baseline) and its path."""
-    m = _s().manifest
+    """The manifest's HIP source text and its path; when the baseline is another amdclang build (a rewritten
+    source, flags, launch), that source and how it is built and launched as well."""
+    s = _s()
+    m = s.manifest
     if m.source is None:
         return {"error": "the manifest has no HIP source", "kind": "unknown"}
-    return {"path": str(m.source), "text": Path(m.source).read_text()}
+    out = {"path": str(m.source), "text": Path(m.source).read_text()}
+    if m.baseline:
+        b = dict(m.baseline)
+        if b.get("source"):
+            b["text"] = (m.path.parent / b["source"]).read_text()
+        out["baseline"] = {**b, "state": s.base_id, "launch_resolved": s.launch_of(s.base_id)}
+    return out
 
 
 @tool
@@ -183,14 +215,21 @@ def relaunch(ref: str, launch: dict, note: str = "") -> dict:
 
 
 @tool
-def report(best: str, summary: str, tried: list | None = None, friction: list | None = None, lessons: list | None = None) -> dict:
-    """End of a session: name the state to ship (`ref` if nothing beat amdclang), summarize what was done, list what
+def report(best: str, summary: str, tried: list | None = None, friction: list | None = None, lessons: list | None = None,
+           analysis: str = "", kb: list | None = None) -> dict:
+    """End of a session: name the state to ship (`baseline` if nothing beat it), summarize what was done, list what
     was tried with its measured outcome, and list friction: what was missing or awkward in the tools, transforms or
     IR, and what would have let you go further. `lessons`: measured facts about the machine or about what pays
-    that would help a session on another kernel (with the numbers). The harness re-verifies the named state itself."""
+    that would help a session on another kernel (with the numbers). `analysis`: Markdown, the ISA-level analysis of
+    this kernel (where the time goes, how amdclang's code and yours differ instruction by instruction, each
+    opportunity with what it was expected to give and what it measured). `kb`: reusable knowledge-base entries,
+    each {"title", "applies_when" (the ISA pattern or kernel property that makes it applicable), "how" (the edit or
+    pass, concretely), "measured" (kernel, speedup, CI or probe numbers), "verdict" ("pays" | "parity" | "loses")}.
+    The harness re-verifies the named state itself."""
     s = _s()
     sid = s.resolve(best)
-    out = {"best": sid, "summary": summary, "tried": tried or [], "friction": friction or [], "lessons": lessons or []}
+    out = {"best": sid, "summary": summary, "tried": tried or [], "friction": friction or [], "lessons": lessons or [],
+           "analysis": analysis or "", "kb": kb or []}
     (s.store.root / "report.json").write_text(json.dumps(out, indent=1))
     return {"recorded": str(s.store.root / "report.json"), "best": sid}
 
@@ -217,10 +256,15 @@ def generate(template: str | None = None, params: dict | None = None) -> dict:
 
 
 @tool
-def static_check(ref: str) -> dict:
+def static_check(ref: str, warnings: bool = False) -> dict:
     """ISA verifier, kernel contract, undefined reads, s_waitcnt checker, hazard checker, encode + decode cross-check.
-    Each finding has a kind, block, index, instruction and a message that says what is needed."""
-    return _s().static_check(ref)
+    Each finding has a kind, block, index, instruction and a message that says what is needed. Warnings (mostly
+    reads under an EXEC mask the checker does not follow; amdclang's own code has them) are counted, with the
+    first three shown; `warnings=True` lists all."""
+    r = _s().static_check(ref)
+    if not warnings and len(r.get("warnings", [])) > 3:
+        r = {**r, "warnings": r["warnings"][:3], "warnings_total": len(r["warnings"])}
+    return r
 
 
 @tool
@@ -231,12 +275,61 @@ def check(ref: str) -> dict:
 
 
 @tool
+def mix(ref: str = "baseline", blocks: list | None = None) -> dict:
+    """Instruction mix of a state by cost class: vector loads and stores by width, scalar loads, LDS reads and writes,
+    barriers, waits (and how many wait for everything), VALU by family (fma, mul, add_sub, compare, select, move,
+    transcendental, dpp, bit_ops), mfma, scalar work, branches, nop wait states; for the whole kernel and for each
+    loop block. The starting point of an ISA-level analysis: what does this code spend instructions on?"""
+    return _s().mix(ref, blocks)
+
+
+@tool
+def kb(query: str, limit: int = 8) -> dict:
+    """Search the knowledge base of measured optimizations on this device: the curated catalog and the entries of
+    every kernel's sessions (wins, parities and losses). `query` is free text: an instruction (`ds_add_u32`), a kernel
+    kind ("elementwise touch-once"), a technique ("loads in flight", "LDS reservation"). Each hit says when it
+    applies, how to do it and what it measured. The files: `.claude/skills/agc-notes/kb/OPTIMIZATIONS.md` (all
+    optimizations), `RECIPES.md` (every verified result and its recipe), `PATTERNS.md` (which kind of kernel is this)."""
+    from ..kb import search
+    hits = search(query, max(1, min(int(limit), 20)))
+    return {"hits": [{"from": "OPTIMIZATIONS.md" if h["kernel"] == "catalog" else f"{h['kernel']}.md", "title": h["title"],
+                      "verdict": h["verdict"], "applies_when": h["applies"], "how": h["how"], "measured": h["measured"]} for h in hits],
+            "note": "session entries carry the sessions' own numbers; RECIPES.md has the harness-verified ones"}
+
+
+@tool
+def isa_diff(a: str, b: str) -> dict:
+    """Instruction-mix difference of two states by cost class (b minus a), with registers and launch of both: what
+    one code does that the other does not. Use it to compare amdclang's code with your own state, or two amdclang
+    builds, and to say in the report where they differ at the ISA level."""
+    return _s().isa_diff(a, b)
+
+
+@tool
+def equivalent(ref: str, original: str = "ref") -> dict:
+    """Differential check of a state against the original binary (`ref`: amdclang -O3 on the source as shipped):
+    both run on the same inputs (every battery case and one case at the bench shapes) and their outputs are compared
+    with each other. Reports whether they are bit-identical, else the largest absolute and relative difference and
+    whether all cases stay within the manifest's tolerance. The harness runs this on the state you report."""
+    return _s().equivalent(ref, original)
+
+
+@tool
 def bench(ref: str, pairs: int | None = None) -> dict:
-    """Paired timing against `ref` (amdclang) at the bench shapes: both code objects alternate in one process;
+    """Paired timing against `baseline` (the strongest amdclang build) at the bench shapes: both code objects alternate in one process;
     speedup with a 95% CI; outcome win / parity / loss (beyond the 1% noise floor). Needs a passing battery;
-    for `ref` itself it is the A/A control. `pairs` (60 to 1000, default 60): more launches narrow the CI; use 240
+    for the baseline itself it is the A/A control. `pairs` (60 to 1000, default 60): more launches narrow the CI; use 240
     when the effect is a few percent. `traffic` in the result: bytes moved and TB/s against rates measured here."""
     return _s().bench(ref, pairs)
+
+
+@tool
+def bench_warm(ref: str, pairs: int | None = None) -> dict:
+    """`bench` with the caches as the previous launch left them, instead of flushed before every launch. Under the
+    default (flush) part of every time is the eviction of what the harness wrote; a state whose gain comes from
+    non-temporal loads (`stream_loads`, `nt`) wins there and can be parity here. Run it on every such state and
+    report both numbers."""
+    return _s().bench_warm(ref, pairs)
 
 
 @tool

@@ -90,5 +90,27 @@
   "llm",
   "rocblas",
   "elementwise"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/rb_ger.hip",
+  "flags": [
+   "-ffast-math"
+  ],
+  "defines": {
+   "EPT": "4",
+   "BLK": "64"
+  },
+  "launch": {
+   "grid": [
+    "cdiv(M, EPT * BLK)",
+    "N",
+    1
+   ],
+   "block": [
+    "BLK",
+    1,
+    1
+   ]
+  }
+ }
 }

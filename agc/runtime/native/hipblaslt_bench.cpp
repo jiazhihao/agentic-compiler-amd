@@ -2,7 +2,7 @@
 // gemm_bf16), with the sampling of the agc timing protocol: per sample an optional cache flush, hipEvents
 // around one call, medians. Prints one JSON object.
 //
-//   hipblaslt_bench M N K in_type out_type samples flush      (types: bf16 | f16 | f32)
+//   hipblaslt_bench M N K in_type out_type samples flush      (types: bf16 | f16 | f32 | e4m3 | e5m2)
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -18,9 +18,12 @@
 static hipDataType dtype(const std::string& s) {
     if (s == "bf16") return HIP_R_16BF;
     if (s == "f16") return HIP_R_16F;
+    if (s == "e4m3") return HIP_R_8F_E4M3;
+    if (s == "e5m2") return HIP_R_8F_E5M2;
     return HIP_R_32F;
 }
-static size_t bytes(const std::string& s) { return s == "f32" ? 4 : 2; }
+static bool fp8(const std::string& s) { return s == "e4m3" || s == "e5m2"; }
+static size_t bytes(const std::string& s) { return s == "f32" ? 4 : fp8(s) ? 1 : 2; }
 
 int main(int argc, char** argv) {
     if (argc < 8) { printf("{\"ok\": false, \"error\": \"usage\"}\n"); return 2; }
@@ -44,7 +47,9 @@ int main(int argc, char** argv) {
             unsigned u; memcpy(&u, &v, 4);
             h[i] = (unsigned short)(u >> 16);            // bf16 bits; for f16 the values are arbitrary but finite
         }
-        const void* src = tin == "f32" ? (const void*)f.data() : (const void*)h.data();
+        std::vector<unsigned char> q(h.size());           // FP8: any byte below 0x40 is a finite value below 1
+        for (size_t i = 0; i < q.size(); ++i) q[i] = (unsigned char)((i * 2654435761u) >> 26);
+        const void* src = tin == "f32" ? (const void*)f.data() : fp8(tin) ? (const void*)q.data() : (const void*)h.data();
         CHECK(hipMemcpy(a, src, M * K * bytes(tin), hipMemcpyHostToDevice));
         CHECK(hipMemcpy(b, src, N * K * bytes(tin), hipMemcpyHostToDevice));
     }

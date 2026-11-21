@@ -66,5 +66,27 @@
   "llm",
   "flashinfer",
   "rowwise"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/fi_gelu_tanh_and_mul.hip",
+  "flags": [
+   "-ffast-math"
+  ],
+  "defines": {
+   "BLK": "64",
+   "FAST": "0"
+  },
+  "launch": {
+   "grid": [
+    "cdiv(D4, 32)",
+    "B",
+    1
+   ],
+   "block": [
+    64,
+    1,
+    1
+   ]
+  }
+ }
 }

@@ -1,8 +1,9 @@
 #!/usr/bin/env python
-"""bf16 GEMM (C = A @ B^T, f32 result): every variant of the MFMA template on the full battery, then
-timed at three shapes next to amdclang's build of the HIP kernel and hipBLASLt.
+"""GEMM (C = A @ B^T, f32 result; bf16 or FP8 inputs): every variant of the MFMA template on the full battery,
+then timed at four shapes next to amdclang's build of the HIP kernel and hipBLASLt.
 
-    .venv/bin/python scripts/gemm.py   -> tests/baselines/gemm-gfx950.json
+    .venv/bin/python scripts/gemm.py             -> tests/baselines/gemm-gfx950.json      (gemm_bf16)
+    .venv/bin/python scripts/gemm.py gemm_fp8    -> tests/baselines/gemm-fp8-gfx950.json
 """
 from __future__ import annotations
 
@@ -20,14 +21,22 @@ OUT = corpus.BASELINES.with_name("gemm-gfx950.json")
 SHAPES = {"square": (4096, 4096, 4096), "wide": (2048, 8192, 4096), "tall": (8192, 2048, 4096), "small": (2048, 2048, 2048)}
 
 
-def main() -> int:
-    m = corpus.load("gemm_bf16")
+def main(argv) -> int:
+    name = argv[0] if argv else "gemm_bf16"
+    m = corpus.load(name)
+    kind = str(m.param("A").dtype)
+    out_path = OUT if name == "gemm_bf16" else OUT.with_name(f"gemm-{name.split('_', 1)[1]}-gfx950.json")
     ref = harness.reference_build(m).hsaco
     space = gen.TEMPLATES["gemm_mfma"]["params"]
     variants = []
     for values in itertools.product(*space.values()):
         params = dict(zip(space, values))
-        c = gen.generate(m, "gemm_mfma", params)
+        if params.get("share") == 1 and params["unroll"] != 1:
+            continue                                        # the half-shared loop has no unroll: the same code
+        try:
+            c = gen.generate(m, "gemm_mfma", params)
+        except gen.GenError:
+            continue                                        # a combination the template does not have
         st = check.static_check(c.module, strict=True)
         k = c.module.kernel()
         ck = harness.check(m, st["built"].hsaco, launch=c.launch, priority="batch") if st["ok"] else {"ok": False}
@@ -36,11 +45,11 @@ def main() -> int:
                          "instructions": sum(1 for _ in k.insts()), "_c": c, "_h": st.get("built")})
         print(params, variants[-1]["battery"], flush=True)
     out = {"protocol": PROTOCOL_VERSION, "toolchain": toolchain.identity(), "recorded": time.strftime("%Y-%m-%d"),
-           "operation": "C[M,N] = A[M,K] @ B[N,K]^T, bf16 inputs, f32 result", "shapes": {}}
+           "operation": f"C[M,N] = A[M,K] @ B[N,K]^T, {kind} inputs, f32 result", "shapes": {}}
     for name, (M, N, K) in SHAPES.items():
         sym = {"M": M, "N": N, "K": K}
         row = {"M": M, "N": N, "K": K, "agc": []}
-        lib = baselines.hipblaslt_gemm(M, N, K, priority="batch")
+        lib = baselines.hipblaslt_gemm(M, N, K, in_dtype=kind, priority="batch")
         row["hipblaslt_ms"] = round(lib["median_ms"], 5) if lib.get("ok") else None
         a = harness.bench(m, ref, symbols=sym, priority="batch")
         row["amdclang_ms"] = round(a["timing"]["median_ms"], 4)
@@ -58,9 +67,9 @@ def main() -> int:
         print(f"{name:7s} {M}x{N}x{K}: amdclang {row['amdclang_ms']} ms, hipBLASLt {row['hipblaslt_ms']} ms, agc {best['ms']} ms "
               f"{best['params']} = {best['vs_amdclang']}x amdclang, {best['hipblaslt_ratio']}x hipBLASLt's time, {best['tflops']} TFLOPS", flush=True)
     out["variants"] = [{k: v for k, v in x.items() if not k.startswith("_")} for x in variants]
-    OUT.write_text(json.dumps(out, indent=1) + "\n")
+    out_path.write_text(json.dumps(out, indent=1) + "\n")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

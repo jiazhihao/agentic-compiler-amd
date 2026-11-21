@@ -17,7 +17,8 @@ def test_report_is_generated_from_the_records(tmp_path, monkeypatch):
     assert report.main() == 0
     assert (tmp_path / "docs" / "report.md").read_text() == current           # docs/report.md is not edited by hand
     assert "fallback" in current and "hipBLASLt" in current and "What did not work" in current
-    assert "was not met" in current                                           # the missed target is stated
+    assert "The target of 1.5x is met on 1 of 4 shapes" in current            # where the bf16 GEMM misses the target is stated
+    assert "FP8 GEMM against hipBLASLt" in current and "less precise than an f32 sum" in current
 
 
 def test_skills_exist():

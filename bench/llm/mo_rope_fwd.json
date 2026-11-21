@@ -88,5 +88,23 @@
   "llm",
   "miopen",
   "elementwise"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/mo_rope_fwd.hip",
+  "flags": [
+   "-ffast-math"
+  ],
+  "launch": {
+   "grid": [
+    "cdiv(B * 2 * K, 1024)",
+    1,
+    1
+   ],
+   "block": [
+    256,
+    1,
+    1
+   ]
+  }
+ }
 }

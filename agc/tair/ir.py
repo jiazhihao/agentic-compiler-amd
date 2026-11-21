@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 
 FUNCS = {  # name -> arity
     "add": 2, "sub": 2, "mul": 2, "div": 2, "neg": 1, "max": 2, "min": 2, "abs": 1,
-    "exp": 1, "tanh": 1, "sqrt": 1, "rsqrt": 1, "rcp": 1, "fma": 3, "cast_bf16": 1, "cast_f32": 1,
+    "exp": 1, "log": 1, "tanh": 1, "sqrt": 1, "rsqrt": 1, "rcp": 1, "fma": 3, "cast_bf16": 1, "cast_f32": 1,
 }
 REDUCTIONS = ("sum", "max", "min", "mean", "argmax")
 

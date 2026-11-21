@@ -97,5 +97,28 @@
   "llm",
   "rocblas",
   "contraction"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/rb_gemvn.hip",
+  "flags": [
+   "-ffast-math"
+  ],
+  "defines": {
+   "BXX": "32",
+   "WAV": "16",
+   "CPI": "8"
+  },
+  "launch": {
+   "grid": [
+    "cdiv(M, BXX)",
+    1,
+    1
+   ],
+   "block": [
+    32,
+    16,
+    1
+   ]
+  }
+ }
 }

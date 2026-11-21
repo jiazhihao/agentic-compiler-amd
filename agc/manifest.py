@@ -123,6 +123,8 @@ class Reference:
     file: str | None = None         # python / torch: path relative to the manifest; tair: a .tair file
     function: str | None = None     # python / torch: fn(**inputs_and_scalars) -> array or {name: array}
     text: str | None = None         # tair: the module text inline
+    magnitude: str | None = None    # tair: a program (inline) evaluated on |inputs| as the `cond` scale, when the
+                                    # reference on |inputs| is not a bound for the error (a fused kernel: the first stage)
 
     def to_dict(self) -> dict:
         return {k: v for k, v in self.__dict__.items() if v not in (None, [])}
@@ -147,6 +149,8 @@ class Manifest:
     tags: list[str] = field(default_factory=list)
     bench_shapes: dict[str, int] = field(default_factory=dict)   # symbols overridden for timing (larger than the battery's)
     program: Reference | None = None   # the high-level input: a tair program (`{"file" | "text"}`) a generator compiles
+    baseline: dict | None = None       # the strongest amdclang build, what candidates are timed against:
+                                       # {"source": file (default: `source`), "flags": [...], "defines": {...}, "launch": {...}, "note"}
 
     def timing_symbols(self) -> dict[str, int]:
         return {**self.shapes, **self.bench_shapes}
@@ -190,7 +194,7 @@ class Manifest:
                 raise ManifestError(f"launch.{key} needs 1 to 3 dims")
             return v + [1] * (3 - len(v))
         ref = d.get("reference") or {"kind": "none"}
-        unknown = set(ref) - {"kind", "expr", "inputs", "output", "file", "function", "text"}
+        unknown = set(ref) - {"kind", "expr", "inputs", "output", "file", "function", "text", "magnitude"}
         if unknown:
             raise ManifestError(f"reference: unknown field(s) {sorted(unknown)}")
         reference = Reference(**{**ref, "kind": ref.get("kind", "none"), "inputs": list(ref.get("inputs", []))})
@@ -220,11 +224,18 @@ class Manifest:
             program = Reference("tair", file=pr.get("file"), text=pr.get("text"))
         if source is None and program is None:
             raise ManifestError("a manifest needs a HIP `source`, a tair `program`, or both")
+        baseline = d.get("baseline")
+        if baseline is not None:
+            if source is None or not isinstance(baseline, dict) or set(baseline) - {"source", "flags", "defines", "launch", "note"}:
+                raise ManifestError("baseline needs a HIP `source` in the manifest and is an object with any of "
+                                    "`source`, `flags`, `defines`, `launch`, `note`")
+            if baseline.get("source") and not (path.parent / baseline["source"]).exists():
+                raise ManifestError(f"baseline source not found: {path.parent / baseline['source']}")
         m = cls(name=d["name"], entry=d["entry"], params=params, grid=dims("grid"), block=dims("block"),
                 lds=launch.get("lds", 0), shapes=shapes, dynamic=dynamic, path=path, source=source,
                 arch=d.get("arch", "gfx950"), tolerance=d.get("tolerance", {}), reference=reference,
                 hip_flags=list(d.get("hip_flags", [])), tags=list(d.get("tags", [])),
-                bench_shapes={k: int(v) for k, v in d.get("bench_shapes", {}).items()}, program=program)
+                bench_shapes={k: int(v) for k, v in d.get("bench_shapes", {}).items()}, program=program, baseline=baseline)
         for s in m.bench_shapes:
             if s not in shapes:
                 raise ManifestError(f"bench_shapes names an unknown symbol {s!r}")
@@ -299,7 +310,8 @@ class Manifest:
                 "shapes": self.shapes, "dynamic": self.dynamic, "tolerance": self.tolerance,
                 "reference": self.reference.to_dict(), "hip_flags": self.hip_flags, "tags": self.tags,
                 **({"bench_shapes": self.bench_shapes} if self.bench_shapes else {}),
-                **({"program": {k: v for k, v in self.program.to_dict().items() if k != "kind"}} if self.program else {})}
+                **({"program": {k: v for k, v in self.program.to_dict().items() if k != "kind"}} if self.program else {}),
+                **({"baseline": self.baseline} if self.baseline else {})}
 
 
 @dataclass

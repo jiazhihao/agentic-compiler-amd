@@ -1,107 +1,200 @@
 {
  "kernel": "rb_dot",
- "launch": null,
+ "launch": {
+  "grid": [
+   "cdiv(N, 2048)",
+   1,
+   1
+  ],
+  "block": [
+   512,
+   1,
+   1
+  ],
+  "lds": 40960
+ },
  "strict": false,
+ "attribution": {
+  "levels": [
+   "mir",
+   "source"
+  ],
+  "baseline": {
+   "source": "baselines/rb_dot.hip"
+  },
+  "over_strongest_amdclang": 1.0309,
+  "over_shipped_O3": 1.067
+ },
  "path": [
-  "source"
+  "source",
+  "edit_ir",
+  "fix_hazards",
+  "relaunch"
  ],
  "verified": {
   "outcome": "win",
-  "speedup": 1.0283,
+  "speedup": 1.0309,
   "speedup_ci95": [
-   1.0228,
-   1.0314
+   1.025,
+   1.0368
   ],
-  "reference_ms": 0.14224,
-  "candidate_ms": 0.1392,
+  "reference_ms": 0.13446,
+  "candidate_ms": 0.1306,
   "cases": 49,
   "protocol_version": "agc-timing-amd-2",
+  "equivalent": {
+   "ok": true,
+   "cases": 50,
+   "bit_identical": false,
+   "bit_identical_cases": 19,
+   "within_tolerance": true,
+   "max_abs_err": 262144.0,
+   "max_rel_err": 0.013114754098360656,
+   "worst_case": "large_exponent/seed0[N=40000]",
+   "failing": [],
+   "error": null
+  },
   "pairs": 240,
   "runs": [
    {
-    "speedup": 1.0395,
+    "speedup": 1.0346,
     "ci95": [
-     1.0358,
-     1.043
+     1.0291,
+     1.0401
     ],
     "valid": true
    },
    {
-    "speedup": 1.0283,
+    "speedup": 1.0309,
     "ci95": [
-     1.0228,
-     1.0314
+     1.025,
+     1.0368
     ],
     "valid": true
    }
   ]
  },
- "summary": "State be583ab5b1b0e2a3 (source level) is 1.025x faster than amdclang's build under 240-pair timing (CI 1.022 to 1.028; 0.1375 ms against 0.1410 ms; a 60-pair run gave 1.051); static check and the full 49-case battery pass. The 1.5x target was not reached and is out of reach in principle. The state keeps the 512-thread workgroup and the output partition (workspace[b] = the four strided chunks of block b) but removes the per-thread strided loop: each of the 8 waves reads 1 KB contiguous of x and 1 KB of y with one global_load_dwordx4 per stream per lane, both in flight under one wait, then a wave reduce and one LDS merge with one barrier instead of two. Results match within the manifest tolerance, not bit for bit (summation order changed). Case: the reference is already memory-bound (reference_headroom 1.01 to 1.03, every element of x and y read exactly once, 537 MB at about 3.9 TB/s overall including launch); no bytes can be skipped or re-read less, so only a few percent were available.",
+ "summary": "State 6c518e7f4aa338a1 is the earlier session's hand-written body (172e4fb8c0ee2e5a: scalar tile base + 32-bit lane offsets, mask-free fast path, 4 v_fmac, DPP wave reduction; 114 instructions against amdclang's 157) launched with a 40 KB LDS reservation per workgroup instead of the 32 bytes the code uses. It measures 1.035 (CI 1.029..1.041) and 1.051 (1.043..1.056) over the baseline at 240 pairs, and 1.043 (1.041..1.048) head to head against the same code without the reservation; the body alone is parity (0.992), so the whole gain is the launch-level reservation. The kernel is at the memory floor (headroom 0.95 to 0.99, each element read once), so 1.5x is out of reach. Outputs are not bit-identical to the original binary (19 of 50 cases identical, max rel err 0.013 on large_exponent/seed0[N=40000]) but within the manifest tolerance in all 50 cases. No source state was made this session.",
  "tried": [
   {
-   "what": "Source A: block 512, each wave reads 1 KB contiguous of x and of y (one x4 load per stream per lane, wave w = half of strided chunk w/2), wave reduce, 8 sums through LDS with one barrier",
-   "state": "be583ab5b1b0e2a3",
-   "outcome": "win (best): 60 pairs 1.051 (CI 1.048-1.057), 240 pairs 1.025 (CI 1.022-1.028)",
-   "speedup": 1.025
+   "what": "LDS reservation 40 KB per workgroup on the hand-written block-512 body (relaunch lds=40960)",
+   "state": "6c518e7f4aa338a1",
+   "outcome": "win: 1.034 (60 pairs), 1.051 and 1.035 (240 pairs); compare against 172e 1.043 (1.041..1.048)",
+   "speedup": 1.035
   },
   {
-   "what": "Source B: block 512, baseline element assignment, loop-free, 4 single-dword loads per stream in flight per lane, one barrier",
-   "state": "caab2eecc34cacf8",
-   "outcome": "win at 60 pairs (CI 1.024-1.043), below A",
-   "speedup": 1.037
+   "what": "LDS reservation 40 KB on amdclang's code unchanged (relaunch of baseline)",
+   "state": "b2052d9534a00909",
+   "outcome": "win, 240 pairs, CI 1.011..1.019",
+   "speedup": 1.0157
   },
   {
-   "what": "Source C: block 1024 (16 waves), 2 floats per lane per stream: 512 B of x + 512 B of y per wave",
-   "state": "1df951146cabc7e1",
-   "outcome": "loss (CI 0.960-0.968)",
-   "speedup": 0.965
+   "what": "LDS reservation 45 KB on the hand-written body",
+   "state": "a3ebf008f395e750",
+   "outcome": "win, 240 pairs, CI 1.030..1.041; compare against the 40 KB state 1.001 (parity)",
+   "speedup": 1.0356
   },
   {
-   "what": "Source D: block 256 (4 waves), 8 floats per lane per stream: 2 KB of x + 2 KB of y per wave",
-   "state": "efec4ccbfaf6e883",
-   "outcome": "parity (CI 1.005-1.018)",
-   "speedup": 1.014
+   "what": "LDS reservation 32.5 KB on the hand-written body",
+   "state": "78f5c9ba60be7146",
+   "outcome": "parity by the rule (CI 1.0095..1.021), 240 pairs",
+   "speedup": 1.016
   },
   {
-   "what": "coarsen factor 2 on A",
-   "state": "7d6f79ea83df506c",
-   "outcome": "loss against its parent in a direct compare (0.938, CI 0.923-0.944), i.e. about 0.96-0.99 over ref",
-   "speedup": 0.96
+   "what": "LDS reservation 26.5 KB",
+   "state": "030a76200a67bb42",
+   "outcome": "parity, 240 pairs",
+   "speedup": 0.9955
   },
   {
-   "what": "coarsen on ref (earlier session, three states)",
-   "state": "0760670350aaabed",
-   "outcome": "loss (0.963, 0.874, 0.880)",
-   "speedup": 0.963
+   "what": "LDS reservation 20 KB",
+   "state": "b981ff4673ec6316",
+   "outcome": "parity, 240 pairs",
+   "speedup": 1.0024
+  },
+  {
+   "what": "LDS reservation 52.5 KB",
+   "state": "df5a833ebcfca63a",
+   "outcome": "loss, 240 pairs, CI 0.970..0.977",
+   "speedup": 0.9742
+  },
+  {
+   "what": "LDS reservation 80 KB (2 workgroups per CU)",
+   "state": "18b744a11d6f855a",
+   "outcome": "loss, 240 pairs, CI 0.863..0.870",
+   "speedup": 0.8675
+  },
+  {
+   "what": "Block 256 body (4 waves, 2 KB per stream per wave, was 0.945) + 40 KB LDS",
+   "state": "26e41fb8b266759c",
+   "outcome": "win at 60 pairs (1.029..1.054); compare against the block-512 40 KB state 1.003 (parity)",
+   "speedup": 1.0389
+  },
+  {
+   "what": "Block 256 body + 20 KB LDS",
+   "state": "10cb3f283f24ca6a",
+   "outcome": "parity/loss, 60 pairs (0.973..0.995)",
+   "speedup": 0.9824
+  },
+  {
+   "what": "Block 128 body (2 waves, 4 KB per stream per wave, was 0.935) + 40 KB LDS",
+   "state": "a1a1833513eb8b6f",
+   "outcome": "win at 60 pairs (1.017..1.043)",
+   "speedup": 1.0282
+  },
+  {
+   "what": "Block 64 one-wave body (was 0.983) + 40 KB LDS",
+   "state": "2799a7ff4e1be2b8",
+   "outcome": "win at 60 pairs (1.016..1.047)",
+   "speedup": 1.0269
+  },
+  {
+   "what": "Block 64 one-wave body + 20 KB LDS",
+   "state": "931bdacfcaa1fe71",
+   "outcome": "parity, 60 pairs",
+   "speedup": 0.9908
+  },
+  {
+   "what": "Block 64 one-wave body + 10 KB LDS",
+   "state": "a714042896174143",
+   "outcome": "loss, 60 pairs (0.929..0.961)",
+   "speedup": 0.9386
+  },
+  {
+   "what": "Occupancy throttle by registers: v_mov_b32 v140, 0 so a wave needs 144 VGPRs (3 waves per SIMD)",
+   "state": "675677e2def0444a",
+   "outcome": "loss, 60 pairs (0.944..0.965)",
+   "speedup": 0.9497
+  },
+  {
+   "what": "Reversed traversal: workgroup id b -> gridDim-1-b for reads and the workspace index",
+   "state": "4897b896c87cdcd0",
+   "outcome": "parity, 60 pairs (0.993..1.006)",
+   "speedup": 1.0007
   }
  ],
  "friction": [
-  "The task quotes a 1.5x target for a kernel whose reference_headroom is 1.01: the headroom is only visible after the first bench of a candidate. Printing reference_headroom in open()/info() (it is computable from the manifest's tensors and the recorded baseline time) would let a session pick the 'memory floor' plan before spending candidates.",
-  "The same state A measured 1.051 at 60 pairs and 1.025 at 240 pairs minutes apart (reference 0.1405 vs 0.1410 ms, candidate 0.1341 vs 0.1375 ms): the candidate's time drifts by 2.5 % between runs while the CI claims +/-0.3 %. The CI covers within-run noise only; reporting a between-run spread (or interleaving two separate launches automatically) would make small wins rankable without repeating benches.",
-  "The workspace partition is part of the contract (workspace is compared), so the natural layout for a read-bound reduction (workgroup b reads one contiguous 8 KB of x and y) cannot be expressed: the baseline's four chunks per output are 64 MB apart. A manifest flag saying whether intermediate outputs like workspace are contractual or only `out` after the second stage would open that lever.",
-  "No measured model of why bytes-per-wave matters (1 KB per stream per wave best; 512 B and 2 KB worse): still trial and error, same as recorded for rb_nrm2."
+  "check's `resources.lds_bytes` stays 32 for every relaunch with a larger `lds` (6c518e7f4aa338a1, 18b744a11d6f855a, ...), although the timings show the reservation is in effect (80 KB: 0.87). I could not confirm from any tool what the descriptor actually requests, nor how many workgroups per CU result; features/check should report the launched LDS size and the resulting workgroups-per-CU limit.",
+  "The mechanism of the 40 KB effect cannot be observed: there is no tool that reports resident waves or workgroups per CU, so 'which limit is active' is inferred from timings. The response is not monotone (20 KB 1.00, 26.5 KB 1.00, 32.5 KB 1.016, 40 KB 1.035-1.051, 45 KB 1.036, 52.5 KB 0.974, 80 KB 0.87) and 45 KB and 52.5 KB should both give 3 workgroups per CU by lds_per_cu / lds, yet differ by 6 %; the allocation granule or the real per-CU LDS pool is not what arch('resources') suggests.",
+  "The reference time floats between 135 and 141 us from one bench call to the next, so separate benches of close candidates rank unreliably (the 40 KB state measured 1.034, 1.051, 1.035); only compare() was stable (CI width 0.7 %). A sweep tool that times several relaunch values in one interleaved process would have made the LDS sweep cheaper and cleaner.",
+  "A 2D/3D grid (another dispatch order) could not be tried at the machine level: nothing says whether edit_ir enables the Y workgroup id register when the launch has a second grid dimension.",
+  "Kernarg preload into SGPRs (arch lists kernarg_preload_max_sgprs: 16) has no visible way to be enabled from edit_ir or relaunch; it would let the loads be issued without the s_load + s_waitcnt lgkmcnt(0) prefix."
  ],
  "lessons": [
-  "rb_dot (two input streams, 537 MB read once) starts at the memory floor: amdclang's strided-loop build takes 0.138-0.141 ms against a floor of 0.139 ms (20 us + 537 MB / 4.5 TB/s), reference_headroom 1.01-1.03. The same loop-free restructuring that gave 1.41x on rb_nrm2 (one stream, reference headroom 1.9) gives only 1.025x here (240 pairs). With two streams the baseline's one-load-per-wait loop already has two loads in flight and twice the bytes per launched wave, so latency is not what bounds it.",
-  "Bytes per wave with two streams: 1 KB of each stream per wave (block 512, x4 load per stream) 1.025-1.05x; 2 KB of each per wave (block 256) 1.014 (parity); 512 B of each per wave (block 1024) 0.965. The optimum is 1 KB per stream per wave, not 1 KB total per wave: the 16-wave / dwordx2 shape loses for dot just as it did for nrm2.",
-  "Contiguous x4 loads (1.05 at 60 pairs) vs 4 strided single-dword loads in flight per stream (1.037 at 60 pairs): about equal, slight edge to wide loads, consistent with nrm2 (parity).",
-  "coarsen factor 2 on the loop-free block-512 state loses 6 % against its parent (0.938), same as on rb_nrm2 (0.932): do not coarsen read-bound reduction kernels.",
-  "A 60-pair bench and a 240-pair bench of the same state differed by 2.5 % (1.051 vs 1.025): wins below about 1.05 need the 240-pair figure before being quoted."
+  "An LDS reservation larger than the code needs is a launch-level lever on a memory-bound reduction: rb_dot, 32768 workgroups of 512 threads, each reading 16 KB: lds=40960 gave 1.035 to 1.051 over the strongest amdclang build (240 pairs, three timings) and 1.043 (CI 1.041..1.048) in a direct compare against the same code with lds 32 bytes. On amdclang's own code the same relaunch gave 1.016 (1.011..1.019).",
+  "The LDS response is narrow and not monotone: 20 KB 1.002, 26.5 KB 0.996, 32.5 KB 1.016, 40 KB 1.035-1.051, 45 KB 1.036, 52.5 KB 0.974, 80 KB 0.868. Sweep 32 to 48 KB; above 50 KB it turns into a loss.",
+  "With the 40 KB reservation the block size stopped mattering on rb_dot: block 256 went from 0.945 to 1.039, block 128 from 0.935 to 1.028, block 64 from 0.983 to 1.027, block 512 from 0.992 to 1.035-1.051; block 256 against block 512 at 40 KB compares 1.003. The earlier losses of fewer, longer waves were about how many workgroups a CU holds at once, not about bytes per wave. Smaller reservations on those bodies did not help (block 256 at 20 KB 0.982, block 64 at 20 KB 0.991, at 10 KB 0.939).",
+  "Throttling occupancy through registers is not the same lever: a dead write to v140 (144 VGPRs, 3 waves per SIMD) on the same body measured 0.950.",
+  "Reversed workgroup traversal on rb_dot is parity (1.0007), as on rb_axpy.",
+  "Separate bench calls drift by 1 to 2 % in the reference (135 to 141 us here); rank candidates within 2 % of each other with compare(a, b, pairs=240) only."
  ],
  "session": {
   "ok": true,
-  "cost_usd": 1.1808696000000003,
-  "turns": 29,
-  "final": "`rb_dot` got only a small win: state `be583ab5b1b0e2a3` is **1.025x** faster than amdclang's build (0.1375 ms against 0.1410 ms; 240 pairs, CI 1.022 to 1.028). The 1.5x target is out of reach for this kernel. The state passes the static check and the full 49-case battery, and the report is filed.\n\n- **Which case this is:** the baseline is already memory-bound. Its reference headroom is 1.01 to 1.03, and every element of `x` and `y` is read exactly once (537 MB), so there are no bytes to skip or read fewer times.\n- **What changed:** the 512-thread workgroup and the output partition stay, but the per-thread strided loop is gone. Each of the 8 waves reads 1 KB contiguous of `x` and 1 KB of `y` with one wide load per stream per lane. The wave sums are merged through LDS with one barrier instead of two.\n- **Rounding:** results match within the manifest tolerance, not bit for bit, because the summation order changed.\n- **Timing spread:** the same state measured 1.051 at 60 pairs and 1.025 at 240 pairs a few minutes apart. I quote the 240-pair figure, since the harness takes the lower of two such runs.\n\n| Variant | State | Speedup vs amdclang |\n|---|---|---|\n| Block 512, 1 KB of each stream per wave (shipped) | `be583ab5b1b0e2a3` | 1.025 (240 pairs) |\n| Block 512, 4 single loads in flight per stream | `caab2eecc34cacf8` | 1.037 (60 pairs; 1.051 for shipped) |\n| Block 256, 2 KB of each stream per wave | `efec4ccbfaf6e883` | 1.014 (parity) |\n| Block 1024, 512 B of each stream per wave | `1df951146cabc7e1` | 0.965 (loss) |\n| `coarsen` factor 2 on the shipped state | `7d6f79ea83df506c` | 0.938 of its parent (loss) |\n\nI stopped after five timed candidates because three ideas of different kinds (smaller waves, larger waves, coarsening) all came in below the shipped state.",
-  "seconds": 120,
-  "log": ".agc/sessions/rb_dot-91d562020d/agent/20261120-190554.jsonl"
+  "cost_usd": 2.2701558000000004,
+  "turns": 69,
+  "final": "`rb_dot` now has its first verified win: state `6c518e7f4aa338a1` runs 1.035x to 1.051x faster than the strongest amdclang build, far short of the 1.5x target. The kernel sits at the memory floor (headroom 0.95 to 0.99, each element read once), so 1.5x is out of reach.\n\n- **What the win is:** the earlier session's hand-written body, unchanged, launched with a 40 KB LDS reservation per workgroup instead of the 32 bytes the code uses. The body alone is parity (0.992), so the whole gain is the launch setting.\n- **How firm it is:** three timings against the baseline gave 1.034 (60 pairs), 1.051 and 1.035 (240 pairs each). A direct comparison against the same code without the reservation gave 1.043 (CI 1.041 to 1.048).\n- **Equivalence:** outputs are not bit-identical to the original binary (19 of 50 cases identical) but within the manifest tolerance in all 50.\n- **Mechanism not established:** I read it as a cap on workgroups resident per compute unit, but the tools could not confirm that. The response is not monotone, and `check` reports `lds_bytes: 32` for every one of these states.\n\n| LDS per workgroup | Speedup over baseline (240 pairs) |\n|---|---|\n| 20 KB | 1.002 |\n| 26.5 KB | 0.996 |\n| 32.5 KB | 1.016 |\n| 40 KB | 1.035 to 1.051 |\n| 45 KB | 1.036 |\n| 52.5 KB | 0.974 |\n| 80 KB | 0.868 |\n\nOther things measured this session:\n\n- **Block size stops mattering with the reservation:** the block 256, 128 and 64 bodies that lost before (0.945, 0.935, 0.983) all land at 1.03 to 1.04 with 40 KB. Those three are 60-pair triage timings; block 256 against block 512 at 40 KB compares 1.003 at 240 pairs.\n- **amdclang's own code with 40 KB:** 1.016 (CI 1.011 to 1.019).\n- **Throttling through register count** (a dead write to `v140`, 3 waves per SIMD): loss, 0.950.\n- **Reversed workgroup traversal:** parity, 1.001.\n\nNot tried: a finer sweep between 34 and 50 KB, the reservation combined with `coarsen`, and the same reservation on the other floor-bound kernels (`rb_axpy`, `rb_scal`, `rb",
+  "seconds": 286,
+  "log": ".agc/sessions/rb_dot-901a831086/agent/20261121-060802.jsonl"
  },
- "recorded": "2026-11-20",
- "attribution": {
-  "levels": [
-   "source"
-  ],
-  "amdclang_on_rewritten_source": 1.0283,
-  "machine_level_gain": 1.0
- }
+ "recorded": "2026-11-21"
 }

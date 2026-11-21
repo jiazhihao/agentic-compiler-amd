@@ -7,169 +7,163 @@
    1
   ],
   "block": [
-   512,
+   256,
    1,
    1
   ],
-  "lds": 0
+  "lds": 32768
  },
  "strict": false,
+ "attribution": {
+  "levels": [
+   "mir",
+   "source"
+  ],
+  "baseline": {
+   "source": "baselines/rb_nrm2.hip",
+   "launch": {
+    "grid": [
+     "cdiv(N, 2048)",
+     1,
+     1
+    ],
+    "block": [
+     512,
+     1,
+     1
+    ],
+    "lds": 0
+   }
+  },
+  "over_strongest_amdclang": 1.0248,
+  "over_shipped_O3": 1.4713
+ },
  "path": [
-  "source"
+  "source",
+  "edit_ir",
+  "edit"
  ],
  "verified": {
   "outcome": "win",
-  "speedup": 1.404,
+  "speedup": 1.0248,
   "speedup_ci95": [
-   1.3978,
-   1.4083
+   1.0198,
+   1.0297
   ],
-  "reference_ms": 0.12102,
-  "candidate_ms": 0.0863,
+  "reference_ms": 0.08598,
+  "candidate_ms": 0.08398,
   "cases": 49,
   "protocol_version": "agc-timing-amd-2",
+  "equivalent": {
+   "ok": true,
+   "cases": 50,
+   "bit_identical": false,
+   "bit_identical_cases": 14,
+   "within_tolerance": true,
+   "max_abs_err": 8388608.0,
+   "max_rel_err": 2.3837959089294612e-07,
+   "worst_case": "large_exponent/seed2[N=40001]",
+   "failing": [],
+   "error": null
+  },
   "pairs": 240,
   "runs": [
    {
-    "speedup": 1.4107,
+    "speedup": 1.0248,
     "ci95": [
-     1.406,
-     1.4167
+     1.0198,
+     1.0297
     ],
     "valid": true
    },
    {
-    "speedup": 1.404,
+    "speedup": 1.0259,
     "ci95": [
-     1.3978,
-     1.4083
+     1.0199,
+     1.0318
     ],
     "valid": true
    }
   ]
  },
- "summary": "State 2ea587532cfae1d5 (source level) is 1.41x faster than amdclang's build (240 pairs, CI 1.410 to 1.418; 0.0862 ms against 0.1219 ms); static check and the full 49-case battery pass. The 1.5x target was not reached. It keeps the 512-thread workgroup per output but removes the per-thread strided loop: each of the 8 waves reads one contiguous 1 KB with a single global_load_dwordx4 per lane (wave w takes half of strided chunk w/2; per-element guarded loads only in tails), reduces in the wave, and the 8 wave sums are combined through LDS with one barrier instead of two barriers plus a second shuffle reduction. Results match within the manifest tolerance, not bit for bit (summation order changed). Case: the reference was not memory-bound (reference headroom 1.87 to 1.9, every element read once); the winning state sits at headroom 1.32 (3.1 TB/s). Probes show what is left is the reads themselves: the same waves without their load take 0.026 ms, and removing the reduction or the barrier changes nothing.",
+ "summary": "rb_nrm2 is at the read floor (every element read once, baseline headroom 1.08; 1.5x is not reachable). Best state 3dcf47e375b4f914: a hand-written block-256 body (4 waves, wave j reads its whole 2 KB chunk with two global_load_dwordx4 in flight per lane, serial v_fmac, DPP wave reduce, 4-entry LDS merge) launched with a 32 KB LDS reservation (2 workgroups per CU): 1.0236x (CI 1.0187..1.0259) and 1.0256x (1.0207..1.0295) over the strongest amdclang build at 240 pairs each. It ties the earlier recorded best (the plain 32 KB relaunch of amdclang's code, compare 1.0014, CI 0.997..1.006); no source state was made. Outputs are within tolerance of the original binary, not bit-identical (14 of 50 cases identical, max rel 2.4e-7).",
  "tried": [
   {
-   "what": "Source: block 512, each wave reads 1 KB contiguous with one x4 load per lane (wave w = half of strided chunk w/2), wave shuffle reduce, 8 sums through LDS with one barrier",
-   "state": "2ea587532cfae1d5",
-   "outcome": "win (best; 240 pairs CI 1.410-1.418; 60 pairs 1.432)",
-   "speedup": 1.414
+   "what": "VGPR-count occupancy throttle on amdclang's code, lds 0: dead v_mov to v95 (96 VGPRs, 5 waves/SIMD = 20 waves/CU)",
+   "state": "c36496efde5d2c6a",
+   "outcome": "loss (0.906..0.916, 120 pairs)",
+   "speedup": 0.9105
   },
   {
-   "what": "Source: block 512, loop-free, each lane issues 4 single-dword loads (one per strided chunk) in flight, one barrier",
-   "state": "7ef745fa6b5c5a2d",
-   "outcome": "win; parity with 2ea5 in a 240-pair compare (0.998, CI 0.993-1.003)",
-   "speedup": 1.41
+   "what": "same, v127 (128 VGPRs, 4 waves/SIMD = 16 waves/CU)",
+   "state": "69c30efa98e7e787",
+   "outcome": "loss (0.764..0.775, 120 pairs)",
+   "speedup": 0.7695
   },
   {
-   "what": "Source: block 64, one wave per output, 8 floats per lane per chunk (8 x4 loads per lane, 8 KB per wave), shuffle reduce, no LDS/barrier",
-   "state": "5b5fb545c0d7c0f2",
-   "outcome": "win",
-   "speedup": 1.256
+   "what": "same, v167 (168 VGPRs, 3 waves/SIMD = 12 waves/CU)",
+   "state": "7851b8d06b439e5d",
+   "outcome": "loss (0.584..0.590, 120 pairs)",
+   "speedup": 0.5873
   },
   {
-   "what": "Source: block 128, 4 floats per lane per chunk, rocblas two-barrier block reduce",
-   "state": "95c89a4c62e475cd",
-   "outcome": "win",
-   "speedup": 1.263
+   "what": "hand-written block-256 body: 4 waves, wave j reads its whole 2 KB chunk (two x4 loads in flight, 32 contiguous bytes per lane), 8 serial v_fmac, ds_bpermute reduce, LDS merge of 4; lds 32768 (2 workgroups = 8 waves x 2 KB per CU)",
+   "state": "aacdfffa24c1e947",
+   "outcome": "win vs baseline 1.0279 (1.021..1.034, 120 pairs); parity vs the earlier best 23605de723d4eace: 0.9978 (0.995..0.999, 240 pairs)",
+   "speedup": 1.0279
   },
   {
-   "what": "Source: block 256, 2 floats per lane per chunk, rocblas two-barrier block reduce",
-   "state": "a88ffe4f807e148e",
-   "outcome": "win",
-   "speedup": 1.301
+   "what": "block-256 body, lds 21840 (3 workgroups = 12 waves x 2 KB per CU), compared with the 32 KB state",
+   "state": "09f4d8c283f6282e",
+   "outcome": "loss vs 32 KB state: 0.925 (0.921..0.932)",
+   "speedup": 0.9249
   },
   {
-   "what": "Source: block 256, 2 floats per lane per chunk, one barrier + flat LDS sum",
-   "state": "67826f2b49f0a5f7",
-   "outcome": "win",
-   "speedup": 1.279
+   "what": "block-256 body, lds 40960 (1 workgroup = 4 waves x 2 KB per CU), compared with the 32 KB state",
+   "state": "d0b0d8089d94d632",
+   "outcome": "loss vs 32 KB state: 0.948 (0.945..0.953)",
+   "speedup": 0.9478
   },
   {
-   "what": "Source: block 256, wave w reads strided chunk w contiguously (2 KB per wave, 2 x4 loads per lane), one barrier",
-   "state": "797938491aa3ef94",
-   "outcome": "win",
-   "speedup": 1.298
+   "what": "block-256 body + DPP wave reduce (4 v_add_f32_dpp + 4 v_readlane, exec=1 LDS write) in place of the ds_bpermute tree, lds 32768",
+   "state": "3dcf47e375b4f914",
+   "outcome": "win vs baseline 1.0236 (1.0187..1.0259) and 1.0256 (1.0207..1.0295), 240 pairs each; parity vs 23605de723d4eace: 1.0014 (0.997..1.006, 240 pairs)",
+   "speedup": 1.0236
   },
   {
-   "what": "Source: block 256 as 4 independent waves, each wave a whole output (8 KB per wave), grid / 4, no LDS",
-   "state": "76304d8378d3f00e",
-   "outcome": "win",
-   "speedup": 1.248
+   "what": "block-256 DPP body with the two x4 loads staggered (second issued after the first returns: 1 KB in flight per wave)",
+   "state": "dbea8df1a3f326ba",
+   "outcome": "loss vs parent: 0.957 (0.952..0.961, 120 pairs)",
+   "speedup": 0.9567
   },
   {
-   "what": "Source: block 64, one wave loops over 4 consecutive outputs, grid / 4",
-   "state": "74203813c80cb890",
-   "outcome": "win, worst of the restructurings",
-   "speedup": 1.142
-  },
-  {
-   "what": "Source: block 1024 (16 waves), each lane reads 2 floats (2 of the 4 chunks), 512 B per wave, one barrier",
-   "state": "e9fe2a2a3a01b1a3",
-   "outcome": "win, barely",
-   "speedup": 1.043
-  },
-  {
-   "what": "coarsen factor 2 on 2ea5",
-   "state": "c0a067567223c352",
-   "outcome": "loss against its parent (0.932, CI 0.921-0.939), i.e. about 1.32x over ref",
-   "speedup": 1.32
-  },
-  {
-   "what": "PROBE (not a result): 2ea5 with the 6-step ds_bpermute reduction removed",
-   "state": "5e9eb58c0c4f045e",
-   "outcome": "0.0862 ms, same as parent: reduction is not on the critical path, so no DPP rewrite was attempted",
+   "what": "PROBE: empty kernel (s_endpgm first) at block 512 lds 0 / block 512 lds 32 KB / block 256 lds 32 KB / block 64 lds 40 KB",
+   "state": "698960bf77ba0c83, 6ec0dbbcd01f983f, 4bec9cdeb00a549b, d845f4db509a5131",
+   "outcome": "probe: 17.4 / 17.3 / 10.6 / 10.6 us; the 7 us saved in launch at block 256 does not appear in the full kernel (83.7 us both)",
    "speedup": null
-  },
-  {
-   "what": "PROBE (not a result): 2ea5 with s_barrier removed",
-   "state": "b29eca9086a92cfb",
-   "outcome": "0.0872 ms, same as parent: the barrier costs nothing measurable",
-   "speedup": null
-  },
-  {
-   "what": "PROBE (not a result): 2ea5 with the fast-path load removed",
-   "state": "612da7e3aaa3aa7a",
-   "outcome": "0.0259 ms: dispatch of 262144 waves plus launch is 26 us; the other 60 us are the reads (268 MB at about 4.5 TB/s)",
-   "speedup": null
-  },
-  {
-   "what": "coarsen on ref (earlier session, three states)",
-   "state": "b9a47b1af926c9a2",
-   "outcome": "parity / loss (0.996, 0.944, 0.973)",
-   "speedup": 0.996
   }
  ],
  "friction": [
-  "The 'read_only_tb_per_s: 7.5' that bench prints comes from MFMA GEMM operand loads (agc/arch/gfx950.yaml:55), which re-read cached operands. For a single cold pass over 268 MB the best I or the mo_reduce_sum session reached is about 4.5 TB/s after subtracting dispatch (3.1 to 3.2 TB/s overall). A measured 'cold streaming read' rate (sum over 2^26 floats, best known structure) in the arch file would give a truthful floor for reduction kernels; with it this kernel's reachable speedup would have read about 1.45x, not 1.87x.",
-  "source(): a sweep over block size needs the whole source text resent for each variant because the launch block/grid cannot reference the -D defines; I sent the same 60-line text five times. Launch expressions over defines (or source(parent_sha, defines, launch)) would make this one-liners.",
-  "No way to see why 2 KB or 8 KB per wave reads slower than 1 KB per wave (93-98 us against 86 us with the same total bytes and loads all in flight). A counter-based diagnostic (waves resident over time, vmem requests outstanding) or a documented model of the per-wave memory pipeline would turn this from trial and error into a decision.",
-  "probe requires building the cut-down state by hand with edit; 'probe(id, drop=\"loads\"|\"barriers\"|\"lds\")' would have saved three edit calls and is the diagnosis every session needs first.",
-  "State 'created' timestamps are in 2026-11 + ~1 year (1795199270): cosmetic, but confusing when ordering states."
+  "No way to set resident waves or workgroups per CU other than side effects (LDS reservation in whole workgroups, a dead write to a high VGPR). The VGPR route is not equivalent to the LDS route: 20 waves/CU through v95 measured 0.91 where 24 waves/CU through LDS measured 1.00; a note in features() on what the wave actually pays for a large VGPR allocation would have saved three timings.",
+  "check() reports resources.lds_bytes 32 for states launched with lds 32768 (aacdfffa24c1e947, 3dcf47e375b4f914), while features() reports 32800 for 23605de723d4eace: the two tools disagree on what the reservation is.",
+  "probe() returns only a median; no CI and no paired baseline time, so probe numbers from different calls (17.4 vs 10.6 us) can only be compared loosely.",
+  "Kernarg preload into SGPRs (arch: kernarg_preload_max_sgprs 16) cannot be requested from edit_ir/relaunch, so the s_load_dword + lgkmcnt(0) ahead of the only load could not be removed.",
+  "The bench input for N = 2^26 is exactly 256 MiB, the size arch() gives for the MALL; whether the alternating baseline/candidate launches read it from HBM or partly from that cache is not visible in `traffic`."
  ],
  "lessons": [
-  "rocBLAS-style reduction part1 kernels (512 threads, each looping over WIN=4 strided elements with one dword load and one full wait per iteration, then wave reduce + LDS + 2 barriers) sit at headroom 1.87-1.9. Making the threads loop-free at the same block size gives 1.41x (0.122 ms -> 0.086 ms at N = 2^26): either 4 single loads in flight per lane or re-assigning lanes so each wave reads 1 KB contiguous with one x4 load; the two are equal in a 240-pair compare (0.998).",
-  "Bytes per wave is the knob that mattered, not load shape or reduction: with the same total bytes, 1 KB per wave (block 512, 262144 waves) took 86 us; 2 KB per wave (block 256) 94-96 us; 4 KB (block 128) 98 us; 8 KB (one wave per output, block 64, no LDS at all) 93-99 us; 512 B per wave (block 1024, 16 waves per workgroup) 116 us. Keep waves at about 1 KB and let the workgroup have as many waves as the output needs, even if that costs an LDS merge and a barrier.",
-  "Probes on the best state: removing the 6-step ds_bpermute wave reduction 86.2 us (no change), removing the barrier 87.2 us (no change), removing the load 25.9 us. So for a 268 MB single-pass read, launch + dispatch of 262144 waves is 26 us and the reads are 60 us (about 4.5 TB/s); ALU, LDS and one barrier per 8-wave workgroup are free. Do not spend time on DPP reductions for such kernels.",
-  "The 7.5 TB/s 'read_only' rate is not reachable for a cold single pass; two reduction kernels (mo_reduce_sum 84 us, rb_nrm2 86 us for 2^26 floats) end at 3.1-3.2 TB/s overall. Treat about 85 us per 268 MB as the practical floor for read-and-reduce kernels when judging whether 1.5x is possible.",
-  "A wave that loops over several outputs (4 outputs per wave, grid / 4) is worse than one wave per output (1.14x against 1.26x), and coarsen factor 2 on the loop-free block-512 state loses 7 % (0.932 of its parent): fewer, longer waves do not help a read-bound kernel.",
-  "Tail handling by 'if (base + EPL <= n) wide unconditional loads else per-element guarded loads' passed all shape variants (N = 1, 40000 to 40008, where most workgroups have partially filled strided chunks) on every variant on the first try."
+  "rb_nrm2 (268 MB read once, 85-86 us baseline): three sessions now find the same ceiling of about 1.02-1.03x at 83.4-83.9 us. Block 512 amdclang code + 32 KB LDS, hand-written block 256 + 32 KB LDS, and block 256 + DPP reduce are equal in compare (0.998, 1.001).",
+  "The best LDS reservation is the one that leaves 2 workgroups per CU, independent of block size: block 256 at 3 per CU 0.925, at 1 per CU 0.948 relative to 2 per CU; block 512 earlier 1.00 / 1.02 / 0.966 for 3 / 2 / 1.",
+  "Throttling occupancy through the VGPR count loses heavily on a short loop-free wave: 96 VGPRs 0.91, 128 VGPRs 0.77, 168 VGPRs 0.59 (rb_dot: 144 VGPRs 0.95). Do not use it as a substitute for the LDS reservation.",
+  "Launch cost is not additive on a read-bound kernel: an empty kernel costs 17.4 us at 262144 waves (block 512) and 10.6 us at 131072 or 32768 waves (block 256 / 64), yet the full kernels run in the same 83.7 us. Subtracting a no-load probe from the total overstates what cheaper launches or shorter bodies can give.",
+  "Within a wave, keep both wide loads in flight: issuing the second x4 load after the first returned cost 4.3 % (dbea8df1a3f326ba)."
  ],
  "session": {
   "ok": true,
-  "cost_usd": 2.5472701999999994,
-  "turns": 57,
-  "final": "`rb_nrm2` is now **1.41x** faster than amdclang's build (0.0862 ms against 0.1219 ms; 240 pairs, CI 1.410 to 1.418), which is short of the 1.5x target. The state to ship is `2ea587532cfae1d5`; it passes the static check and the full 49-case battery, and the report is filed.\n\n- **What changed:** the 512-thread workgroup per output stays, but the per-thread strided loop is gone. Each of the 8 waves reads one contiguous 1 KB with a single wide load per lane and reduces in the wave. The 8 wave sums are merged through LDS with one barrier instead of two.\n- **Rounding:** results match within the manifest tolerance, not bit for bit, because the summation order changed.\n- **Which case this is:** the baseline was not memory-bound (reference headroom about 1.9, every element read once). The winning state sits at headroom 1.32 (3.1 TB/s).\n- **Why it stops here:** what is left is the reads themselves. The same waves without their load take 0.026 ms, and removing the reduction or the barrier changes nothing, so no machine-level rewrite of the reduction was attempted.\n\nBytes per wave was the knob that mattered:\n\n| Variant | State | Speedup vs amdclang |\n|---|---|---|\n| Block 512, 1 KB contiguous per wave (shipped) | `2ea587532cfae1d5` | 1.41 |\n| Block 512, 4 single loads in flight per lane | `7ef745fa6b5c5a2d` | 1.41 (parity with shipped in a direct compare) |\n| Block 256, 2 KB per wave (three variants) | `a88ffe4f807e148e`, `797938491aa3ef94`, `67826f2b49f0a5f7` | 1.28 to 1.30 |\n| Block 128, 4 KB per wave | `95c89a4c62e475cd` | 1.26 |\n| Block 64, one wave per output, 8 KB per wave | `5b5fb545c0d7c0f2` | 1.26 |\n| Block 256 as 4 independent waves, each a whole output | `76304d8378d3f00e` | 1.25 |\n| One wave looping over 4 outputs | `74203813c80cb890` | 1.14 |\n| Block 1024, 512 B per wave | `e9fe2a2a3a01b1a3` | 1.04 |\n| `coarsen` factor 2 on the shipped state | `c0a067567223c352` | about 1.32 (0.93 of its parent) |\n\nI stopped after 11 timed candidates and three probes because three",
-  "seconds": 347,
-  "log": ".agc/sessions/rb_nrm2-8e918a6b76/agent/20261120-182803.jsonl"
+  "cost_usd": 3.0866928000000002,
+  "turns": 61,
+  "final": "`rb_nrm2` is at the read floor, and this session did not get past the earlier ceiling: the shipped state `3dcf47e375b4f914` is 1.024x and 1.026x over the baseline (two 240-pair runs, CIs 1.019\u20131.026 and 1.021\u20131.030). The 1.5x target is not reachable here: every element is read exactly once and the baseline's headroom is 1.08.\n\nThe shipped state is a hand-written block-256 body: 4 waves, each reading its whole 2 KB chunk with two `global_load_dwordx4` in flight, a DPP wave reduce, and a 32 KB LDS reservation (2 workgroups per CU). It ties the earlier best (amdclang's code with the same reservation): compare 1.001, CI 0.997\u20131.006. Its outputs are within tolerance of the original binary but not bit-identical (14 of 50 cases identical, max relative difference 2.4e-7), because the summation order changes.\n\nWhat was measured this session:\n\n| Idea | State | Result |\n|---|---|---|\n| Throttle occupancy through the VGPR count (5 / 4 / 3 waves per SIMD) | `c36496efde5d2c6a`, `69c30efa98e7e787`, `7851b8d06b439e5d` | loss: 0.91 / 0.77 / 0.59 |\n| Block 256, 2 KB per wave, 32 KB LDS | `aacdfffa24c1e947` | 1.028 vs baseline; 0.998 vs earlier best (parity) |\n| Same body at 3 or 1 workgroups per CU | `09f4d8c283f6282e`, `d0b0d8089d94d632` | loss: 0.925 / 0.948 vs 2 per CU |\n| DPP reduce on the block-256 body | `3dcf47e375b4f914` | parity on top (shipped) |\n| Second load issued only after the first returns | `dbea8df1a3f326ba` | loss: 0.957 vs parent |\n\n- **Launch cost is not additive:** an empty kernel takes 17.4 \u00b5s at block 512 and 10.6 \u00b5s at block 256, yet both full kernels run in about 83.7 \u00b5s. The read stream alone sets the time, so cheaper launches or shorter bodies buy nothing.\n- **Two workgroups per CU is the optimum again**, independent of block size.\n\nThe report is recorded in `.agc/sessions/rb_nrm2-fbc3dceeae/report.json`. Not tested: block 128 at 2 workgroups per CU (expected parity at best) and kernarg preload (not expressible in the session).",
+  "seconds": 350,
+  "log": ".agc/sessions/rb_nrm2-fbc3dceeae/agent/20261121-062545.jsonl"
  },
- "recorded": "2026-11-20",
- "attribution": {
-  "levels": [
-   "source"
-  ],
-  "amdclang_on_rewritten_source": 1.404,
-  "machine_level_gain": 1.0
- }
+ "recorded": "2026-11-21"
 }

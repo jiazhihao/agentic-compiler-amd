@@ -206,6 +206,43 @@ def job_check(job) -> dict:
             "failures": [r for r in reports if not r["ok"]], "resources": cand.resources()}
 
 
+def job_diff(job) -> dict:
+    """Two code objects on the same inputs, their outputs compared with each other (not with the reference
+    program): are they bit-identical, and if not, how far apart and within the manifest's tolerance?"""
+    m = _manifest(job)
+    dev = hip.Device(0)
+    a = Loaded(dev, _image(job, "original_hsaco"), m.entry, job.get("original_launch"))
+    b = Loaded(dev, _image(job, "candidate_hsaco"), m.entry, job.get("candidate_launch"))
+    reports = []
+    for cd in job["cases"]:
+        case = Case.from_dict(cd)
+        resolved = m.resolve(case.symbols)
+        inputs = generate_inputs(m, resolved, case)
+        bound = Bound(dev, m, resolved, inputs)
+        try:
+            outs = []
+            for k in (a, b):
+                bound.reset()
+                bound.launch(k)
+                dev.synchronize()
+                outs.append(bound.outputs())
+            rep = compare_outputs(m, case.label, outs[1], outs[0], reference.scale(m, inputs, resolved)
+                                  if m.reference.kind != "none" else None).to_dict()
+            same = all(np.array_equal(outs[0][p.name].view(p.dtype.bits_view()), outs[1][p.name].view(p.dtype.bits_view()))
+                       for p in m.outputs())
+        finally:
+            bound.free()
+        row = {"case": rep["case"], "within_tolerance": rep["ok"], "bit_identical": bool(same),
+               "max_abs_err": max((x["max_abs_err"] for x in rep["tensors"]), default=0.0),
+               "max_rel_err": max((x["max_rel_err"] for x in rep["tensors"]), default=0.0),
+               "elements": sum(x["total"] for x in rep["tensors"]),
+               "outside_tolerance": sum(x["mismatches"] for x in rep["tensors"])}
+        if case.hidden:
+            row = {k: row[k] for k in ("case", "within_tolerance", "bit_identical")}
+        reports.append(row)
+    return {"ok": True, "cases": reports}
+
+
 def job_run(job) -> dict:
     """Run one case and return the raw outputs (for probes that discover what the hardware does:
     operand layouts, instruction semantics). Outputs are limited to 4 MiB."""
@@ -306,31 +343,47 @@ def job_bench(job) -> dict:
 
 
 def job_paired(job) -> dict:
+    """Both code objects in one process, launched alternately. With `placements` > 1 the tensors are freed and
+    allocated again between rounds (with a spacer of another size in between, so the allocator hands out other
+    memory): the time of a memory-bound kernel depends on where its tensors are, differently for each code
+    object, so one allocation measures one placement, not the code."""
     m, proto, dev, case, resolved, inputs, bound, timer = _bench_setup(job)
     ks = {"reference": Loaded(dev, _image(job, "reference_hsaco"), m.entry, job.get("reference_launch")),
           "candidate": Loaded(dev, _image(job, "candidate_hsaco"), m.entry, job.get("candidate_launch"))}
     expected, scale = _expected(m, resolved, inputs, bound, ks["reference"])
     out = {"protocol": proto.to_dict(), "case": case.label, "resources": {w: k.resources() for w, k in ks.items()}}
-    for i in range(proto.warmup):
-        for which in ks:
-            timer.time(bound, ks[which])
-            if i == 0:                  # both code objects are verified before anything is timed
-                rep = _verify(m, case, bound, expected, scale)
-                if not rep["ok"]:
-                    return {**out, "ok": False, "failed": which, "verification": rep}
+    rounds = max(1, int(proto.placements))
+    per = max(1, -(-proto.pairs // rounds))
     samples = {"reference": [], "candidate": []}
-    for cand_first in paired_orders(proto.pairs, proto.case_seed):
-        for which in (("candidate", "reference") if cand_first else ("reference", "candidate")):
-            samples[which].append(timer.time(bound, ks[which]))
+    spacers, placed = [], []
+    for rnd in range(rounds):
+        if rnd:
+            bound.free()
+            spacers.append(dev.alloc(((rnd % 16) * 2 + 1) << 21))          # kept: the next tensors land elsewhere
+            bound = Bound(dev, m, resolved, inputs)
+        for i in range(proto.warmup if rnd == 0 else 2):
+            for which in ks:
+                timer.time(bound, ks[which])
+                if i == 0:                  # both code objects are verified before anything is timed
+                    rep = _verify(m, case, bound, expected, scale)
+                    if not rep["ok"]:
+                        return {**out, "ok": False, "failed": which, "verification": rep}
+        placed.append({n: hex(p) for n, p in bound.pointers.items()})
+        for cand_first in paired_orders(per, proto.case_seed + rnd):
+            for which in (("candidate", "reference") if cand_first else ("reference", "candidate")):
+                samples[which].append(timer.time(bound, ks[which]))
     for which in ks:                    # the timed state is verified again after the measurement
         timer.time(bound, ks[which])
         rep = _verify(m, case, bound, expected, scale)
         if not rep["ok"]:
             return {**out, "ok": False, "failed": which, "verification": rep}
-    return {**out, "ok": True, **paired_summary(samples["reference"], samples["candidate"], proto.noise_floor)}
+    if job.get("series"):               # the raw samples in launch order (a diagnosis)
+        out["series"], out["pointers"] = samples, placed
+    return {**out, "ok": True, **paired_summary(samples["reference"], samples["candidate"], proto.noise_floor, per if rounds > 1 else None)}
 
 
-JOBS = {"info": job_info, "check": job_check, "bench": job_bench, "paired": job_paired, "run": job_run, "external": job_external}
+JOBS = {"info": job_info, "check": job_check, "bench": job_bench, "paired": job_paired, "run": job_run, "diff": job_diff,
+        "external": job_external}
 
 
 def main() -> int:

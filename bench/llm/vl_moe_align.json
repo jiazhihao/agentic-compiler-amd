@@ -143,5 +143,21 @@
   "llm",
   "vllm",
   "moe"
- ]
+ ],
+ "baseline": {
+  "source": "baselines/vl_moe_align.hip",
+  "launch": {
+   "grid": [
+    "1 + cdiv(NT + E * 63, 4096)",
+    1,
+    1
+   ],
+   "block": [
+    1024,
+    1,
+    1
+   ],
+   "lds": "4 * cdiv(E, 64) * 64 + 256"
+  }
+ }
 }

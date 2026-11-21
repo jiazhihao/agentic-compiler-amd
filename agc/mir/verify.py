@@ -44,7 +44,7 @@ def _fit(op, spec, enc: Encoding, isa: Isa, arch: Arch, narrow_addr: bool = Fals
             return None if ok else "`off` is only a memory base/offset"
         if (op.neg or op.abs) and not (("NEG" in fields or "SRC0_NEG" in fields) and spec.is_in):
             return "neg/abs modifier is not available in this encoding"
-        cls = {"vcc_lo": "vcc", "exec_lo": "exec"}.get(op.cls, op.cls)
+        cls = {"vcc_lo": "vcc", "vcc_hi": "vcc", "exec_lo": "exec", "exec_hi": "exec"}.get(op.cls, op.cls)   # halves: plain scalars to amdclang
         if cls == "vcc" and spec.type == "OPR_SREG_NOVCC" and lane_dst:
             return None                               # amdclang reloads a spilled VCC half with v_readlane_b32 vcc_lo, ...
         if cls not in classes:
@@ -122,7 +122,10 @@ def select(inst: Inst, isa: Isa, arch: Arch, labels: set[str] | None = None):
 def _select(inst: Inst, isa: Isa, arch: Arch, labels):
     r = isa.resolve(inst.mnemonic)
     if r is None:
-        return None, (), f"unknown instruction {inst.mnemonic!r}"
+        import difflib
+        stem = inst.mnemonic.removesuffix("_e32").removesuffix("_e64")
+        near = difflib.get_close_matches(stem, isa.names(), n=3, cutoff=0.75)
+        return None, (), f"unknown instruction {inst.mnemonic!r}" + (f" (gfx950 has {', '.join(near)})" if near else "")
     _, _, encodings = r
     ops = list(inst.operands)
     best = None

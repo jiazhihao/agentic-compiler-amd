@@ -14,143 +14,148 @@
   "lds": 0
  },
  "strict": false,
+ "attribution": {
+  "levels": [
+   "mir",
+   "source"
+  ],
+  "baseline": {
+   "source": "baselines/attn_decode.hip",
+   "launch": {
+    "grid": [
+     "Hk * G",
+     8,
+     1
+    ],
+    "block": [
+     1024,
+     1,
+     1
+    ],
+    "lds": 0
+   }
+  },
+  "over_strongest_amdclang": 1.5519,
+  "over_shipped_O3": 11.5027
+ },
  "path": [
-  "source"
+  "source",
+  "edit"
  ],
  "verified": {
   "outcome": "win",
-  "speedup": 7.3994,
+  "speedup": 1.5519,
   "speedup_ci95": [
-   7.3926,
-   7.407
+   1.5473,
+   1.5565
   ],
-  "reference_ms": 1.25286,
-  "candidate_ms": 0.16938,
+  "reference_ms": 0.16778,
+  "candidate_ms": 0.10818,
   "cases": 98,
   "protocol_version": "agc-timing-amd-2",
+  "equivalent": {
+   "ok": true,
+   "cases": 99,
+   "bit_identical": false,
+   "bit_identical_cases": 0,
+   "within_tolerance": true,
+   "max_abs_err": 0.048828125,
+   "max_rel_err": 0.009711246083254408,
+   "worst_case": "large_exponent/seed0[G=2,Hk=4,S=300]",
+   "failing": [],
+   "error": null
+  },
   "pairs": 240,
   "runs": [
    {
-    "speedup": 7.3994,
+    "speedup": 1.5519,
     "ci95": [
-     7.3926,
-     7.407
+     1.5473,
+     1.5565
     ],
     "valid": true
    },
    {
-    "speedup": 7.414,
+    "speedup": 1.5561,
     "ci95": [
-     7.4057,
-     7.4239
+     1.5489,
+     1.5634
     ],
     "valid": true
    }
   ]
  },
- "summary": "State 744c5b881ccbe554 (source level) is 7.38x faster than amdclang's build (0.1695 ms vs 1.2505 ms, 240 pairs, CI 7.374 to 7.389; static check passes, battery 98/98). Reference headroom is 40: the baseline is not memory bound, it is bound by per-iteration load latency and barriers (64 tiles x (128 + 128 one-dword load-wait iterations) and 19 barriers per tile in 2 waves per head). The winning state launches grid (Hk*G, 8) x block 1024: every workgroup scores a tile of 1024 keys with one key per thread (16 global_load_dwordx4 in flight per wait, q read through s_load_dwordx16), reduces max and sum through a two-level LDS reduction (2 barriers instead of 8 per reduction), and accumulates 16 of the 128 output columns with the tile's keys split over 64 thread groups (16 value loads in flight per wait); the 8 workgroups of a head each recompute the scores and own disjoint output columns, so no cross-workgroup communication is needed. Results meet the manifest tolerance but are not bit-identical to the baseline (summation order within a tile differs, and the tile is 1024 keys instead of 128).",
+ "summary": "State a4109addcd127ff0 (machine-IR edit of the baseline, static check clean, battery 98/98) is 1.561x over the strongest amdclang build (CI 1.557-1.565, 240 pairs; 105 us against 164 us). amdclang's key phase gives every lane its own key row, so each global_load_dwordx4 touches 64 rows 4 KB apart; the rewritten key phase lets 32 lanes span one 512 B key row (each x4 load reads two contiguous rows), keeps the query parts in 4 VGPRs per lane (no s_load_dwordx16 per batch), sums the 32 per-lane partial dots with DPP (4 row folds + row_bcast:15), writes each score from lanes 16/48 to s_red[key] and lets each thread read its own score back, so the rest of amdclang's code is untouched. Loads are pipelined (16 in flight, the second 16 reissued into freed registers), partial tiles are masked with v_cmpx. Case: not at a memory floor - the kernel re-reads keys 32x (1 GB real traffic vs 67 MB in the model) and was bound by the access pattern of those re-reads per workgroup, not by bytes; my own source variant (4 queries sharing one key load) was a loss (0.91x) and is not part of the result.",
  "tried": [
   {
-   "what": "source: block 1024, tile 1024 keys, float4 dot fully unrolled (32 x4 loads at once)",
-   "state": "335ff2a4b67fa9a1",
-   "outcome": "refused by static_check: amdclang spilled VGPRs to scratch (scratch_store/load with `off, off`), not timed",
+   "what": "Source: QPB=4 queries of a kv head share one key load per workgroup (64 workgroups, 4x fewer key bytes, 4 barriers per tile); needed -fno-slp-vectorize and a vcc->s[100:101] rename to pass static_check",
+   "state": "7b30ddbd00a3d946",
+   "outcome": "loss",
+   "speedup": 0.911
+  },
+  {
+   "what": "PROBE: baseline with one of two key batches (half the key bytes): 100 us vs 166 us",
+   "state": "b0388fe9ab686d25",
+   "outcome": "diagnostic, key phase ~120 of 166 us",
    "speedup": null
   },
   {
-   "what": "same, loops not unrolled, but outputs indexed without the head offset (my bug)",
-   "state": "ee06cf0bf899bb1e",
-   "outcome": "battery failed (only head 0 written), not timed",
+   "what": "PROBE: baseline with no key valid (key phase skipped): 45 us",
+   "state": "469fd8152480e9df",
+   "outcome": "diagnostic, values + reductions + launch = 45 us",
    "speedup": null
   },
   {
-   "what": "source: block 1024, one key per thread with 4 x4 loads per wait, 2-level LDS reductions, value accumulation split 8 ways per column, 4 value loads per wait",
-   "state": "6c9b9bf9abb69ff8",
-   "outcome": "win",
-   "speedup": 4.055
-  },
-  {
-   "what": "same with 16 x4 key loads per wait and 32 value loads per wait, pointer-stepped value addresses",
-   "state": "d10e06a74af0f79e",
-   "outcome": "win",
-   "speedup": 5.22
-  },
-  {
-   "what": "2 workgroups per head, 64 output columns each (scores recomputed in both)",
-   "state": "c1a91d5b9fd5f66a",
-   "outcome": "win",
-   "speedup": 6.505
-  },
-  {
-   "what": "4 workgroups per head, 32 columns each",
-   "state": "4c835acc5072ac98",
-   "outcome": "win",
-   "speedup": 7.291
-  },
-  {
-   "what": "8 workgroups per head, 16 columns each, 16 value loads per wait",
-   "state": "744c5b881ccbe554",
-   "outcome": "win (best; 7.385 at 60 pairs, 7.381 at 240 pairs)",
-   "speedup": 7.381
-  },
-  {
-   "what": "all 32 x4 key loads of a row before one wait (KB=32) on the 4-workgroup state",
-   "state": "6cbaba85a9bf512e",
-   "outcome": "refused by static_check: scratch spills again (amdclang stays within 128 VGPRs), not timed",
+   "what": "PROBE: baseline launched with 64 instead of 256 workgroups: 168 us, unchanged",
+   "state": "9134ec6741ed1660",
+   "outcome": "diagnostic: per-workgroup time does not depend on how many CUs are busy, so not a global bandwidth limit",
    "speedup": null
   },
   {
-   "what": "key loads in source batches of 24 + 8",
-   "state": "3a821263bd3c3fc2",
-   "outcome": "refused by static_check: amdclang merged the batches into the same code as KB=32 (scratch spills), not timed",
+   "what": "PROBE: same number of key loads and bytes, but each x4 load reads 1 KB contiguous across lanes: 84 us vs 166 us",
+   "state": "4714954ca3396011",
+   "outcome": "diagnostic: the lane-strided gather is what is slow",
    "speedup": null
   },
   {
-   "what": "4-accumulator fma dot (v_pk_fma_f32, 64 instead of 192 VALU per row) on the 4-workgroup state",
-   "state": "6d1c7feb0d48c93e",
-   "outcome": "win over ref but a loss against its parent 4c835a (186.6 us vs 171.5 us, about 0.92x)",
-   "speedup": 6.673
+   "what": "Machine IR: contiguous key rows across 32 lanes + DPP 32-lane sum + scores through s_red; loop of 2 batches of 16 loads, one reduction at a time (fix_hazards added s_nop 1 before every DPP)",
+   "state": "2fc282f4b0d572ca",
+   "outcome": "win",
+   "speedup": 1.498
   },
   {
-   "what": "machine IR: prefetch of the second half of the key row (5 dword loads into dead registers before the first batch) on the best state",
-   "state": "acf2e58d593ebc46",
-   "outcome": "win over ref but a loss against its parent 744c5b (187.5 us vs 169.7 us, about 0.90x)",
-   "speedup": 6.669
+   "what": "Same, straight line: pipelined reloads (vmcnt(12) per group of 4), 4 DPP reductions interleaved so no nops, v_cmpx load masking, one exec toggle per 4 LDS writes",
+   "state": "a4109addcd127ff0",
+   "outcome": "win (240 pairs)",
+   "speedup": 1.561
   }
  ],
  "friction": [
-  "static_check rejects amdclang's own spill code: `scratch_store_dword off, v0, off` / `scratch_load_dwordx2 v[2:3], off, off offset:N` are reported as illegal_instruction (operand ADDR: `off` is only a memory base/offset) in 335ff2a4b67fa9a1, 6cbaba85a9bf512e, 3a821263bd3c3fc2. Either the verifier should accept scratch accesses or `source` should report 'the compiler spilled N VGPRs' as one finding instead of 20 instruction errors.",
-  "amdclang keeps the kernel within 128 VGPRs and spills beyond that, and I found no way from `source` to raise the limit (the machine has more registers and occupancy was irrelevant here: 16 waves per workgroup). 32 x4 loads in flight (128 data registers) could therefore not be expressed at the source level; a compile flag or attribute passthrough in `source` would have allowed the test.",
-  "Source-level batching of loads is not controllable: batches of 24 + 8 loads written as two blocks were merged by the compiler into one 32-load batch (3a821263 has the same listing as 6cbaba85).",
-  "`edit` with op insert at index == block length is refused (\"count 1 runs past the end of block .Lft1 (8 instructions)\") although the tool description says index == block length appends.",
-  "`unroll_loads` / hand restructuring of the compiled key loop to 32 loads in flight would need a rewrite of a 140-instruction loop body with renamed registers; a transform 'fuse the two iterations of a counted loop with fresh registers' would have made that test cheap.",
-  "No way to time parts of a kernel or a deliberately incomplete variant (bench needs a passing battery), so separating the score phase, the value phase and the barrier/reduction overhead had to be inferred from legitimate variants (column split 1/2/4/8). A per-phase timing or a 'diagnostic bench' for unverified states would have saved several candidates.",
-  "No scratch memory and outputs are poisoned before the launch, so partial results of several workgroups cannot be combined; splitting the keys of one head over workgroups (the split that would cut the key bytes per CU) cannot be expressed. A manifest-level scratch tensor or a second launch (two-pass kernel) would open that.",
-  "static_check warns `undefined_read` on compiler-generated code (v_writelane_b32 v88, s4, 0 as the first write of a spill register; v_mad_u64_u32 high half) in every source state: these are false positives of partial writes.",
-  "`traffic` assumes every element is read once; this kernel reads K and V once per query head and per column workgroup (G = 4, then x8 for K), so the reported tb_per_s (0.4) understates the real traffic by an order of magnitude."
+  "static_check refuses amdclang's own output: `s_addc_u32 vcc_hi, s86, s53` (states 15c9ffa9f532aaa0 and a6e540a9d2303f1e, .LBB0_5) with 'a vcc_hi register is not allowed here (OPR_SDST)'. amdclang uses vcc as a plain scalar pair when it runs out of SGPRs; I believe the finding is wrong. Worked around by renaming to s[100:101] by hand.",
+  "No way to generate repetitive IR: the winning edit is ~500 hand-expanded lines (16 load steps, 8 groups of 4 interleaved reductions). A repeat/template facility in edit (text with {i} substitution over a list of register tuples) would have saved most of the session's time and removed transcription risk.",
+  "edit echoes the full ops text back in its result, doubling the cost of large edits.",
+  "The battery only has S <= 307, so a full-tile fast path (S >= 1024) would never be exercised by check; I had to keep a single masked path for all tiles instead of a cheaper unmasked fast path. A battery shape with S > block size would allow it.",
+  "bench's traffic/headroom model (67 MB, headroom 4.7) is far from this kernel's real traffic (about 1.15 GB, keys re-read by 32 workgroups per kv head); no tool reports bytes actually loaded per launch.",
+  "fix_hazards resolves DPP read-after-write only with s_nop 1; it cannot interleave independent chains, which is what removed the nops here (worth 4 %).",
+  "No documentation in arch()/notes of DPP row_bcast:15/31 or of v_cmpx writing EXEC; both had to be tried to find out they are accepted.",
+  "The value phase (about 25 us with launch) was not reached in the budget: it still does 16 dword loads per thread at a 256 KB stride and 3 barriers per tile."
  ],
  "lessons": [
-  "attn_decode (reference headroom 40, not memory bound): the baseline runs one 128-thread workgroup per head with a 128-key tile, a one-dword load and a full wait per loop iteration, and 19 barriers per tile. Block 1024 with one key per thread, x4 loads and two-level LDS reductions gave 4.05x; more loads in flight per wait (4 -> 16 x4 key loads, 4 -> 32 value loads) took it to 5.22x.",
-  "When a workgroup cannot be split along its reduction axis (no cross-workgroup communication), split the OUTPUT instead and recompute the shared part: 2 / 4 / 8 workgroups per head, each recomputing all scores and owning 64 / 32 / 16 output columns, gave 6.51x / 7.29x / 7.38x (240 -> 192 -> 171.5 -> 169.7 us). The gain saturates at 4: what is left is the part every workgroup must repeat.",
-  "A workgroup runs on one CU, and one CU with 16 waves moved about 4 MB of key rows in roughly 100 us here (about 40 GB/s). The remaining time behaved as load-throughput bound per CU, not latency bound: adding 5 prefetch loads per key row cost 10 % (0.90x), and 3x fewer VALU instructions in the dot product (v_pk_fma_f32 with 4 accumulators instead of v_pk_mul_f32 + adds with scalar q operands) was 8 % slower (0.92x), not faster.",
-  "amdclang reads a wave-uniform input vector (q) with s_load_dwordx16 into SGPRs and uses them as VALU operands (v_pk_mul_f32 v, s, v): no vector loads for the query at all. Rewriting the dot with explicit fma accumulators lost that form and was slower.",
-  "A two-level LDS reduction over 1024 threads (32 threads reduce 32 values each with ds_read_b128, then every thread reduces the 32 partials) needs 2 barriers instead of log2(N)+2 and compiles to v_max3_f32 chains.",
-  "amdclang spills to scratch beyond 128 VGPRs, and static_check refuses scratch accesses: keep source-level load batches at or below about 16 x4 loads (64 data registers) plus temporaries.",
-  "Battery shapes (S=300, Hk=3, G=2) exercise partial tiles and non-power-of-two heads: a restructured kernel needs the masked tail paths (j < kv_len, short tile) and they passed 98/98 without bit-identity, within rtol 1e-4."
+  "Lane-strided gathers of wide loads are slow even from cache: attn_decode's key phase, where each of 64 lanes reads its own row 4 KB apart with 16 global_load_dwordx4 per batch, took ~120 us; a probe issuing the same number of loads and bytes with each instruction reading 1 KB contiguous across the lanes took ~38 us (whole kernel 166 -> 84 us). Rule: make the lanes of one load instruction contiguous in memory, and get the per-row reduction with DPP instead of giving every lane its own row.",
+  "Probe before choosing the lever: relaunching the baseline with a quarter of the workgroups gave the same time (168 vs 166 us), which showed the limit was per workgroup, not global bandwidth; a source variant with 4x fewer key bytes on 64 workgroups was then 0.91x. Fewer bytes does not help when the per-workgroup load pattern is the limit.",
+  "32-lane sum without LDS trees: 4 row folds (quad_perm [1,0,3,2], [2,3,0,1], row_half_mirror, row_mirror) then `v_add_f32_dpp v, v, v row_bcast:15 row_mask:0xa bank_mask:0xf` leaves each half-wave's total in rows 1 and 3 (lanes 16-31, 48-63). Writing it with ds_write_b32 under exec = 0x0001000000010000 to the slot of the owning thread and reading it back per thread (same wave, no barrier) keeps the thread<->element mapping of the surrounding amdclang code intact.",
+  "DPP needs 2 wait states after a write of its source register; interleaving 4 independent reductions satisfies it with no nops. Together with pipelined reloads (consume 4 loads, reissue 4 into the freed registers, constant vmcnt(12)) and fewer exec toggles this took 1.50x to 1.56x.",
+  "`v_cmpx_gt_i32_e32 vcc, sN, vK` masks a load in one instruction (EXEC &= compare). For validity that is monotonic along the steps, lanes that drop out need no bookkeeping: their index is not advanced under the mask, so they stay invalid after EXEC is restored.",
+  "A wave-uniform row that becomes per-lane after the layout change (the query: 4 floats per lane for a fixed lane position) costs 4 VGPRs loaded once, replacing 4 s_load_dwordx16 and a lgkmcnt wait per batch.",
+  "amdclang with 4 queries per workgroup issues s_load_dwordx16 for the query rows one at a time with an lgkmcnt(0) wait each inside the hot loop (16 scalar loads, ~10 waits per batch) and runs out of SGPRs (uses vcc as a pointer)."
  ],
  "session": {
   "ok": true,
-  "cost_usd": 4.6622976,
-  "turns": 55,
-  "final": "Shipped state `744c5b881ccbe554`: **7.38x** over amdclang (0.1695 ms vs 1.2505 ms at 240 pairs, CI 7.374\u20137.389). It passes the static check and the full battery (98/98), and the report is recorded.\n\n**Which case this is:** reference headroom is 40, so the baseline is nowhere near memory bound. It was bound by one single-float load and a full wait per loop iteration, plus 19 barriers per tile, in only 2 waves per head.\n\n**What the winning state does differently (source level):**\n- **Launch:** grid `(Hk*G, 8)` with 1024-thread blocks instead of `(Hk*G)` with 128.\n- **Scores:** one key per thread over a 1024-key tile, with 16 four-float loads in flight per wait.\n- **Reductions:** a two-level shared-memory reduction for the max and the sum, 2 barriers each instead of 8.\n- **Output split:** each head is split over 8 workgroups that each recompute the scores and own 16 of the 128 output columns, so no communication between workgroups is needed.\n\nResults meet the manifest tolerance but are not bit-identical to the baseline, because the summation order and tile size differ.\n\n| Step | State | Speedup |\n|---|---|---|\n| Block 1024, wide loads, two-level reductions | `6c9b9bf9` | 4.05x |\n| More loads in flight per wait | `d10e06a7` | 5.22x |\n| 2 workgroups per head | `c1a91d5b` | 6.51x |\n| 4 workgroups per head | `4c835acc` | 7.29x |\n| 8 workgroups per head | `744c5b88` | 7.38x |\n\n**What did not pay:**\n- A 4-accumulator fused multiply-add dot product was about 8% slower than its parent (`6d1c7feb`, 6.67x over ref).\n- Prefetching the second half of each key row at the machine level was about 10% slower than its parent (`acf2e58d`, 6.67x over ref).\n- Putting all 32 key loads of a row in flight could not be tested: amdclang spills past 128 vector registers and the static check rejects its spill code.\n\nThe last three ideas (8-way split, cheaper dot, prefetch) each brought under 1% or a loss, so I stopped there. What remains appears to be the key-row reads each workgroup must repeat",
-  "seconds": 521,
-  "log": ".agc/sessions/attn_decode-ef3ccd4f9c/agent/20261120-162837.jsonl"
+  "cost_usd": 6.762703600000001,
+  "turns": 44,
+  "final": "The kernel now runs at **1.56x** over the strongest amdclang build (105 us against 164 us, CI 1.557\u20131.565 at 240 pairs), which meets the 1.5x target. The shipped state is `a4109addcd127ff0`: static check clean, battery 98/98, and the report is filed. The harness's own two re-verification timings have not come back yet.\n\n**What bounded the kernel.** It was not at a memory floor. The keys are re-read by 32 workgroups per KV head (about 1.15 GB of real traffic against the 67 MB the headroom model assumes), and the key phase took about 120 of the 166 us. Probes showed the limit was the access pattern, not the byte count:\n- Launching a quarter of the workgroups left the time unchanged (168 us), so it is not global bandwidth.\n- The same loads and bytes, but with each load instruction reading 1 KB contiguous across the lanes, ran in 84 us instead of 166 us.\n\n**What the winning state does differently from amdclang.** amdclang gives every lane its own key row, so each `global_load_dwordx4` touches 64 rows 4 KB apart. The rewritten key phase changes that:\n- **Contiguous loads:** 32 lanes span one 512 B key row, so each load reads two contiguous rows.\n- **Query in registers:** the query parts sit in 4 VGPRs per lane, replacing the per-batch scalar loads.\n- **DPP reduction:** the 32 partial dots are summed with four row folds plus `row_bcast:15`, and each score is written to the owning thread's LDS slot and read back, so the rest of amdclang's code is untouched.\n- **Pipelining:** 16 loads stay in flight, with the second 16 reissued into freed registers; partial tiles are masked with `v_cmpx`.\n\nThe dot products are now summed in a different order, so results match within the manifest tolerance rather than bit for bit.\n\n**Tried along the way.**\n\n| Idea | State | Outcome |\n|---|---|---|\n| Source rewrite: 4 queries share one key load per workgroup (4x fewer key bytes) | `7b30ddbd00a3d946` | loss, 0.91x |\n| Contiguous key phase, first version (loop, one reduction at a time, nops bef",
+  "seconds": 769,
+  "log": ".agc/sessions/attn_decode-69c8eacfa7/agent/20261120-232335.jsonl"
  },
- "recorded": "2026-11-20",
- "attribution": {
-  "levels": [
-   "source"
-  ],
-  "amdclang_on_rewritten_source": 7.3994,
-  "machine_level_gain": 1.0
- }
+ "recorded": "2026-11-21"
 }

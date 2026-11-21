@@ -12,6 +12,15 @@ followed by vector arithmetic, and builds
     <the original loop, for the remaining iterations>
     EXIT:
 
+An exec-mask loop (amdclang's form of a loop whose trip count differs per lane: a per-lane counter,
+a compare, `exec &= ~done`, `s_cbranch_execnz`) is unrolled behind a guard instead of a count:
+
+    GUARD: if any active lane is within N iterations of its end goto LOOP0
+    LOOP:  N iterations' loads; the arithmetic of the N iterations; goto GUARD
+    LOOP0: <the original loop>
+
+While the guard holds no lane leaves, so EXEC does not change during the unrolled iterations.
+
 The floating-point operations run in the original order on the same values, so the result is
 bit-identical. Waits and hazard wait states are re-derived by `fix_waits` / `fix_hazards`.
 """
@@ -60,6 +69,7 @@ class Loop:
     waits: list[int]
     trip_step: int = 1
     info: dict = field(default_factory=dict)
+    mask: dict | None = None       # an exec-mask loop (lanes leave one by one): see `_mask_control`
 
 
 def _imm(op) -> int | None:
@@ -91,6 +101,90 @@ def explain(k: Kernel, arch: Arch | None = None) -> dict[str, str]:
     return res
 
 
+_CMP_TYPES = {"i32": 1, "u32": 1, "i64": 2, "u64": 2}
+
+
+def _mask_control(b: Block, infos: list) -> tuple[set, dict]:
+    """The control of an exec-mask loop, as amdclang emits a loop whose trip count differs per lane:
+
+        counter += step                      (v_add_u32 r, c, r | v_lshl_add_u64 r, r, 0, step)
+        C = v_cmp(bound, counter)            lanes that are done
+        SM = SM | C
+        ...
+        exec = exec & ~SM
+        s_cbranch_execnz LOOP
+
+    Returns the indices of the control instructions (the counter update is ordinary arithmetic or a
+    pointer and stays in the body) and what the guard of the unrolled loop needs."""
+    n = len(b.insts)
+    andn = [i for i, x in enumerate(infos) if ("exec", 0) in x.defs]
+    if len(andn) != 1 or b.insts[andn[0]].mnemonic != "s_andn2_b64":
+        raise NotApplicable("EXEC is not narrowed by one `s_andn2_b64 exec, exec, mask`")
+    x = b.insts[andn[0]]
+    if str(x.operands[0]) != "exec" or str(x.operands[1]) != "exec" or not (isinstance(x.operands[2], Reg) and x.operands[2].cls == "s"):
+        raise NotApplicable(f"`{x}`: not `exec = exec & ~mask` with the mask in SGPRs")
+    sm = x.operands[2]
+    smu = set(units(sm))
+    ors = [i for i, y in enumerate(infos) if y.defs & smu]
+    if len(ors) != 1 or b.insts[ors[0]].mnemonic != "s_or_b64" or ors[0] > andn[0]:
+        raise NotApplicable("the exit mask is not accumulated by one `s_or_b64`")
+    o = b.insts[ors[0]]
+    srcs = [q for q in o.operands[1:] if q != sm]
+    if o.operands[0] != sm or len(srcs) != 1 or not isinstance(srcs[0], Reg):
+        raise NotApplicable(f"`{o}`: not `mask = mask | done`")
+    c = srcs[0]
+    cu = {("vcc", 0)} if c.cls.startswith("vcc") else set(units(c))
+    cmps = [i for i, y in enumerate(infos) if y.defs & cu]
+    if len(cmps) != 1 or cmps[0] > ors[0] or not b.insts[cmps[0]].mnemonic.startswith("v_cmp_"):
+        raise NotApplicable("the lanes that are done do not come from one vector compare")
+    cmp = b.insts[cmps[0]]
+    parts = cmp.mnemonic.split("_")                       # v_cmp_<op>_<type>[_e32|_e64]
+    op, ty = parts[2], parts[3]
+    if ty not in _CMP_TYPES:
+        raise NotApplicable(f"`{cmp}`: not an integer compare")
+    control = {cmps[0], ors[0], andn[0], n - 1}
+    for i, y in enumerate(infos):
+        if i not in control and (y.uses & (cu | smu) or ("scc", 0) in y.uses):
+            raise NotApplicable(f"`{b.insts[i]}` reads the loop's exit mask or the condition code")
+    written = set().union(*(y.defs for y in infos))
+    lhs, rhs = cmp.operands[1], cmp.operands[2]
+    is_counter = lambda q: isinstance(q, Reg) and q.cls == "v" and set(units(q)) & written
+    invariant = lambda q: isinstance(q, Imm) or (isinstance(q, Reg) and q.cls in ("s", "v") and not set(units(q)) & written)
+    if is_counter(rhs) and invariant(lhs):
+        r, bound, side = rhs, lhs, 2
+    elif is_counter(lhs) and invariant(rhs):
+        r, bound, side = lhs, rhs, 1
+    else:
+        raise NotApplicable(f"`{cmp}`: not a per-lane counter against a loop-invariant bound")
+    if r.count != _CMP_TYPES[ty]:
+        raise NotApplicable(f"`{cmp}`: the counter is not {ty}")
+    ru = set(units(r))
+    upd = [i for i, y in enumerate(infos) if y.defs & ru]
+    if len(upd) != 1 or upd[0] > cmps[0]:
+        raise NotApplicable("the per-lane counter is not advanced once before the exit compare")
+    u = b.insts[upd[0]]
+    if u.mnemonic.startswith("v_add_u32") and r.count == 1 and u.operands[0] == r and r in u.operands[1:] \
+            and _imm(next(q for q in u.operands[1:] if q != r) if any(q != r for q in u.operands[1:]) else None) is not None:
+        step = _imm(next(q for q in u.operands[1:] if q != r))
+        step = step - (1 << 32) if step >= 1 << 31 else step
+    elif u.mnemonic == "v_lshl_add_u64" and r.count == 2 and u.operands[0] == r and u.operands[1] == r and _imm(u.operands[2]) == 0:
+        step = _imm(u.operands[3])
+        if step is None:
+            step = u.operands[3]
+            if not (isinstance(step, Reg) and step.cls == "s" and not set(units(step)) & written):
+                raise NotApplicable(f"`{u}`: the step is not a loop-invariant scalar")
+    else:
+        raise NotApplicable(f"`{u}`: the per-lane counter is not advanced by a constant or a loop-invariant scalar")
+    rising = (side == 2 and op in ("le", "lt")) or (side == 1 and op in ("ge", "gt"))
+    if rising and (not isinstance(step, int) or step > 0):
+        kind = "rising"                                    # done when the counter reaches the bound from below
+    elif op == "eq" and isinstance(step, int) and step < 0 and ty == "u32" and _imm(bound) == 0:
+        kind = "countdown"                                 # done when the counter reaches exactly 0
+    else:
+        raise NotApplicable(f"`{cmp}` with `{u}`: not a counter rising to a bound nor a countdown to 0")
+    return control, {"counter": r, "bound": bound, "side": side, "op": op, "type": ty, "step": step, "kind": kind, "cmp": cmps[0]}
+
+
 def analyze(k: Kernel, bi: int, g: Cfg) -> Loop:
     b = k.blocks[bi]
     infos = g.infos[bi]
@@ -99,24 +193,34 @@ def analyze(k: Kernel, bi: int, g: Cfg) -> Loop:
     if bi + 1 >= len(k.blocks):
         raise NotApplicable("the loop has no fall-through exit")
     last = b.insts[-1]
-    if last.mnemonic != "s_cbranch_scc0" or str(last.operands[0]) != b.label:
-        raise NotApplicable("the back edge is not `s_cbranch_scc0` on a counter compare")
+    if str(last.operands[0]) != b.label or last.mnemonic not in ("s_cbranch_scc0", "s_cbranch_execnz"):
+        raise NotApplicable("the back edge is neither `s_cbranch_scc0` on a counter compare nor `s_cbranch_execnz` of an exec-mask loop")
     if any(i.branch for i in infos[:-1]):
         raise NotApplicable("the loop body branches")
-    # ---- the counter: `s_add_i32 c, c, -1` ... `s_cmp_eq_u32 c, 0` ------------------------------
-    cmp_i = next((i for i in range(len(b.insts) - 2, -1, -1) if b.insts[i].mnemonic.startswith("s_cmp")), None)
-    if cmp_i is None or b.insts[cmp_i].mnemonic != "s_cmp_eq_u32" or _imm(b.insts[cmp_i].operands[1]) != 0:
-        raise NotApplicable("the exit test is not `s_cmp_eq_u32 counter, 0`")
-    counter = b.insts[cmp_i].operands[0]
-    dec_i = next((i for i, x in enumerate(b.insts) if x.mnemonic in ("s_add_i32", "s_add_u32") and x.operands[0] == counter
-                  and x.operands[1] == counter and _imm(x.operands[2]) == -1), None)
-    if dec_i is None or dec_i > cmp_i:
-        raise NotApplicable("the counter is not decremented by one before the test")
-    if any(("scc", 0) in infos[i].defs for i in range(cmp_i + 1, len(b.insts) - 1)):
-        raise NotApplicable("the condition code is overwritten between the test and the branch")
+    mask = None
+    counter, trip_step, dec_i, cmp_i = None, 1, None, None
+    if last.mnemonic == "s_cbranch_execnz":
+        used, mask = _mask_control(b, infos)
+    else:
+        # ---- the counter: `s_add_i32 c, c, -1` ... `s_cmp_eq_u32 c, 0` --------------------------
+        cmp_i = next((i for i in range(len(b.insts) - 2, -1, -1) if b.insts[i].mnemonic.startswith("s_cmp")), None)
+        if cmp_i is None or b.insts[cmp_i].mnemonic != "s_cmp_eq_u32" or _imm(b.insts[cmp_i].operands[1]) != 0:
+            raise NotApplicable("the exit test is not `s_cmp_eq_u32 counter, 0`")
+        counter = b.insts[cmp_i].operands[0]
+        # the counter may go down by more than one per iteration (a loop amdclang unrolled itself:
+        # `#pragma unroll 2`); it ends at exactly 0, so it is a multiple of the step
+        dec_i = next((i for i, x in enumerate(b.insts) if x.mnemonic in ("s_add_i32", "s_add_u32") and x.operands[0] == counter
+                      and x.operands[1] == counter and (_imm(x.operands[2]) or 0) < 0 and -_imm(x.operands[2]) <= 64), None)
+        if dec_i is None or dec_i > cmp_i:
+            raise NotApplicable("the counter is not decremented by a constant before the test")
+        trip_step = -_imm(b.insts[dec_i].operands[2])
+        if sum(1 for i in infos if ("s", counter.index) in i.defs) != 1:
+            raise NotApplicable("the counter is written more than once in the loop")
+        if any(("scc", 0) in infos[i].defs for i in range(cmp_i + 1, len(b.insts) - 1)):
+            raise NotApplicable("the condition code is overwritten between the test and the branch")
+        used = {dec_i, cmp_i, len(b.insts) - 1}
     # ---- pointers ---------------------------------------------------------------------------------
     pointers: list[Pointer] = []
-    used = {dec_i, cmp_i, len(b.insts) - 1}
     written = set()
     for i in infos:
         written |= i.defs
@@ -150,6 +254,8 @@ def analyze(k: Kernel, bi: int, g: Cfg) -> Loop:
             continue
         if info.name == "s_waitcnt":
             waits.append(i)
+        elif info.name == "s_nop":
+            pass                                     # wait states are derived again for the new body
         elif info.load and (info.vmem or info.smem) and not info.lds_dma:
             if len(x.operands) < 2:                  # s_memtime, s_memrealtime: a pending result, no address
                 raise NotApplicable(f"`{x}`: an asynchronous result without an address")
@@ -170,7 +276,7 @@ def analyze(k: Kernel, bi: int, g: Cfg) -> Loop:
             loads.append((i, p, applied[id(p)] if p else 0))
             load_dsts |= info.defs
         elif info.valu and not info.mfma and not info.lds_dma:
-            control = set(by_units) | set(units(counter))
+            control = set(by_units) | (set(units(counter)) if counter is not None else set())
             if info.defs & {("scc", 0), ("exec", 0)} or info.defs & control:
                 raise NotApplicable(f"`{x}` writes loop control state")
             if info.uses & control:                  # the unrolled body advances these once, for all copies
@@ -193,7 +299,12 @@ def analyze(k: Kernel, bi: int, g: Cfg) -> Loop:
         live_in_exit = (live_in_exit - nxt[0].defs) | nxt[0].uses
     if load_dsts & live_in_exit:
         raise NotApplicable("a loaded value is used after the loop")
-    return Loop(bi, b.label, k.blocks[bi + 1].label, counter, [dec_i, cmp_i], pointers, loads, compute, waits)
+    if mask is not None:
+        cu = set(units(mask["counter"]))
+        for j, _, _ in loads:                    # the guard assumes the counter only counts
+            if infos[j].uses & cu and by_units.get(units(b.insts[j].operands[1])[0]) is None:
+                raise NotApplicable(f"`{b.insts[j]}` is addressed by the per-lane counter")
+    return Loop(bi, b.label, k.blocks[bi + 1].label, counter, [dec_i, cmp_i], pointers, loads, compute, waits, trip_step, mask=mask)
 
 
 def _fresh(k: Kernel, arch: Arch):
@@ -344,17 +455,58 @@ def unroll_loads(k: Kernel, factor: int = 4, loop: str | None = None, wide: bool
             lo, hi = Reg("s", p.reg.index), Reg("s", p.reg.index + 1)
             body.append(Inst("s_add_u32", [lo, lo, Imm(str(total) if total <= 64 else hex(total))]))
             body.append(Inst("s_addc_u32", [hi, hi, Imm("0")]))
-    body.append(Inst("s_add_i32", [L.counter, L.counter, Imm(str(-N))]))
-    body.append(Inst("s_cmp_lt_i32", [L.counter, Imm(str(N))]))
+    if L.mask is None:
+        total = N * L.trip_step                                # what N iterations take off the counter
+        lim = Imm(str(total) if total <= 64 else hex(total))
+        body.append(Inst("s_add_i32", [L.counter, L.counter, Imm(str(-total) if total <= 16 else hex(-total & 0xFFFFFFFF))]))
+        body.append(Inst("s_cmp_lt_i32", [L.counter, lim]))
     # ---- the arithmetic of the N iterations, in order -------------------------------------------
     for u in range(N):
         for ci in L.compute:
             body.append(_rename(b.insts[ci], copies[u]))
-    body.append(Inst("s_cbranch_scc0", [Label(l_loop)]))
-    pre += [Inst("s_cmp_lt_i32", [L.counter, Imm(str(N))]), Inst("s_cbranch_scc1", [Label(l_tail)])]
-    tail = [Inst("s_cmp_eq_u32", [L.counter, Imm("0")]), Inst("s_cbranch_scc1", [Label(L.exit_label)])]
     pre_label = label("pre")
-    new_blocks = [Block(pre_label, pre), Block(l_loop, body, align=b.align), Block(l_tail, tail)]
+    if L.mask is None:
+        body.append(Inst("s_cbranch_scc0", [Label(l_loop)]))
+        pre += [Inst("s_cmp_lt_i32", [L.counter, lim]), Inst("s_cbranch_scc1", [Label(l_tail)])]
+        tail = [Inst("s_cmp_eq_u32", [L.counter, Imm("0")]), Inst("s_cbranch_scc1", [Label(L.exit_label)])]
+        new_blocks = [Block(pre_label, pre), Block(l_loop, body, align=b.align), Block(l_tail, tail)]
+    else:
+        # GUARD: the unrolled body runs only while every active lane has more than N iterations left; then no lane
+        # leaves during it, EXEC and the exit mask stay as they are, and the iterations are regular. The original
+        # loop (which always has at least one iteration left for every active lane) finishes.
+        M = L.mask
+        r, ty, w = M["counter"], M["type"], M["counter"].count
+        guard = []
+        e1, e2 = alloc("s", 2), alloc("s", 2)
+
+        def scalar(value) -> Reg:                              # a constant of the guard, set once before the loop
+            reg = alloc("s", w)
+            pre.append(Inst("s_mov_b64" if w == 2 else "s_mov_b32", [reg, Imm(str(value) if 0 <= value <= 64 else hex(value))]))
+            return reg
+        if M["kind"] == "countdown":                           # a lane is done within N iterations if counter <= N * |step|
+            guard.append(Inst("v_cmp_ge_u32_e64", [e1, scalar(N * -M["step"]), r]))
+            guard.append(Inst("s_or_b64", [e1, e1, e1]))
+        else:
+            if isinstance(M["step"], int):
+                amount = scalar(N * M["step"])
+            else:                                              # a 64-bit scalar stride
+                amount = alloc("s", 2)
+                pre.append(Inst("s_lshl_b64", [amount, M["step"], Imm(str(N.bit_length() - 1))]))
+            ahead = alloc("v", w)                              # the counter N iterations from now
+            if w == 2:
+                guard.append(Inst("v_lshl_add_u64", [ahead, r, Imm("0"), amount]))
+            else:
+                guard.append(Inst("v_add_u32_e64", [ahead, amount, r]))
+            bound = M["bound"]
+            if isinstance(bound, Imm):
+                bound = scalar(int(bound.value))
+            ops = [bound, ahead] if M["side"] == 2 else [ahead, bound]
+            guard.append(Inst(f"v_cmp_{M['op']}_{ty}_e64", [e1, *ops]))          # done by then
+            guard.append(Inst(f"v_cmp_lt_{ty}_e64", [e2, ahead, r]))               # or the addition wrapped
+            guard.append(Inst("s_or_b64", [e1, e1, e2]))
+        guard.append(Inst("s_cbranch_scc1", [Label(b.label)]))                      # some active lane is close to its end
+        body.append(Inst("s_branch", [Label(l_tail)]))
+        new_blocks = [Block(pre_label, pre), Block(l_tail, guard), Block(l_loop, body, align=b.align)]
     k.blocks[L.block:L.block] = new_blocks
     passes.legalize(k, arch)
     abi.sync_resources(k, arch)

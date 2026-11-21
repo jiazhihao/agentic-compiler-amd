@@ -25,6 +25,7 @@ def _eval(e: Expr, env: dict, ft) -> np.ndarray:
             case "max": return np.maximum(a[0], a[1])
             case "min": return np.minimum(a[0], a[1])
             case "exp": return np.exp(a[0])
+            case "log": return np.log(a[0])
             case "tanh": return np.tanh(a[0])
             case "sqrt": return np.sqrt(a[0])
             case "rsqrt": return ft(1) / np.sqrt(a[0])
