@@ -59,7 +59,7 @@
     "ok": true,
     "cases": 50,
     "bit_identical": false,
-    "bit_identical_cases": 3,
+    "bit_identical_cases": 4,
     "within_tolerance": true,
     "max_abs_err": 0.15625,
     "max_rel_err": 0.008340943077936928,
@@ -71,12 +71,12 @@
    "baseline (strongest amdclang build)": {
     "ok": true,
     "cases": 78,
-    "bit_identical": true,
-    "bit_identical_cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 23,
     "within_tolerance": true,
-    "max_abs_err": 0.0,
-    "max_rel_err": 0.0,
-    "worst_case": null
+    "max_abs_err": 0.5,
+    "max_rel_err": 0.0003878936758852522,
+    "worst_case": "large_exponent/seed0[B=36,D4=300]"
    }
   },
   "fi_merge_state": {
@@ -178,6 +178,16 @@
     "max_abs_err": 1.0,
     "max_rel_err": 1.0,
     "worst_case": "large_exponent/seed2[B=37,D4=300]"
+   },
+   "session recipe": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": false,
+    "bit_identical_cases": 3,
+    "within_tolerance": true,
+    "max_abs_err": 1.0,
+    "max_rel_err": 1.0,
+    "worst_case": "large_exponent/seed2[B=37,D4=300]"
    }
   },
   "kda_step": {
@@ -228,6 +238,16 @@
   },
   "mo_adam": {
    "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 6,
+    "within_tolerance": true,
+    "max_abs_err": 1024.0,
+    "max_rel_err": 2.0509090423583984,
+    "worst_case": "large_exponent/seed1[N=10001]"
+   },
+   "session recipe": {
     "ok": true,
     "cases": 50,
     "bit_identical": false,
@@ -395,6 +415,26 @@
     "max_abs_err": 262144.0,
     "max_rel_err": 0.004098360655737705,
     "worst_case": "large_exponent/seed0[N=40000]"
+   },
+   "session recipe": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 19,
+    "within_tolerance": true,
+    "max_abs_err": 262144.0,
+    "max_rel_err": 0.013114754098360656,
+    "worst_case": "large_exponent/seed0[N=40000]"
+   },
+   "policy: throttle(workgroups_per_cu=4)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 19,
+    "within_tolerance": true,
+    "max_abs_err": 262144.0,
+    "max_rel_err": 0.004098360655737705,
+    "worst_case": "large_exponent/seed0[N=40000]"
    }
   },
   "rb_gemvn": {
@@ -463,6 +503,26 @@
     "max_abs_err": 4194304.0,
     "max_rel_err": 2.3840692677021314e-07,
     "worst_case": "large_exponent/seed0[N=40001]"
+   },
+   "session recipe": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 14,
+    "within_tolerance": true,
+    "max_abs_err": 8388608.0,
+    "max_rel_err": 2.3837959089294612e-07,
+    "worst_case": "large_exponent/seed2[N=40001]"
+   },
+   "policy: throttle(workgroups_per_cu=4)": {
+    "ok": true,
+    "cases": 50,
+    "bit_identical": false,
+    "bit_identical_cases": 14,
+    "within_tolerance": true,
+    "max_abs_err": 4194304.0,
+    "max_rel_err": 2.3840692677021314e-07,
+    "worst_case": "large_exponent/seed0[N=40001]"
    }
   },
   "rb_rot": {
@@ -514,6 +574,16 @@
   },
   "vl_moe_align": {
    "baseline (strongest amdclang build)": {
+    "ok": true,
+    "cases": 78,
+    "bit_identical": true,
+    "bit_identical_cases": 78,
+    "within_tolerance": true,
+    "max_abs_err": 0.0,
+    "max_rel_err": 0.0,
+    "worst_case": null
+   },
+   "session recipe": {
     "ok": true,
     "cases": 78,
     "bit_identical": true,

@@ -1,0 +1,169 @@
+{
+ "kernel": "rb_nrm2",
+ "launch": {
+  "grid": [
+   "cdiv(N, 2048)",
+   1,
+   1
+  ],
+  "block": [
+   256,
+   1,
+   1
+  ],
+  "lds": 32768
+ },
+ "strict": false,
+ "attribution": {
+  "levels": [
+   "mir",
+   "source"
+  ],
+  "baseline": {
+   "source": "baselines/rb_nrm2.hip",
+   "launch": {
+    "grid": [
+     "cdiv(N, 2048)",
+     1,
+     1
+    ],
+    "block": [
+     512,
+     1,
+     1
+    ],
+    "lds": 0
+   }
+  },
+  "over_strongest_amdclang": 1.0224,
+  "over_shipped_O3": 1.4047
+ },
+ "path": [
+  "source",
+  "edit_ir",
+  "edit"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 1.0224,
+  "speedup_ci95": [
+   1.0182,
+   1.0276
+  ],
+  "reference_ms": 0.08534,
+  "candidate_ms": 0.08368,
+  "cases": 49,
+  "protocol_version": "agc-timing-amd-2",
+  "equivalent": {
+   "ok": true,
+   "cases": 50,
+   "bit_identical": false,
+   "bit_identical_cases": 14,
+   "within_tolerance": true,
+   "max_abs_err": 8388608.0,
+   "max_rel_err": 2.3837959089294612e-07,
+   "worst_case": "large_exponent/seed2[N=40001]",
+   "failing": [],
+   "error": null
+  },
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 1.0224,
+    "ci95": [
+     1.0182,
+     1.0276
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 1.0286,
+    "ci95": [
+     1.025,
+     1.0324
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "rb_nrm2 is at the read floor (every element read once, baseline headroom 1.08; 1.5x is not reachable). Best state 3dcf47e375b4f914: a hand-written block-256 body (4 waves, wave j reads its whole 2 KB chunk with two global_load_dwordx4 in flight per lane, serial v_fmac, DPP wave reduce, 4-entry LDS merge) launched with a 32 KB LDS reservation (2 workgroups per CU): 1.0236x (CI 1.0187..1.0259) and 1.0256x (1.0207..1.0295) over the strongest amdclang build at 240 pairs each. It ties the earlier recorded best (the plain 32 KB relaunch of amdclang's code, compare 1.0014, CI 0.997..1.006); no source state was made. Outputs are within tolerance of the original binary, not bit-identical (14 of 50 cases identical, max rel 2.4e-7).",
+ "tried": [
+  {
+   "what": "VGPR-count occupancy throttle on amdclang's code, lds 0: dead v_mov to v95 (96 VGPRs, 5 waves/SIMD = 20 waves/CU)",
+   "state": "c36496efde5d2c6a",
+   "outcome": "loss (0.906..0.916, 120 pairs)",
+   "speedup": 0.9105
+  },
+  {
+   "what": "same, v127 (128 VGPRs, 4 waves/SIMD = 16 waves/CU)",
+   "state": "69c30efa98e7e787",
+   "outcome": "loss (0.764..0.775, 120 pairs)",
+   "speedup": 0.7695
+  },
+  {
+   "what": "same, v167 (168 VGPRs, 3 waves/SIMD = 12 waves/CU)",
+   "state": "7851b8d06b439e5d",
+   "outcome": "loss (0.584..0.590, 120 pairs)",
+   "speedup": 0.5873
+  },
+  {
+   "what": "hand-written block-256 body: 4 waves, wave j reads its whole 2 KB chunk (two x4 loads in flight, 32 contiguous bytes per lane), 8 serial v_fmac, ds_bpermute reduce, LDS merge of 4; lds 32768 (2 workgroups = 8 waves x 2 KB per CU)",
+   "state": "aacdfffa24c1e947",
+   "outcome": "win vs baseline 1.0279 (1.021..1.034, 120 pairs); parity vs the earlier best 23605de723d4eace: 0.9978 (0.995..0.999, 240 pairs)",
+   "speedup": 1.0279
+  },
+  {
+   "what": "block-256 body, lds 21840 (3 workgroups = 12 waves x 2 KB per CU), compared with the 32 KB state",
+   "state": "09f4d8c283f6282e",
+   "outcome": "loss vs 32 KB state: 0.925 (0.921..0.932)",
+   "speedup": 0.9249
+  },
+  {
+   "what": "block-256 body, lds 40960 (1 workgroup = 4 waves x 2 KB per CU), compared with the 32 KB state",
+   "state": "d0b0d8089d94d632",
+   "outcome": "loss vs 32 KB state: 0.948 (0.945..0.953)",
+   "speedup": 0.9478
+  },
+  {
+   "what": "block-256 body + DPP wave reduce (4 v_add_f32_dpp + 4 v_readlane, exec=1 LDS write) in place of the ds_bpermute tree, lds 32768",
+   "state": "3dcf47e375b4f914",
+   "outcome": "win vs baseline 1.0236 (1.0187..1.0259) and 1.0256 (1.0207..1.0295), 240 pairs each; parity vs 23605de723d4eace: 1.0014 (0.997..1.006, 240 pairs)",
+   "speedup": 1.0236
+  },
+  {
+   "what": "block-256 DPP body with the two x4 loads staggered (second issued after the first returns: 1 KB in flight per wave)",
+   "state": "dbea8df1a3f326ba",
+   "outcome": "loss vs parent: 0.957 (0.952..0.961, 120 pairs)",
+   "speedup": 0.9567
+  },
+  {
+   "what": "PROBE: empty kernel (s_endpgm first) at block 512 lds 0 / block 512 lds 32 KB / block 256 lds 32 KB / block 64 lds 40 KB",
+   "state": "698960bf77ba0c83, 6ec0dbbcd01f983f, 4bec9cdeb00a549b, d845f4db509a5131",
+   "outcome": "probe: 17.4 / 17.3 / 10.6 / 10.6 us; the 7 us saved in launch at block 256 does not appear in the full kernel (83.7 us both)",
+   "speedup": null
+  }
+ ],
+ "friction": [
+  "No way to set resident waves or workgroups per CU other than side effects (LDS reservation in whole workgroups, a dead write to a high VGPR). The VGPR route is not equivalent to the LDS route: 20 waves/CU through v95 measured 0.91 where 24 waves/CU through LDS measured 1.00; a note in features() on what the wave actually pays for a large VGPR allocation would have saved three timings.",
+  "check() reports resources.lds_bytes 32 for states launched with lds 32768 (aacdfffa24c1e947, 3dcf47e375b4f914), while features() reports 32800 for 23605de723d4eace: the two tools disagree on what the reservation is.",
+  "probe() returns only a median; no CI and no paired baseline time, so probe numbers from different calls (17.4 vs 10.6 us) can only be compared loosely.",
+  "Kernarg preload into SGPRs (arch: kernarg_preload_max_sgprs 16) cannot be requested from edit_ir/relaunch, so the s_load_dword + lgkmcnt(0) ahead of the only load could not be removed.",
+  "The bench input for N = 2^26 is exactly 256 MiB, the size arch() gives for the MALL; whether the alternating baseline/candidate launches read it from HBM or partly from that cache is not visible in `traffic`."
+ ],
+ "lessons": [
+  "rb_nrm2 (268 MB read once, 85-86 us baseline): three sessions now find the same ceiling of about 1.02-1.03x at 83.4-83.9 us. Block 512 amdclang code + 32 KB LDS, hand-written block 256 + 32 KB LDS, and block 256 + DPP reduce are equal in compare (0.998, 1.001).",
+  "The best LDS reservation is the one that leaves 2 workgroups per CU, independent of block size: block 256 at 3 per CU 0.925, at 1 per CU 0.948 relative to 2 per CU; block 512 earlier 1.00 / 1.02 / 0.966 for 3 / 2 / 1.",
+  "Throttling occupancy through the VGPR count loses heavily on a short loop-free wave: 96 VGPRs 0.91, 128 VGPRs 0.77, 168 VGPRs 0.59 (rb_dot: 144 VGPRs 0.95). Do not use it as a substitute for the LDS reservation.",
+  "Launch cost is not additive on a read-bound kernel: an empty kernel costs 17.4 us at 262144 waves (block 512) and 10.6 us at 131072 or 32768 waves (block 256 / 64), yet the full kernels run in the same 83.7 us. Subtracting a no-load probe from the total overstates what cheaper launches or shorter bodies can give.",
+  "Within a wave, keep both wide loads in flight: issuing the second x4 load after the first returned cost 4.3 % (dbea8df1a3f326ba)."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 3.0866928000000002,
+  "turns": 61,
+  "final": "`rb_nrm2` is at the read floor, and this session did not get past the earlier ceiling: the shipped state `3dcf47e375b4f914` is 1.024x and 1.026x over the baseline (two 240-pair runs, CIs 1.019\u20131.026 and 1.021\u20131.030). The 1.5x target is not reachable here: every element is read exactly once and the baseline's headroom is 1.08.\n\nThe shipped state is a hand-written block-256 body: 4 waves, each reading its whole 2 KB chunk with two `global_load_dwordx4` in flight, a DPP wave reduce, and a 32 KB LDS reservation (2 workgroups per CU). It ties the earlier best (amdclang's code with the same reservation): compare 1.001, CI 0.997\u20131.006. Its outputs are within tolerance of the original binary but not bit-identical (14 of 50 cases identical, max relative difference 2.4e-7), because the summation order changes.\n\nWhat was measured this session:\n\n| Idea | State | Result |\n|---|---|---|\n| Throttle occupancy through the VGPR count (5 / 4 / 3 waves per SIMD) | `c36496efde5d2c6a`, `69c30efa98e7e787`, `7851b8d06b439e5d` | loss: 0.91 / 0.77 / 0.59 |\n| Block 256, 2 KB per wave, 32 KB LDS | `aacdfffa24c1e947` | 1.028 vs baseline; 0.998 vs earlier best (parity) |\n| Same body at 3 or 1 workgroups per CU | `09f4d8c283f6282e`, `d0b0d8089d94d632` | loss: 0.925 / 0.948 vs 2 per CU |\n| DPP reduce on the block-256 body | `3dcf47e375b4f914` | parity on top (shipped) |\n| Second load issued only after the first returns | `dbea8df1a3f326ba` | loss: 0.957 vs parent |\n\n- **Launch cost is not additive:** an empty kernel takes 17.4 \u00b5s at block 512 and 10.6 \u00b5s at block 256, yet both full kernels run in about 83.7 \u00b5s. The read stream alone sets the time, so cheaper launches or shorter bodies buy nothing.\n- **Two workgroups per CU is the optimum again**, independent of block size.\n\nThe report is recorded in `.agc/sessions/rb_nrm2-fbc3dceeae/report.json`. Not tested: block 128 at 2 workgroups per CU (expected parity at best) and kernarg preload (not expressible in the session).",
+  "seconds": 350,
+  "log": ".agc/sessions/rb_nrm2-fbc3dceeae/agent/20261121-062545.jsonl"
+ },
+ "recorded": "2026-11-21"
+}

@@ -21,6 +21,34 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 
 ## Log
 
+### 2026-11-21 — ISA-level campaign over the kernels without a gain (#64)
+- **What ran.** For each of the 21 kernels without a verified gain: analysis-first sessions
+  (instruction mix, time split from probes, a list of ISA-level opportunities, each measured as
+  its own verified state), up to three per kernel, each continuing from the kernel's analysis so
+  far: 44 sessions. Analyses in `docs/kernels/`, 236 knowledge-base entries in
+  `.claude/skills/agc-notes/kb/`, the cross-kernel summary in `kb/PATTERNS.md`.
+- **Result.** 1.5x reached on one of the 21: `vl_moe_align` 1.546 (1.539 to 1.555), bit-identical
+  (idle workgroups prefetch for the counting one, 16 LDS slots per histogram bin so `ds_add_u32`
+  lanes do not collide, software-pipelined loads). Four more with a small verified gain:
+  `mo_adam` 1.025, `rb_dot` 1.023, `rb_nrm2` 1.022, `fi_silu_and_mul` 1.021. The other 16 stay
+  fallbacks: all are touch-once kernels at the memory floor (headroom 0.94 to 1.12), with 4 to 15
+  timed machine-level candidates each at parity or loss (`kda_step`: two). Now 20 of 36 kernels have a verified
+  agc gain over the strongest amdclang build, five at or above 1.5x, geomean 1.098.
+- **Correctness.** The harness verification now runs the original binary (amdclang -O3, source as
+  shipped) and the candidate on the same inputs and compares the outputs. All 55 shipped states
+  (baselines, recipes, policy results) are within tolerance of the original, 14 bit-identical; the
+  rest differ only where the baseline itself is a `-ffast-math` build
+  (`tests/baselines/llm-equivalence-gfx950.json`).
+- **Pass.** `throttle` (LDS reservation limiting workgroups per compute unit), from the `rb_dot`
+  and `rb_nrm2` sessions; in the default policy at 4 per CU. Swept over all 36 kernels: it wins
+  on those two only (1.026, 1.032), is parity on the other multi-wave kernels and loses 1.3x to
+  10x on one-wave workgroups.
+- **Open.** The 1.5x target is not met on 20 of the 21 kernels and, by these measurements, cannot
+  be at the ISA level for touch-once kernels. The baseline's time is bimodal on the long
+  elementwise kernels (cause unknown), which made several 120-pair wins vanish at 240 pairs.
+  `kda_step` had only two machine-level candidates timed. The policy record was rerun for
+  `rb_dot` and `rb_nrm2` only. GPU pytest suite not run in this PR.
+
 ### 2026-11-21 — second round of sessions against the strongest amdclang builds (#62)
 - **Sessions.** Every one of the 36 kernels had a session against its stronger baseline, and
   `mla_decode`, `fa_attention`, `kda_step` a third one. A session's own source rewrite is now

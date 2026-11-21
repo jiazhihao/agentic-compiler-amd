@@ -1,0 +1,155 @@
+{
+ "kernel": "mo_adam",
+ "launch": {
+  "grid": [
+   "cdiv(N, (1) * 256)"
+  ],
+  "block": [
+   256
+  ],
+  "lds": 0
+ },
+ "strict": false,
+ "attribution": {
+  "levels": [
+   "mir",
+   "source"
+  ],
+  "baseline": {
+   "source": "baselines/mo_adam.hip",
+   "flags": [
+    "-ffast-math"
+   ],
+   "defines": {
+    "EPT": "1"
+   },
+   "launch": {
+    "grid": [
+     "cdiv(N, EPT * 256)"
+    ],
+    "block": [
+     256
+    ]
+   }
+  },
+  "over_strongest_amdclang": 1.0253,
+  "over_shipped_O3": 1.0681
+ },
+ "path": [
+  "source",
+  "edit_ir",
+  "edit_ir"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 1.0253,
+  "speedup_ci95": [
+   1.0236,
+   1.0271
+  ],
+  "reference_ms": 0.33726,
+  "candidate_ms": 0.32872,
+  "cases": 49,
+  "protocol_version": "agc-timing-amd-2",
+  "equivalent": {
+   "ok": true,
+   "cases": 50,
+   "bit_identical": false,
+   "bit_identical_cases": 6,
+   "within_tolerance": true,
+   "max_abs_err": 1024.0,
+   "max_rel_err": 2.0509090423583984,
+   "worst_case": "large_exponent/seed1[N=10001]",
+   "failing": [],
+   "error": null
+  },
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 1.0384,
+    "ci95": [
+     1.0369,
+     1.0399
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 1.0253,
+    "ci95": [
+     1.0236,
+     1.0271
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "Best remains 5934ebefbb657d59: 1.025x over the strongest amdclang build (95% CI 1.0226..1.0263, 240 pairs, re-timed this session against baseline 479450ef1dc8ae54). It differs from amdclang's code by ordering: all kernargs loaded at entry under one lgkm wait, the four global_load_dword issued before a merged, scalar-branched f64 pow loop (in flight during it), store addresses computed before the first vmcnt wait, and two of the three stores issued before the rsq/sqrt/rcp chain. The kernel is at the memory floor, touch-once case (4 dwords read, 3 written per element; reads 205 us + stores 127 us = the whole 333 us); five new machine-level candidates of different kinds on top of 5934 all measured at or below it, so 1.5x is out of reach. Outputs are within tolerance of the original binary on 50 cases but not bit-identical (6 of 50), as is the -ffast-math baseline itself.",
+ "tried": [
+  {
+   "what": "5934 (early kernargs, 4 loads in flight during merged scalar-branched pow, 2 stores before rcp chain) re-timed at 240 pairs against the current baseline",
+   "state": "5934ebefbb657d59",
+   "outcome": "win",
+   "speedup": 1.0248
+  },
+  {
+   "what": "relaunch 5934 at block 512, grid N/512 (8 waves per workgroup)",
+   "state": "d9c24aeafd41853f",
+   "outcome": "win vs baseline (60 pairs, CI 1.0115..1.017) but below 5934",
+   "speedup": 1.0131
+  },
+  {
+   "what": "coarsen factor 2 on 5934",
+   "state": "7cc2bd44169aa08a",
+   "outcome": "parity (CI 1.0026..1.0119, 60 pairs)",
+   "speedup": 1.0072
+  },
+  {
+   "what": "mask-free fast path on 5934 for full workgroups with default flags: scalar base + 32-bit vector offset global_load/store, no v_lshl_add_u64 / v_mad_u64_u32 / 64-bit compare / cndmask / max; slow path unchanged",
+   "state": "3b3367d0fd053fc0",
+   "outcome": "win vs baseline (CI 1.0226..1.0249, 240 pairs); parity vs 5934 by compare: 0.9983 (0.9974..1.0003)",
+   "speedup": 1.0234
+  },
+  {
+   "what": "fast path with loads ordered g, v, m, p and pipelined weak waits (vmcnt(2) before each of es / ea / param, each store issued as soon as its inputs arrive)",
+   "state": "013c3c8b1022c950",
+   "outcome": "win vs baseline (CI 1.0167..1.0203, 240 pairs), below 5934",
+   "speedup": 1.0184
+  },
+  {
+   "what": "coarsen 2 + hand fast path: both 1 KB-apart tiles' 8 dword loads in flight (offset:1024 on a single 32-bit offset register), pow computed once per wave, tile A computed+stored then tile B; grid N/512 block 256",
+   "state": "eb5338064d46b05b",
+   "outcome": "parity (CI 0.9954..1.0004, 240 pairs)",
+   "speedup": 0.9974
+  },
+  {
+   "what": "fix_waits rewrite=true on 5934",
+   "state": "5934ebefbb657d59",
+   "outcome": "no change: nothing to repair, returns the parent",
+   "speedup": null
+  }
+ ],
+ "friction": [
+  "apply(5934, fix_waits, {rewrite: true}) returned 'nothing to repair: this is the parent state' instead of removing and re-placing the waits as the doc of rewrite=true says; I could not get the 'as late and as weak as legal' variant from the pass and wrote the weak waits by hand (013c3c8b1022c950).",
+  "bench's traffic model counts all 9 tensors (1610 MB read, 1074 MB written, headroom 0.70) although with amsgrad=0 the two max_exp_avg_sq streams and the inout are never touched; the real traffic is 1074 MB read / 805 MB written and the real headroom is about 1.0. A per-manifest 'touched tensors' override would make headroom usable here.",
+  "static_check warning on 5934-derived states (.LBB0_18[4] v_max_f32 v11, v24, v13 reads v24 not written on every path) is a false positive of the flag-dependent path (the result is discarded by the cndmask when amsgrad=0); inherited from amdclang's own code.",
+  "coarsen's generated body reloads all kernargs every virtual workgroup iteration; a hand fast path placed before .Lagc_wg_head had to load them once more itself. An option to hoist wave-invariant s_load out of the coarsen loop would help.",
+  "No tool to time a state at the bench shape with other scalar values or to see which flag values the battery covers per case without digging; I guarded the fast path on flags conservatively (amsgrad/maximize bits, weight_decay == +-0, N < 2^29, block == 256)."
+ ],
+ "lessons": [
+  "mo_adam (4 read streams + 3 write streams, 4 B per lane, block 256, N = 2^26) is at the memory floor: 20 us + 1074 MB / 4.5 TB/s + 805 MB / 10.7 TB/s = 333 us against 333..336 us measured. The only machine-level gain is 1.025x from ordering (loads in flight during the per-wave prologue, early stores).",
+  "Removing all per-lane 64-bit address arithmetic and the bounds mask (scalar base + 32-bit vector offset loads/stores, mask-free fast path) on top of that is exactly parity: compare 0.9983 (0.9974..1.0003, 240 pairs). VALU count in a loop-free memory-bound body is invisible.",
+  "Pipelined weak waits (store each output as soon as its own inputs arrive, vmcnt(2) three times instead of vmcnt(3)+vmcnt(0)) did not help and measured slightly lower: 1.018 vs 1.023..1.025 for the same body with a full wait.",
+  "Block size sweep for this 7-stream kernel with the tuned body: 64 0.90, 128 0.95, 256 1.025, 512 1.013, 1024 0.94. 256 (4 waves, 1 KB per stream per workgroup) is the optimum; 512 costs about 1 %.",
+  "Two tiles per wave with all 8 loads in flight and the per-wave prologue (f64 pow) shared, half the waves: 0.997 (parity) against the baseline and 2.5 % below the one-tile state. With seven streams, more bytes per wave loses even when the launch count halves, as in the copy study.",
+  "coarsen 2 on the tuned state: 1.007 (parity); coarsen does not stack with loads-in-flight-during-prologue on this kernel."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 2.0901144,
+  "turns": 35,
+  "final": "The session is finished and the report is recorded: the best state is still `5934ebefbb657d59`, at 1.025x over the strongest amdclang build (95% CI 1.0226 to 1.0263, 240 pairs). The 1.5x target is out of reach because the kernel is at the memory floor.\n\n- **Why the floor:** each element reads 4 dwords and writes 3, exactly once. The cold-stream model gives 333 us and the baseline measures 333 to 336 us. `bench` shows headroom 0.70 only because it counts the three `max_exp_avg_sq` tensors that are never touched with `amsgrad = 0`.\n- **What the best state does:** it loads all kernargs at entry, issues the four data loads before the pow loop so they are in flight during it, and issues two of the three stores before the reciprocal chain. Floating-point order is unchanged from the baseline.\n- **Equivalence:** outputs are within tolerance of the original binary on all 50 cases but not bit-identical (6 of 50 are).\n\nFive new machine-level candidates were timed on top of `5934` this session; none beat it:\n\n| Candidate | State | Speedup vs baseline | Verdict |\n|---|---|---|---|\n| Block 512 | `d9c24aeafd41853f` | 1.013 (60 pairs) | below `5934` |\n| Coarsen 2 | `7cc2bd44169aa08a` | 1.007 (60 pairs) | parity |\n| Mask-free fast path, scalar base + 32-bit offset addressing | `3b3367d0fd053fc0` | 1.023 (240 pairs) | parity with `5934` (direct compare 0.998) |\n| Loads reordered with pipelined weak waits | `013c3c8b1022c950` | 1.018 (240 pairs) | below `5934` |\n| Coarsen 2 with both tiles' 8 loads in flight, pow once per wave | `eb5338064d46b05b` | 0.997 (240 pairs) | parity with baseline |\n\nI stopped after these because three consecutive ideas of different kinds brought nothing over the best state. The harness will re-verify `5934` with its own timings.\n\nOne tool problem worth knowing: `fix_waits` with `rewrite=true` returned the parent unchanged instead of re-placing the waits, so I wrote the weak-wait variant by hand. That and the traffic-model overcount are in the report's fricti",
+  "seconds": 350,
+  "log": ".agc/sessions/mo_adam-a1f7f2aa3e/agent/20261121-074429.jsonl"
+ },
+ "recorded": "2026-11-21"
+}

@@ -50,7 +50,7 @@ Three levels, to be combined:
    every shape, including tails that do not fill a thread's group of elements.
 2. **Tensor program** — `program()`, `generate(template, params)` when the manifest has one.
 3. **Machine IR** — `edit`, `edit_ir`, `apply` (`actions(id)` lists the transforms: `coarsen`,
-   `unroll_loads`, `fix_waits`, `fix_hazards`) on any state: `baseline`, or one made by `source`.
+   `unroll_loads`, `throttle`, `fix_waits`, `fix_hazards`) on any state: `baseline`, or one made by `source`.
    This is the place for what amdclang does not do, and the level your result is measured at.
 
 Reading large kernels: `state(id)` gives an outline above 400 instructions; `state(id, blocks=[...])`
@@ -75,7 +75,8 @@ Before the first edit:
    reduction, the store, the loads), and `bench`'s traffic numbers. State the split in microseconds.
 3. A list of ISA-level opportunities, each with what it would remove and what it could give at most
    according to the split. Take them from the code in front of you and from the knowledge base:
-   `Glob(".claude/skills/agc-notes/kb/*.md")`, read the entries of kernels of the same kind (their
+   `.claude/skills/agc-notes/kb/PATTERNS.md` first (what transfers between kernels and which pass
+   does it), then `Glob(".claude/skills/agc-notes/kb/*.md")`: read the entries of kernels of the same kind (their
    `applies_when` says when an entry transfers), and what paid there first.
 
 Then measure every opportunity on the list as its own verified state, largest expected gain first.

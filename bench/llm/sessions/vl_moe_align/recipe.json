@@ -1,0 +1,176 @@
+{
+ "kernel": "vl_moe_align",
+ "launch": {
+  "grid": [
+   "1 + cdiv(NT + E * 63, 4096)",
+   1,
+   1
+  ],
+  "block": [
+   1024,
+   1,
+   1
+  ],
+  "lds": "64 * (cdiv(E, 64) * 64 + 1) + 4096"
+ },
+ "strict": false,
+ "attribution": {
+  "levels": [
+   "mir",
+   "source"
+  ],
+  "baseline": {
+   "source": "baselines/vl_moe_align.hip",
+   "launch": {
+    "grid": [
+     "1 + cdiv(NT + E * 63, 4096)",
+     1,
+     1
+    ],
+    "block": [
+     1024,
+     1,
+     1
+    ],
+    "lds": "4 * cdiv(E, 64) * 64 + 256"
+   }
+  },
+  "over_strongest_amdclang": 1.5462,
+  "over_shipped_O3": 9.0171
+ },
+ "path": [
+  "source",
+  "edit",
+  "edit",
+  "relaunch",
+  "edit",
+  "edit",
+  "relaunch"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 1.5462,
+  "speedup_ci95": [
+   1.5393,
+   1.5551
+  ],
+  "reference_ms": 0.04612,
+  "candidate_ms": 0.02972,
+  "cases": 77,
+  "protocol_version": "agc-timing-amd-2",
+  "equivalent": {
+   "ok": true,
+   "cases": 78,
+   "bit_identical": true,
+   "bit_identical_cases": 78,
+   "within_tolerance": true,
+   "max_abs_err": 0.0,
+   "max_rel_err": 0.0,
+   "worst_case": null,
+   "failing": [],
+   "error": null
+  },
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 1.5462,
+    "ci95": [
+     1.5393,
+     1.5551
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 1.5495,
+    "ci95": [
+     1.544,
+     1.5561
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "State 4716127942de2487 is 1.538x over the strongest amdclang build (240 pairs, CI 1.530-1.544; 29.8 us against 45.8 us), bit-identical to the original binary on 78 cases, no source rewrite involved. It differs from amdclang's code in three machine-level ways: (1) the 132 fill workgroups, which sit on otherwise idle CUs, each issue one discarded global_load_dwordx4 of topk_ids (in bounds) so the single counting workgroup reads warm data; (2) the LDS histogram has 16 slots per bin (address = base + 64*min(id,dummy) + 4*(lane&15)), so the 64 lanes of one ds_add_u32 almost never hit the same address, with a zero loop before the barrier and a ds_read2 merge of the 16 slots; (3) the count loop is software-pipelined (next tile's 8 x4 loads issued before the current tile's ds_adds). The launch only changes the LDS size (64*(pe+1)+4096 bytes dynamic).",
+ "tried": [
+  {
+   "what": "software-pipelined count loop alone on the baseline (next tile's 8 loads in flight during lshl+ds_add)",
+   "state": "ac6029e1d5e4eebb",
+   "outcome": "parity",
+   "speedup": 1.0134
+  },
+  {
+   "what": "prefetch of topk_ids by the fill workgroups (one discarded x4 load per thread)",
+   "state": "d7d08a725d54d9b0",
+   "outcome": "win",
+   "speedup": 1.0389
+  },
+  {
+   "what": "prefetch + 64 slots per bin (fully collision-free ds_add, 70 KB LDS)",
+   "state": "0775c401e33b8e0b",
+   "outcome": "win",
+   "speedup": 1.2352
+  },
+  {
+   "what": "prefetch + 64 slots + pipelined loop",
+   "state": "1ff5aa5e26f2be5f",
+   "outcome": "win",
+   "speedup": 1.2633
+  },
+  {
+   "what": "prefetch + 16 slots per bin (21 KB LDS) + pipelined loop",
+   "state": "4716127942de2487",
+   "outcome": "win",
+   "speedup": 1.538
+  },
+  {
+   "what": "8 slots per bin (12 KB LDS), same otherwise",
+   "state": "90e4fb2c16bd6531",
+   "outcome": "loss against the 16-slot state (compare 0.895, CI 0.890-0.898), still a win over baseline (~1.37 derived)",
+   "speedup": 0.8948
+  },
+  {
+   "what": "32 slots per bin (37 KB LDS), same otherwise",
+   "state": "ac1541b26554c4e1",
+   "outcome": "loss against the 16-slot state (compare 0.919, CI 0.915-0.922), ~1.41 over baseline derived",
+   "speedup": 0.9194
+  },
+  {
+   "what": "PROBE: wave-contiguous 8 KB (each lane reads 128 contiguous bytes, 64 cache lines per load instruction) instead of 8 x 1 KB at a 16 KB stride",
+   "state": "8d2300b7738b7b03",
+   "outcome": "probe only: 88 us against 45.5 us (2x slower), not pursued",
+   "speedup": null
+  },
+  {
+   "what": "PROBES for the time split (not results): cached loads + ds 43.3 us; cold + no ds 42.6; cached + no ds 23.2; cached + lane-distinct ds addresses 27.7; prefetch + no ds 26.6; pipelined + no ds 42.5; best without ds 27.8; best with cached loads 28.6; best without ds and without 32 lshl_add 27.8",
+   "state": "550cb9ce4b5d1b63 / f6d3ecf2186bcff3 / 6fa1367f3f5645fc / c42eded18975846f / 46c764ec7520f157 / a2925bd55d882709",
+   "outcome": "diagnostic",
+   "speedup": null
+  }
+ ],
+ "friction": [
+  "The static waitcnt checker is path-insensitive across the blockIdx split: a prefetch load into v[8:11] in the fill path (state bd2009eaaeb58eab, .Lft0) was refused because blocks of the counting path (.Lft16, .Lft17, .Lft26 ...) overwrite v8..v11, although no execution reaches them with that load outstanding. Workaround: never-named registers v[56:59].",
+  "No way to express a 'prefetch' (a load whose result is discarded): it costs 4 VGPRs and must avoid every register the merged CFG later writes. A load-to-nowhere form or a checker exemption for dead destinations would help.",
+  "Earlier probes in this session's history were misleading because the kernel has two independent bounds of almost equal size (cold reads 34 us, LDS collisions 35 us on top of 8.6 us): removing either alone changes nothing. A probe helper that removes two phases at once (or a note in the tool that 'no change' can mean a second equal bound) would have saved the previous session's negative conclusions (private bins 0.985, UNR=16 0.975).",
+  "relaunch is a separate state from the edit that needs it (LDS size): the edited state is unverifiable until relaunched; an `edit(..., launch=...)` would make it one step.",
+  "probe() gives a median only; a CI or a paired probe against a named state would make 1-2 us differences trustworthy.",
+  "The structural lever (several counting workgroups on several CUs) cannot be expressed in one launch: workgroups cannot communicate and the outputs are poisoned, so there is no sound global-memory handshake. A two-kernel manifest or a zero-initialised scratch tensor would open it."
+ ],
+ "lessons": [
+  "ds_add_u32 (LDS atomic) cost is dominated by same-address collisions among the 64 lanes of one instruction, not by cross-wave contention: with random ids over 256 bins (about 8 colliding pairs per instruction) 8192 ds_adds cost about 20 us; with lane-distinct addresses 4.5 us (probe 550cb9ce4b5d1b63 against d45ffafa90d153b0). Per-wave private bins (cross-wave) gave nothing (0.985).",
+  "Slots per bin trade collisions against LDS size: 64 slots (70 KB) 36.2 us, 32 slots (37 KB) 32.6 us, 16 slots (21 KB) 30.0 us, 8 slots (12 KB) 33.7 us. A large LDS allocation costs several us by itself on a 133-workgroup launch (prefetch + no ds: 26.6 us with 5 KB LDS, 34.3 us with 74 KB).",
+  "A single workgroup (one CU) reads cold data at only about 60 GB/s (2 MB in 34 us); more loads in flight or software pipelining does not change that (42.5 us against 42.6 us). Letting the other, idle workgroups of the same launch touch the same bytes once (one discarded x4 load per thread) lifted the bound to about the cached rate (26.6 us against 42.6 us without ds_adds).",
+  "When two bounds are about equal, single-phase probes all read 'no change' (max-like, not additive): remove phases in pairs before concluding a kernel is at a floor.",
+  "After both fixes the count loop is bound by load-instruction throughput of the CU, even for cached data: removing 32 of 129 VALU per iteration changed nothing (27.76 against 27.78 us); 2048 x4 loads of 64 lanes take about 19 us (about 9 ns per load instruction).",
+  "Lanes of one load instruction should share cache lines: 64 lanes x 16 B contiguous (8 lines of 128 B) is 2x faster than 64 lanes each on its own line (88 us against 45.5 us for the same bytes).",
+  "Software pipelining of a masked loop is cheap to write: save exec, compute the next-iteration mask with the loop's own exit compare, issue the loads under it, restore exec for the current tile's work, then switch to the next mask for the waits; the exit state (accumulated exit mask, per-lane counter) stays as amdclang's code expects."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 5.887665799999999,
+  "turns": 78,
+  "final": "The session is finished and the report is filed: state `4716127942de2487` is **1.538x** over the strongest amdclang build (240 pairs, CI 1.530\u20131.544; 29.8 \u00b5s against 45.8 \u00b5s). It passes the full battery (77/77) and is bit-identical to the original binary on 78 cases. No source rewrite was involved, so the gain is all at the machine level.\n\nThe kernel was not at the memory floor (headroom 2.2). The single counting workgroup had two bounds of nearly equal size on top of an 8.6 \u00b5s base, so removing either alone changed nothing \u2014 which is why the earlier single-lever attempts read as parity or loss:\n\n- **Cold reads through one CU:** about 34 \u00b5s for 2 MB; more loads in flight did not help.\n- **LDS atomic collisions:** about 35 \u00b5s, caused by lanes of one `ds_add_u32` hitting the same bin, not by cross-wave contention.\n\nWhat the winning state does differently from amdclang's code:\n\n1. **Prefetch from idle workgroups.** Each of the 132 fill workgroups issues one discarded `global_load_dwordx4` of `topk_ids`, so the counting workgroup reads warm data. Alone this measured 1.039x.\n2. **16 slots per histogram bin.** The add address becomes `base + 64*bin + 4*(lane & 15)`, with a zero loop before the barrier and a `ds_read2` merge. 16 slots was the optimum: 64 slots gave 1.26x, and 8 and 32 slots were 10% and 8% slower than 16.\n3. **Software-pipelined count loop.** The next tile's loads are issued before the current tile's adds. Alone it was parity (1.013x); on the 64-slot state it added about 2%.\n\nThe launch changes only the LDS size.\n\nCaveats:\n\n- The timing is on the bench case `normal/seed0` only; collision cost depends on the id distribution, so the speedup may differ on skewed inputs.\n- The prefetch benefit relies on the fill workgroups running concurrently with the counting workgroup; correctness does not depend on it.\n- The pipelining contribution was not isolated on the final 16-slot state.\n\nWhat remains is the CU's load-instruction rate: removing a quarter of the loop's",
+  "seconds": 691,
+  "log": ".agc/sessions/vl_moe_align-374e1a04bc/agent/20261121-091100.jsonl"
+ },
+ "recorded": "2026-11-21"
+}

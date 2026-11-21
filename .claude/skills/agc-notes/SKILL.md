@@ -8,6 +8,10 @@ description: What has been learned about optimizing kernels for AMD MI355X (gfx9
 Each note says what was measured and where. Numbers are paired speedups over `amdclang -O3` under
 the agc timing protocol unless stated.
 
+Per-kernel entries and the cross-kernel summary are in `kb/`: read `kb/PATTERNS.md` first (which
+optimization transfers between kernels, when, and which pass does it), then the files of kernels of
+the same kind.
+
 ## What pays
 
 - **Loads in flight per wait.** amdclang emits one load per loop iteration and a full

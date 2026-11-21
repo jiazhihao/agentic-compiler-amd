@@ -184,3 +184,16 @@ def test_coarsen_follows_an_offset_copy_of_the_kernarg_pointer_and_accepts_scrat
     k = kernel(body.replace("s_addc_u32 s25, s1, 0\n", "s_mov_b32 s25, s1\n"), args)
     with pytest.raises(NotApplicable, match="other than as the base"):
         coarsen.coarsen(k, 2)
+
+
+@needs_toolchain
+def test_throttle_keeps_the_code_and_reserves_lds_for_n_workgroups_per_cu(tmp_path):
+    from agc.arch.model import load as load_arch
+    arch = load_arch()
+    s = Session.open(KERNELS / "axpy.json", tmp_path, quick=True)
+    st = s.apply("ref", "throttle", {"workgroups_per_cu": 4})
+    assert s.store.get(st["id"]).ir == s.store.get(s.ref_id).ir
+    lds = s.launch_of(st["id"])["lds"]
+    assert arch.res("lds_per_cu") // lds == 4 and lds % arch.res("lds_granule") == 0
+    with pytest.raises(SessionError, match="at least 1"):
+        s.apply("ref", "throttle", {"workgroups_per_cu": 0})

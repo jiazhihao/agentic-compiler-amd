@@ -156,7 +156,7 @@
   },
   "fi_gelu_tanh_and_mul": {
    "library": "flashinfer",
-   "amdclang_ms": 0.09432,
+   "amdclang_ms": 0.09278,
    "fallback": true,
    "chosen": {
     "path": "amdclang",
@@ -180,13 +180,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9563,
+     "speedup": 0.9841,
      "ci95": [
-      0.9412,
-      0.9643
+      0.9778,
+      0.9888
      ],
-     "ms": 0.0988,
-     "amdclang_ms": 0.09432
+     "ms": 0.09412,
+     "amdclang_ms": 0.09278
     },
     {
      "path": "import+pass",
@@ -194,13 +194,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9296,
+     "speedup": 0.9539,
      "ci95": [
-      0.9197,
-      0.9407
+      0.9434,
+      0.9619
      ],
-     "ms": 0.10306,
-     "amdclang_ms": 0.09632
+     "ms": 0.09836,
+     "amdclang_ms": 0.09382
     },
     {
      "path": "import+pass",
@@ -208,13 +208,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9085,
+     "speedup": 0.9056,
      "ci95": [
-      0.901,
-      0.9167
+      0.8996,
+      0.9149
      ],
-     "ms": 0.1069,
-     "amdclang_ms": 0.09746
+     "ms": 0.10294,
+     "amdclang_ms": 0.09336
     }
    ]
   },
@@ -1388,14 +1388,19 @@
   },
   "rb_dot": {
    "library": "rocblas",
-   "amdclang_ms": 0.14006,
-   "fallback": true,
+   "amdclang_ms": 0.1376,
+   "fallback": false,
    "chosen": {
-    "path": "amdclang",
-    "how": "the amdclang build (no verified win)",
+    "path": "import+pass",
+    "how": "throttle(workgroups_per_cu=4)",
     "bit_identical": true,
-    "speedup": 1.0,
-    "ci95": null
+    "speedup": 1.0259,
+    "ci95": [
+     1.0117,
+     1.0321
+    ],
+    "ms": 0.1347,
+    "amdclang_ms": 0.1376
    },
    "candidates": [
     {
@@ -1412,13 +1417,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9686,
+     "speedup": 0.9515,
      "ci95": [
-      0.9605,
-      0.9771
+      0.9392,
+      0.9616
      ],
-     "ms": 0.14468,
-     "amdclang_ms": 0.14006
+     "ms": 0.14408,
+     "amdclang_ms": 0.13756
     },
     {
      "path": "import+pass",
@@ -1426,13 +1431,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.8927,
+     "speedup": 0.8317,
      "ci95": [
-      0.8818,
-      0.9075
+      0.8238,
+      0.8382
      ],
-     "ms": 0.15564,
-     "amdclang_ms": 0.13876
+     "ms": 0.16624,
+     "amdclang_ms": 0.13756
     },
     {
      "path": "import+pass",
@@ -1440,13 +1445,27 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.859,
+     "speedup": 0.8642,
      "ci95": [
-      0.8486,
-      0.8728
+      0.8478,
+      0.8702
      ],
-     "ms": 0.15794,
-     "amdclang_ms": 0.13608
+     "ms": 0.1545,
+     "amdclang_ms": 0.13324
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.0259,
+     "ci95": [
+      1.0117,
+      1.0321
+     ],
+     "ms": 0.1347,
+     "amdclang_ms": 0.1376
     }
    ]
   },
@@ -1610,14 +1629,19 @@
   },
   "rb_nrm2": {
    "library": "rocblas",
-   "amdclang_ms": 0.08632,
-   "fallback": true,
+   "amdclang_ms": 0.08564,
+   "fallback": false,
    "chosen": {
-    "path": "amdclang",
-    "how": "the amdclang build (no verified win)",
+    "path": "import+pass",
+    "how": "throttle(workgroups_per_cu=4)",
     "bit_identical": true,
-    "speedup": 1.0,
-    "ci95": null
+    "speedup": 1.032,
+    "ci95": [
+     1.0285,
+     1.0388
+    ],
+    "ms": 0.08278,
+    "amdclang_ms": 0.08564
    },
    "candidates": [
     {
@@ -1634,13 +1658,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9593,
+     "speedup": 0.9299,
      "ci95": [
-      0.9456,
-      0.9684
+      0.9195,
+      0.9347
      ],
-     "ms": 0.09036,
-     "amdclang_ms": 0.08632
+     "ms": 0.09286,
+     "amdclang_ms": 0.0857
     },
     {
      "path": "import+pass",
@@ -1648,13 +1672,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.8358,
+     "speedup": 0.839,
      "ci95": [
-      0.83,
-      0.8418
+      0.8331,
+      0.8452
      ],
-     "ms": 0.10362,
-     "amdclang_ms": 0.08632
+     "ms": 0.10242,
+     "amdclang_ms": 0.0857
     },
     {
      "path": "import+pass",
@@ -1662,13 +1686,27 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.782,
+     "speedup": 0.7792,
      "ci95": [
-      0.7727,
-      0.7874
+      0.7753,
+      0.7871
      ],
-     "ms": 0.11098,
-     "amdclang_ms": 0.08616
+     "ms": 0.11062,
+     "amdclang_ms": 0.08636
+    },
+    {
+     "path": "import+pass",
+     "how": "throttle(workgroups_per_cu=4)",
+     "bit_identical": true,
+     "verified": true,
+     "outcome": "win",
+     "speedup": 1.032,
+     "ci95": [
+      1.0285,
+      1.0388
+     ],
+     "ms": 0.08278,
+     "amdclang_ms": 0.08564
     }
    ]
   },
@@ -2140,8 +2178,8 @@
  "recorded": "2026-11-21",
  "summary": {
   "kernels": 36,
-  "wins": 6,
-  "fallbacks": 30,
-  "geomean": 1.007
+  "wins": 8,
+  "fallbacks": 28,
+  "geomean": 1.009
  }
 }

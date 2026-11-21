@@ -478,7 +478,7 @@ class Session:
 
     def _put(self, parent: str | None, module: Module, action: dict) -> dict:
         text = asm.print_module(module)
-        if parent is not None and text == self.store.get(parent).ir and action.get("name") != "relaunch":
+        if parent is not None and text == self.store.get(parent).ir and action.get("name") not in ("relaunch", "throttle"):
             raise SessionError("parameter", "the result is identical to the parent state", suggestion="nothing to do")
         st = self.store.put("mir", text, parent, action)
         self._modules[st.id] = module

@@ -129,7 +129,8 @@ recomputes register counts and `accum_offset` from the instruction stream.
 (one launched workgroup runs `factor` consecutive workgroups of the original: the kernel body
 becomes a loop over virtual workgroup ids that starts every iteration from the entry state, the
 launch shrinks to `ceil(grid_x / factor)`, and one appended argument carries the original
-`grid_x`). A transformation that changes the launch records the new launch (grid, block,
+`grid_x`), and `throttle` (the same code launched with an LDS reservation that limits the
+workgroups resident per compute unit). A transformation that changes the launch records the new launch (grid, block,
 appended arguments) with the state; the runtime launches the state that way.
 
 **Checks** before any GPU job: verifier, hazard checker, waitcnt checker, and

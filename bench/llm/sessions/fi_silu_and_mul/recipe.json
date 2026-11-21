@@ -1,0 +1,164 @@
+{
+ "kernel": "fi_silu_and_mul",
+ "launch": {
+  "grid": [
+   "cdiv(D4, 64)",
+   "B",
+   1
+  ],
+  "block": [
+   128,
+   1,
+   1
+  ],
+  "lds": 0
+ },
+ "strict": false,
+ "attribution": {
+  "levels": [
+   "mir",
+   "source"
+  ],
+  "baseline": {
+   "source": "baselines/fi_silu_and_mul.hip",
+   "launch": {
+    "grid": [
+     "B * cdiv(D4, 64)",
+     1,
+     1
+    ],
+    "block": [
+     64,
+     1,
+     1
+    ],
+    "lds": 0,
+    "args": [
+     {
+      "dtype": "u32",
+      "value": "cdiv(D4, 64)"
+     }
+    ]
+   }
+  },
+  "over_strongest_amdclang": 1.0214,
+  "over_shipped_O3": 1.0663
+ },
+ "path": [
+  "source",
+  "edit_ir",
+  "edit",
+  "edit",
+  "relaunch"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 1.0214,
+  "speedup_ci95": [
+   1.0176,
+   1.0262
+  ],
+  "reference_ms": 0.0965,
+  "candidate_ms": 0.09392,
+  "cases": 77,
+  "protocol_version": "agc-timing-amd-2",
+  "equivalent": {
+   "ok": true,
+   "cases": 78,
+   "bit_identical": false,
+   "bit_identical_cases": 3,
+   "within_tolerance": true,
+   "max_abs_err": 1.0,
+   "max_rel_err": 1.0,
+   "worst_case": "large_exponent/seed2[B=37,D4=300]",
+   "failing": [],
+   "error": null
+  },
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 1.0214,
+    "ci95": [
+     1.0176,
+     1.0262
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 1.0374,
+    "ci95": [
+     1.0306,
+     1.0416
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "Memory floor, touch-once (headroom 1.04 to 1.05): 1.5x is out of reach. Best verified state 100901bab2c367e6 is 1.0256x over the baseline (CI 1.021..1.030, 240 pairs), bit-identical to the baseline: a hand-written 39-instruction body at 8 B per lane (global_load/store_dwordx2 with scalar bases and a 32-bit lane offset, v_min_u32 clamp instead of the bounds mask, no exp2 range handling), 512 B per stream per wave, two waves per workgroup on grid [cdiv(D4,64), B] x block 128. Most of that gain is geometry that amdclang gets too: my source build of the same 512 B geometry (b5a545ec9c6feb8b) measures 1.016x (CI 1.009..1.021, parity by the rule), and the shipped state is only 1.007x over that source build (CI 1.002..1.012, parity), so the machine-level gain proper is under 1 %.",
+ "tried": [
+  {
+   "what": "S1: amdclang source build of the 512 B geometry (2 floats per thread, 2D grid [cdiv(D4,32), B], block 64)",
+   "state": "b5a545ec9c6feb8b",
+   "outcome": "parity by the rule (CI straddles 1.01), 240 pairs; credited to amdclang",
+   "speedup": "1.016 (1.009..1.021)"
+  },
+  {
+   "what": "Earlier hand-written H5 body (0ca588471e824eea) directly against the source build S1",
+   "state": "0ca588471e824eea",
+   "outcome": "parity (compare, 240 pairs)",
+   "speedup": "1.0087 (1.004..1.014) over S1"
+  },
+  {
+   "what": "C3: H5 body with 2 waves per workgroup (block 128, grid [cdiv(D4,64), B]), 512 B per stream per wave",
+   "state": "100901bab2c367e6",
+   "outcome": "win against the baseline; parity against S1 (1.0071, 1.002..1.012, 240 pairs)",
+   "speedup": "1.0256 (1.021..1.030, 240 pairs); 1.0308 (1.017..1.039, 120 pairs)"
+  },
+  {
+   "what": "C5: H5 with each row walked in descending address order (chunk = last - wg_x)",
+   "state": "c1b4756209e8aa7e",
+   "outcome": "win against the baseline, equal to H5 (1.0252): address direction does not matter",
+   "speedup": "1.0255 (1.020..1.034, 120 pairs)"
+  },
+  {
+   "what": "C8: 512 B per stream per wave as two lane-contiguous 256 B global_load_dword (4 B per lane request; 4 loads and 2 stores per wave)",
+   "state": "2730141a54e570d9",
+   "outcome": "parity; loses the 512 B gain",
+   "speedup": "1.0022 (0.990..1.016, 120 pairs)"
+  },
+  {
+   "what": "Probe: one s_load_dwordx8 for all kernargs instead of s_load_dword + s_load_dwordx4 (reads past the 20-byte kernarg block, so diagnostic only)",
+   "state": "1b468cdee08d3b13",
+   "outcome": "diagnostic: 94.8 us against 95.7 us for its parent, single medians, inside the noise",
+   "speedup": "n/a"
+  },
+  {
+   "what": "Mis-parented probe (block-128 index shift left on a block-64 launch); never timed, discarded",
+   "state": "2b32d2aeefbd5c40",
+   "outcome": "not run",
+   "speedup": "n/a"
+  }
+ ],
+ "friction": [
+  "edit() on a state whose launch no longer matches its body (767559e688c7b701: index << 7 with the block-64 launch, an intermediate before relaunch) is easy to pick as a parent by mistake; an edit that changes body and launch in one step (edit with a `launch` argument, as edit_ir has) would avoid the unverifiable intermediate.",
+  "No way to learn the kernarg segment size from the tools: I could not tell whether s_load_dwordx8 at offset 0 stays inside the kernarg block, and static_check accepted it without a finding (1b468cdee08d3b13). A bounds check of scalar loads against the kernarg size would make this either shippable or refused.",
+  "The win rule and the credit rule interact awkwardly here: the source build S1 is 1.016 (CI 1.009..1.021, labelled parity) and the hand-written states are 1.025 against the baseline but parity against S1. A bench option to time against a named state with the same win/parity labels as against the baseline would state the machine-level gain directly; compare() gives the number but not the baseline-style traffic block.",
+  "probe() returns a single median without a CI, so a 1 % question (scalar loads per wave) cannot be answered by it."
+ ],
+ "lessons": [
+  "fi_silu_and_mul: the 512 B per stream per wave geometry is reachable by amdclang from source (2 floats per thread, 2D grid): 1.016x (CI 1.009..1.021, 240 pairs). The hand-written body at the same geometry is 1.009x over that build (1.004..1.014) and with block 128 1.007x (1.002..1.012): both parity. Same finding as fi_gelu_tanh_and_mul (0.998).",
+  "Block 128 at 512 B per wave is as good as block 64 on this kernel: 1.0256 (240 pairs) against 1.019 to 1.025 for block 64; block 256 was 1.012 in the earlier session.",
+  "Walking each row in descending address order changes nothing (1.0255 against 1.0252 ascending).",
+  "4 B per lane request loses the 512 B gain even at 512 B per wave: two 256 B dword loads per stream per wave measured 1.002 against 1.025 for one 512 B dwordx2 load. With the earlier 16 B x 32 lanes result (1.006), 8 B per lane on a full 64-lane wave is the only point of the bytes-per-lane sweep that pays.",
+  "Scalar kernarg loads per wave are not a cost: one load instead of two on 262144 waves measured 94.8 us against 95.7 us in single-median probes, inside the noise."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 1.9291551999999998,
+  "turns": 38,
+  "final": "The session is finished and the report is filed: `fi_silu_and_mul` is at the memory floor, so the 1.5x target is out of reach and the real machine-level gain is under 1 %.\n\n- **Shipped state:** `100901bab2c367e6`, 1.0256x over the baseline (95 % CI 1.021 to 1.030, 240 pairs). It passes the full battery (77/77) and is bit-identical to the baseline on 78 cases. Against `ref` it is within tolerance but not bit-identical.\n- **What it is:** the earlier session's hand-written body (8 B per lane, 512 B per stream per wave), relaunched with two waves per workgroup (block 128, grid `[cdiv(D4,64), B]`).\n- **Who gets the credit:** an amdclang source build of the same 512 B geometry (`b5a545ec9c6feb8b`) reaches 1.016x on its own (CI 1.009 to 1.021). The shipped state is only 1.007x over that build (CI 1.002 to 1.012), which is parity. Expect the harness to credit most of the gain to amdclang.\n\nOther things measured this session, none of which helped:\n\n| Idea | State | Result vs baseline |\n|---|---|---|\n| Walk each row in descending address order | `c1b4756209e8aa7e` | 1.0255, same as ascending (1.0252) |\n| Two 256 B loads per stream per wave (4 B per lane) | `2730141a54e570d9` | 1.002, loses the 512 B gain |\n| One kernarg scalar load instead of two (probe only) | `1b468cdee08d3b13` | 94.8 us vs 95.7 us, inside the noise |\n\nThe kernarg probe reads past the 20-byte kernarg block, so it is diagnostic only and not shippable.\n\nI stopped after these because three ideas of different kinds each brought less than 1 % over the best state. Not tested: block 128 on the amdclang source build, and alternating two rows along grid x.",
+  "seconds": 210,
+  "log": ".agc/sessions/fi_silu_and_mul-b9400dc086/agent/20261121-082034.jsonl"
+ },
+ "recorded": "2026-11-21"
+}

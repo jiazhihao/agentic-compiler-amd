@@ -186,7 +186,11 @@ win is reported with its pass.
       `-ffast-math`, own launch); sessions, policy and report measure against it.
 - [x] Second round of sessions against the stronger baseline: machine-level gain. 4 kernels
       at or above 1.5x, 11 more with a gain, 21 without (memory floor or parity, explained).
-- [x] First customization promoted to a pass: `coarsen` (#30). Further ones as sessions find them.
+- [x] ISA-level campaign over the 21 kernels without a gain (#64): differential check against
+      the original binary in the verification, per-kernel analyses (`docs/kernels/`), knowledge
+      base (`.claude/skills/agc-notes/kb/`), 44 sessions. `vl_moe_align` 1.55x; four more with
+      about 1.02x; 16 measured at the memory floor (touch-once), without a gain.
+- [x] Customizations promoted to passes: `coarsen` (#30), `throttle` (#64). Further ones as sessions find them.
 - **Exit:** per-kernel table (policy and session results against amdclang, fallbacks
   reported as fallbacks) in the report and on #29.
 

@@ -103,6 +103,28 @@ def register_transforms() -> None:
         fix_hazards(m.kernel(kernel))
         return m
 
+    @transform("throttle", "the same code launched with an LDS reservation that lets only `workgroups_per_cu` workgroups share a "
+               "compute unit (bit-identical; fewer waves compete for the memory pipeline: 1.02x to 1.04x measured on "
+               "memory-bound reductions, see the knowledge base)", {"workgroups_per_cu": "integer of at least 1 (the policy tries 2 and 4)"},
+               launch=True)
+    def _throttle(m: Module, kernel: str, launch: dict, workgroups_per_cu: int = 4):
+        from ..arch.model import load as load_arch
+        arch = load_arch()
+        n = int(workgroups_per_cu)
+        if n < 1:
+            raise ValueError("workgroups_per_cu must be at least 1")
+        k = m.kernel(kernel)
+        g = arch.res("lds_granule")
+        total = min(arch.res("lds_per_cu") // n // g * g, arch.res("lds_per_workgroup"))
+        extra = total - k.descriptor.get("group_segment_fixed_size", 0)
+        cur = launch.get("lds", 0)
+        if not isinstance(cur, int):
+            raise ValueError(f"the launch already has a dynamic LDS size ({cur}); set the reservation with relaunch")
+        if extra <= cur:
+            raise ValueError(f"the kernel already reserves {total - extra + cur} bytes of LDS: {n} workgroups per compute unit is no restriction")
+        launch["lds"] = extra
+        return m, launch
+
     @transform("coarsen", "one launched workgroup runs `factor` consecutive workgroups of the original (the kernel body in a "
                "loop over virtual workgroup ids; bit-identical); the launch shrinks to ceil(grid_x / factor) and one "
                "argument carrying the original grid_x is appended", {"factor": "any integer of at least 2 (the policy tries 2, 4, 8)"}, launch=True)
