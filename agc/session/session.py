@@ -409,9 +409,12 @@ class Session:
             raise SessionError("gpu", str(e)[:1500]) from None
         if not r.get("ok"):
             return {"ok": False, "error": r.get("error"), "failed": r.get("failed")}
-        return {"ok": True, "a": ia, "b": ib, "outcome_b_vs_a": r["outcome"], "speedup_b_over_a": round(r["speedup"], 4),
-                "ci95": [round(x, 4) for x in r["speedup_ci95"]], "a_ms": round(r["reference"]["median_ms"], 5),
-                "b_ms": round(r["candidate"]["median_ms"], 5)}
+        out = {"ok": True, "a": ia, "b": ib, "outcome_b_vs_a": r["outcome"], "speedup_b_over_a": round(r["speedup"], 4),
+               "ci95": [round(x, 4) for x in r["speedup_ci95"]], "a_ms": round(r["reference"]["median_ms"], 5),
+               "b_ms": round(r["candidate"]["median_ms"], 5)}
+        self.store.put_result(ib, "compare", {"against": ia, "outcome": out["outcome_b_vs_a"], "speedup": out["speedup_b_over_a"],
+                                              "ci95": out["ci95"]})    # shown by list_states: the state was measured
+        return out
 
     def verify(self, ref: str, pairs: int | None = None) -> dict:
         """Static check, full battery and paired timing of a state, all run again (no cached result is trusted)."""
@@ -546,6 +549,9 @@ class Session:
         for s in self.store.all_states():
             r = self.store.record(s.id)
             out.append({"id": s.id, "parent": s.parent, "action": s.action.get("name"), "note": s.action.get("note", ""),
+                        **({"params": s.action["params"]} if s.action.get("params") else {}),
+                        **({"flags": s.action["flags"]} if s.action.get("flags") else {}),
+                        **({"compared": r["compare"]} if r.get("compare") else {}),
                         "static": (r.get("static") or {}).get("ok"), "check": (r.get("check") or {}).get("ok"),
                         "bench": {k: (r.get("bench") or {}).get(k) for k in ("outcome", "speedup")} if r.get("bench") else None,
                         "names": [n for n, v in self.store.tags().items() if v == s.id]})
@@ -777,6 +783,8 @@ class Session:
         except ValueError as e:
             raise SessionError("parameter", f"{name}: {e}") from None
         abi.sync_resources(self._kernel(out), self.arch)
+        if name.startswith("fix_") and asm.print_module(out) == self.store.get(pid).ir:
+            return {**self.state(pid, include_ir=False), "unchanged": f"{name} found nothing to repair: this is the parent state"}
         return self._put(pid, out, action)
 
     # ---- validate and measure --------------------------------------------------

@@ -44,7 +44,7 @@ def _fit(op, spec, enc: Encoding, isa: Isa, arch: Arch, narrow_addr: bool = Fals
             return None if ok else "`off` is only a memory base/offset"
         if (op.neg or op.abs) and not (("NEG" in fields or "SRC0_NEG" in fields) and spec.is_in):
             return "neg/abs modifier is not available in this encoding"
-        cls = {"vcc_lo": "vcc", "exec_lo": "exec"}.get(op.cls, op.cls)
+        cls = {"vcc_lo": "vcc", "vcc_hi": "vcc", "exec_lo": "exec", "exec_hi": "exec"}.get(op.cls, op.cls)   # halves: plain scalars to amdclang
         if cls == "vcc" and spec.type == "OPR_SREG_NOVCC" and lane_dst:
             return None                               # amdclang reloads a spilled VCC half with v_readlane_b32 vcc_lo, ...
         if cls not in classes:

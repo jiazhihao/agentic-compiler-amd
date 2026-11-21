@@ -245,10 +245,15 @@ def generate(template: str | None = None, params: dict | None = None) -> dict:
 
 
 @tool
-def static_check(ref: str) -> dict:
+def static_check(ref: str, warnings: bool = False) -> dict:
     """ISA verifier, kernel contract, undefined reads, s_waitcnt checker, hazard checker, encode + decode cross-check.
-    Each finding has a kind, block, index, instruction and a message that says what is needed."""
-    return _s().static_check(ref)
+    Each finding has a kind, block, index, instruction and a message that says what is needed. Warnings (mostly
+    reads under an EXEC mask the checker does not follow; amdclang's own code has them) are counted, with the
+    first three shown; `warnings=True` lists all."""
+    r = _s().static_check(ref)
+    if not warnings and len(r.get("warnings", [])) > 3:
+        r = {**r, "warnings": r["warnings"][:3], "warnings_total": len(r["warnings"])}
+    return r
 
 
 @tool
