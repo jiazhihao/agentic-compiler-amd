@@ -1,0 +1,22 @@
+kir func axpy(%x: ptr<f32>, %y: ptr<f32>, %a: f32, %n: i32) {
+  %bid_x: u32 = bid.x
+  %bdim_x: u32 = bdim.x
+  %t: u32 = mul %bid_x, %bdim_x
+  %tid_x: u32 = tid.x
+  %t0: u32 = add %t, %tid_x
+  %i: i32 = cast %t0
+  %t2: i1 = lt %i, %n
+  if %t2 @if0 {
+    %t3: i64 = cast %i
+    %p: ptr<f32> = gep %y, %t3
+    %t4: i64 = cast %i
+    %p5: ptr<f32> = gep %x, %t4
+    %v: f32 = load %p5 @load0
+    %t6: f32 = mul %a, %v
+    %t7: i64 = cast %i
+    %p8: ptr<f32> = gep %y, %t7
+    %v9: f32 = load %p8 @load1
+    %t10: f32 = add %t6, %v9
+    store %p, %t10 @store0
+  }
+}

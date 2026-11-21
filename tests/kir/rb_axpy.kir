@@ -1,0 +1,52 @@
+kir func rb_axpy(%n: i32, %alpha: f32, %x: ptr<f32>, %y: ptr<f32>) {
+  %bid_x: u32 = bid.x
+  %t: u32 = mul %bid_x, 256:u32
+  %tid_x: u32 = tid.x
+  %t0: u32 = add %t, %tid_x
+  %t1: u32 = mul %t0, 2:u32
+  %tid: i64 = cast %t1
+  %t3: i1 = ne %alpha, 0.0:f32
+  if %t3 @if0 {
+    %t4: i32 = sub[nsw=true] %n, 1:i32
+    %t5: i64 = cast %t4
+    %t6: i1 = lt %tid, %t5
+    if %t6 @if1 {
+      loop @loop0 {
+        carry %j: i32 = 0:i32, %t19 -> %j20
+        %t7: i1 = lt %j, 2:i32
+        while %t7
+        %t8: i64 = cast %j
+        %t9: i64 = add[nsw=true] %tid, %t8
+        %p: ptr<f32> = gep %y, %t9
+        %t10: i64 = cast %j
+        %t11: i64 = add[nsw=true] %tid, %t10
+        %p12: ptr<f32> = gep %y, %t11
+        %v: f32 = load %p12 @load0
+        %t13: i64 = cast %j
+        %t14: i64 = add[nsw=true] %tid, %t13
+        %p15: ptr<f32> = gep %x, %t14
+        %v16: f32 = load %p15 @load1
+        %t17: f32 = mul %alpha, %v16
+        %t18: f32 = add %v, %t17
+        store %p, %t18 @store0
+        %t19: i32 = add %j, 1:i32
+      }
+    }
+    %t21: i32 = rem %n, 2:i32
+    %t22: i1 = ne %t21, 0:i32
+    %t23: i32 = sub[nsw=true] %n, 1:i32
+    %t24: i64 = cast %t23
+    %t25: i1 = eq %tid, %t24
+    %c: i1 = and %t22, %t25
+    if %c @if2 {
+      %p26: ptr<f32> = gep %y, %tid
+      %p27: ptr<f32> = gep %y, %tid
+      %v28: f32 = load %p27 @load2
+      %p29: ptr<f32> = gep %x, %tid
+      %v30: f32 = load %p29 @load3
+      %t31: f32 = mul %alpha, %v30
+      %t32: f32 = add %v28, %t31
+      store %p26, %t32 @store1
+    }
+  }
+}

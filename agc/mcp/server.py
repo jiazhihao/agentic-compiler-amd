@@ -25,13 +25,16 @@ server = MCPServer("agc", instructions=(
     "and addressed by id, tag or branch; `ref` is amdclang's -O3 build of the source as shipped, imported into machine IR (CDNA4 assembly); `baseline` is the strongest amdclang build known for the kernel (another source, flags or launch when the manifest names one, else `ref`). "
     "A manifest may also carry a tensor program: program() shows it and generate(template, params) compiles it "
     "straight into machine IR (no HIP involved). "
-    "Three levels: source(text, launch) compiles a rewritten HIP source into a new state (restructure the kernel, change "
+    "lower(overrides) compiles the HIP source through agc's own lowering (Clang only parses): every lowering step is a "
+    "recorded decision, plan(ref) lists them with their alternatives, replan(ref, changes) lowers again with some "
+    "changed, ir(ref, level) shows the program above the assembly (kir: one thread; wir: one wave). "
+    "Three more levels: source(text, launch) compiles a rewritten HIP source into a new state (restructure the kernel, change "
     "the launch); generate compiles a tensor program; edit / edit_ir / apply work on machine IR. "
     "Loop: state(ref) to read the numbered listing -> edit / edit_ir / apply to make a new state -> static_check "
     "(ISA legality, s_waitcnt, hazards, contract) -> check (battery on the GPU) -> bench (paired against baseline; "
     "`win` only if the whole 95% CI is beyond the 1% noise floor). isa(mnemonic) and arch(section) answer questions "
     "about instructions and the machine. A refusal is a JSON object with `error`, `kind` (parse, parameter, unknown, "
-    "static, unverified, verification, toolchain, gpu, internal) and usually `location`, `values`, `suggestion`."))
+    "static, unverified, verification, toolchain, gpu, frontend, unsupported, internal) and usually `location`, `values`, `suggestion`."))
 _session: Session | None = None
 
 
@@ -238,6 +241,43 @@ def report(best: str, summary: str, tried: list | None = None, friction: list | 
 def apply(ref: str, transform: str, params: dict | None = None) -> dict:
     """Apply a named transform (see `actions`) → a new state."""
     return _s().apply(ref, transform, params)
+
+
+@tool
+def lower(overrides: dict | None = None, note: str = "") -> dict:
+    """Compile the manifest's HIP source through agc's own lowering (Clang only parses; no amdclang code generation)
+    into a new root state. Every lowering step is a recorded decision whose default reproduces amdclang;
+    `overrides` picks other alternatives: {"if0.branch.skip_empty": "none"} for one site, {"fp.contract": "off"}
+    for every site. Then static_check / check / bench / equivalent as for any state. plan(ref) lists the decisions."""
+    return _short(_s().lower(overrides, note))
+
+
+@tool
+def plan(ref: str) -> dict:
+    """The lowering decisions of a state made by lower(): per site the chosen alternative, the default, the other
+    alternatives and what the decision means."""
+    return _s().plan(ref)
+
+
+@tool
+def replan(ref: str, changes: dict, note: str = "") -> dict:
+    """Backtrack on lowering decisions: lower again with the decisions of `ref` except those in `changes`
+    ({"site.decision": alternative}). The other decisions are kept. Returns the new state."""
+    return _short(_s().replan(ref, changes, note))
+
+
+@tool
+def explain(ref: str, site: str) -> dict:
+    """One decision site (if0, load1, kernel, ...) of a state made by lower(): its statement in kir and wir, the
+    decisions taken there, their alternatives and meaning."""
+    return _s().explain(ref, site)
+
+
+@tool
+def ir(ref: str, level: str = "wir") -> dict:
+    """A lowered state above the assembly: level "kir" (one thread's program, where the decision sites are named)
+    or "wir" (one wave's schedule: uniform and per-lane values, where/branch regions, loads with base, index, offset)."""
+    return _s().ir(ref, level)
 
 
 @tool

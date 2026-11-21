@@ -1,0 +1,43 @@
+kir func rb_swap(%n: i32, %x: ptr<f32>, %y: ptr<f32>) {
+  %bid_x: u32 = bid.x
+  %t: u32 = mul %bid_x, 256:u32
+  %tid_x: u32 = tid.x
+  %t0: u32 = add %t, %tid_x
+  %t1: u32 = mul %t0, 2:u32
+  %tid: i64 = cast %t1
+  %t3: i32 = sub[nsw=true] %n, 1:i32
+  %t4: i64 = cast %t3
+  %t5: i1 = lt %tid, %t4
+  if %t5 @if0 {
+    loop @loop0 {
+      carry %j: i32 = 0:i32, %t13 -> %j14
+      %t6: i1 = lt %j, 2:i32
+      while %t6
+      %p: ptr<f32> = gep %x, %tid
+      %t7: i64 = cast %j
+      %p8: ptr<f32> = gep %p, %t7
+      %p9: ptr<f32> = gep %y, %tid
+      %t10: i64 = cast %j
+      %p11: ptr<f32> = gep %p9, %t10
+      %v: f32 = load %p11 @load0
+      %v12: f32 = load %p8 @load1
+      store %p11, %v12 @store0
+      store %p8, %v @store1
+      %t13: i32 = add %j, 1:i32
+    }
+  }
+  %t15: i32 = rem %n, 2:i32
+  %t16: i1 = ne %t15, 0:i32
+  %t17: i32 = sub[nsw=true] %n, 1:i32
+  %t18: i64 = cast %t17
+  %t19: i1 = eq %tid, %t18
+  %c: i1 = and %t16, %t19
+  if %c @if1 {
+    %p20: ptr<f32> = gep %x, %tid
+    %p21: ptr<f32> = gep %y, %tid
+    %v22: f32 = load %p21 @load2
+    %v23: f32 = load %p20 @load3
+    store %p21, %v23 @store2
+    store %p20, %v22 @store3
+  }
+}

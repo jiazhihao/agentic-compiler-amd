@@ -31,6 +31,26 @@ The session is reached through the `agc` MCP server (`.mcp.json`), or from a she
    ±1 % is `parity`. Report `parity` and `loss` as such; never report a fallback as a win.
 7. `note(id, text)` what was tried and what happened; `tag` / `fork` / `checkpoint` to organize.
 
+## agc's own lowering (`lower`)
+
+`lower(overrides)` compiles the manifest's HIP source without amdclang's optimizer or code generator
+(Clang only parses): source → `kir` (one thread's program) → `wir` (one wave's schedule: uniform and
+per-lane values, `where` / `branch` regions, loads with base, index and offset) → assembly. The
+result is a new root state; check and time it like any other.
+
+- Every lowering step is a recorded decision whose default does what amdclang does. `plan(id)` lists
+  them: site (`kernel`, `if0`, `load1`, ...), chosen alternative, the others, what the decision means.
+- `replan(id, {"site.decision": alternative})` lowers again with those decisions changed and the rest
+  kept: this is how to try an alternative and how to go back. `{"decision": alternative}` applies to
+  every site that takes the decision.
+- `ir(id, "kir" | "wir")` shows the program above the assembly; `explain(id, site)` one site.
+- Decisions so far: `fp.contract` (fma or separate multiply and add), `access.width` (merge accesses
+  of consecutive elements into `dwordx2/x4`), `branch.skip_empty` (branch over a region no lane
+  enters). More arrive with each roadmap milestone (`docs/roadmap.md`, phase 2).
+- A kernel outside the supported subset is refused with kind `frontend` (every unsupported construct
+  with its source location) or `unsupported` (a lowering not built yet). `ref`, amdclang's build,
+  stays available: `tests/baselines/own-gfx950.json` says how far each kernel gets.
+
 ## The source level
 
 `source(text, launch)` compiles a rewritten HIP source with amdclang and imports it as a new root

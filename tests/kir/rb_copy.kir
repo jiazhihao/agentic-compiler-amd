@@ -1,0 +1,39 @@
+kir func rb_copy(%n: i32, %x: ptr<f32>, %y: ptr<f32>) {
+  %bid_x: u32 = bid.x
+  %t: u32 = mul %bid_x, 256:u32
+  %tid_x: u32 = tid.x
+  %t0: u32 = add %t, %tid_x
+  %t1: u32 = mul %t0, 2:u32
+  %tid: i64 = cast %t1
+  %t3: i32 = sub[nsw=true] %n, 1:i32
+  %t4: i64 = cast %t3
+  %t5: i1 = lt %tid, %t4
+  if %t5 @if0 {
+    loop @loop0 {
+      carry %j: i32 = 0:i32, %t12 -> %j13
+      %t6: i1 = lt %j, 2:i32
+      while %t6
+      %t7: i64 = cast %j
+      %t8: i64 = add[nsw=true] %tid, %t7
+      %p: ptr<f32> = gep %y, %t8
+      %t9: i64 = cast %j
+      %t10: i64 = add[nsw=true] %tid, %t9
+      %p11: ptr<f32> = gep %x, %t10
+      %v: f32 = load %p11 @load0
+      store %p, %v @store0
+      %t12: i32 = add %j, 1:i32
+    }
+  }
+  %t14: i32 = rem %n, 2:i32
+  %t15: i1 = ne %t14, 0:i32
+  %t16: i32 = sub[nsw=true] %n, 1:i32
+  %t17: i64 = cast %t16
+  %t18: i1 = eq %tid, %t17
+  %c: i1 = and %t15, %t18
+  if %c @if1 {
+    %p19: ptr<f32> = gep %y, %tid
+    %p20: ptr<f32> = gep %x, %tid
+    %v21: f32 = load %p20 @load1
+    store %p19, %v21 @store1
+  }
+}
