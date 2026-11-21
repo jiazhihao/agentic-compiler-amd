@@ -1,0 +1,50 @@
+kir func first_below(%x: ptr<f32>, %out: ptr<i32>, %t: f32, %rows: i32, %cols: i32) {
+  %bid_x: u32 = bid.x
+  %bdim_x: u32 = bdim.x
+  %t0: u32 = mul %bid_x, %bdim_x
+  %tid_x: u32 = tid.x
+  %t1: u32 = add %t0, %tid_x
+  %i: i32 = cast %t1
+  %t3: i1 = ge %i, %rows
+  if %t3 @if0 {
+  }
+  merge %t4: i1 = true:i1, false:i1
+  %t5: i1 = not %t4
+  if %t5 @if1 {
+    %t6: u64 = cast %i
+    %t7: u64 = cast %cols
+    %t8: u64 = mul %t6, %t7
+    %t9: i64 = cast %t8
+    %p: ptr<f32> = gep %x, %t9
+    loop @loop0 {
+      carry %j: i32 = 0:i32, %j22 -> %j23
+      carry %found: i32 = -1:i32, %found18 -> %found24
+      carry %brk: i1 = false:i1, %t19 -> %brk25
+      %t10: i1 = lt %j, %cols
+      %t11: i1 = not %brk
+      %t12: i1 = and %t10, %t11
+      while %t12
+      %t13: i64 = cast %j
+      %p14: ptr<f32> = gep %p, %t13
+      %v: f32 = load %p14 @load0
+      %t15: i1 = lt %v, %t
+      if %t15 @if2 {
+        %t16: i1 = not %brk
+        if %t16 @if3 {
+        }
+        merge %t17: i1 = true:i1, %brk
+      }
+      merge %found18: i32 = %j, %found
+      merge %t19: i1 = %t17, %brk
+      %t20: i1 = not %t19
+      if %t20 @if4 {
+        %t21: i32 = add[nsw=true] %j, 1:i32
+      }
+      merge %j22: i32 = %t21, %j
+    }
+    %t26: i64 = cast %i
+    %p27: ptr<i32> = gep %out, %t26
+    store %p27, %found24 @store0
+  }
+  merge %t28: i1 = false:i1, %t4
+}

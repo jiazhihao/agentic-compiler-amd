@@ -23,7 +23,7 @@ kir func rb_swap(%n: i32, %x: ptr<f32>, %y: ptr<f32>) {
       %v12: f32 = load %p8 @load1
       store %p11, %v12 @store0
       store %p8, %v @store1
-      %t13: i32 = add %j, 1:i32
+      %t13: i32 = add[nsw=true] %j, 1:i32
     }
   }
   %t15: i32 = rem %n, 2:i32

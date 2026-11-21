@@ -1,0 +1,63 @@
+kir func gemm_bf16(%A: ptr<u16>, %B: ptr<u16>, %C: ptr<f32>, %M: i32, %N: i32, %K: i32) {
+  %bid_x: u32 = bid.x
+  %bdim_x: u32 = bdim.x
+  %t: u32 = mul %bid_x, %bdim_x
+  %tid_x: u32 = tid.x
+  %t0: u32 = add %t, %tid_x
+  %n: i32 = cast %t0
+  %bid_y: u32 = bid.y
+  %bdim_y: u32 = bdim.y
+  %t2: u32 = mul %bid_y, %bdim_y
+  %tid_y: u32 = tid.y
+  %t3: u32 = add %t2, %tid_y
+  %m: i32 = cast %t3
+  %t5: i1 = ge %m, %M
+  %t6: i1 = ge %n, %N
+  %c: i1 = or %t5, %t6
+  if %c @if0 {
+  }
+  merge %t7: i1 = true:i1, false:i1
+  %t8: i1 = not %t7
+  if %t8 @if1 {
+    %t9: u64 = cast %m
+    %t10: u64 = cast %K
+    %t11: u64 = mul %t9, %t10
+    %t12: i64 = cast %t11
+    %p: ptr<u16> = gep %A, %t12
+    %t13: u64 = cast %n
+    %t14: u64 = cast %K
+    %t15: u64 = mul %t13, %t14
+    %t16: i64 = cast %t15
+    %p17: ptr<u16> = gep %B, %t16
+    loop @loop0 {
+      carry %k: i32 = 0:i32, %t32 -> %k33
+      carry %acc: f32 = 0.0:f32, %t31 -> %acc34
+      %t18: i1 = lt %k, %K
+      while %t18
+      %t19: i64 = cast %k
+      %p20: ptr<u16> = gep %p, %t19
+      %v: u16 = load %p20 @load0
+      %t21: u32 = cast %v
+      %t22: u32 = shl %t21, 16:u32
+      %t23: f32 = bitcast %t22
+      %t24: i64 = cast %k
+      %p25: ptr<u16> = gep %p17, %t24
+      %v26: u16 = load %p25 @load1
+      %t27: u32 = cast %v26
+      %t28: u32 = shl %t27, 16:u32
+      %t29: f32 = bitcast %t28
+      %t30: f32 = mul %t23, %t29
+      %t31: f32 = add %acc, %t30
+      %t32: i32 = add[nsw=true] %k, 1:i32
+    }
+    %t35: u64 = cast %m
+    %t36: u64 = cast %N
+    %t37: u64 = mul %t35, %t36
+    %t38: u64 = cast %n
+    %t39: u64 = add %t37, %t38
+    %t40: i64 = cast %t39
+    %p41: ptr<f32> = gep %C, %t40
+    store %p41, %acc34 @store0
+  }
+  merge %t42: i1 = false:i1, %t7
+}

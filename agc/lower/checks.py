@@ -19,13 +19,19 @@ from ..runtime.compare import compare_outputs
 from ..runtime.inputs import Case, generate_inputs, poison
 from ..wir.interp import run as run_wir_func
 
-SMALL = (1, 257, 1000)          # values of the dynamic symbols: one element, not a multiple of a wave, several workgroups
+SMALL = (1, 257, 1000)          # sizes to interpret: one element, not a multiple of a wave, several workgroups
 
 
-def cpu_cases(m: Manifest, limit: int = 1 << 22) -> list[Case]:
-    """Battery cases small enough to interpret: the dynamic symbols reduced, two distributions."""
-    out = []
-    for v in SMALL:
+def cpu_cases(m: Manifest, limit: int = 1 << 20) -> list[Case]:
+    """Battery cases small enough to interpret: the dynamic symbols reduced, two distributions. With several
+    dynamic symbols each one gets the root of the size, so that the work (their product) stays the same."""
+    out, seen = [], set()
+    d = max(1, len(m.dynamic))
+    for size in SMALL:
+        v = max(1, round(size ** (1.0 / d)))
+        if v in seen:
+            continue
+        seen.add(v)
         sym = {**m.shapes, **{s: v for s in m.dynamic}}
         try:
             r = m.resolve(sym)

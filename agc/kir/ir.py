@@ -68,7 +68,7 @@ class Type:
         return 8 if self.is_ptr else 1 if self.is_bool else self.bits // 8
 
 
-_T = re.compile(r"^(?:(i1)|([iu])(8|16|32|64)|(f16|bf16|f32|f64)|ptr<(.+)>|([iuf]\d+)x([2-8]))$")
+_T = re.compile(r"^(?:(i1)|([iu])(8|16|32|64)|(f16|bf16|f32|f64)|ptr<(.+)>|([iuf]\d+)x(\d+))$")
 _FLOAT_BITS = {"f16": 16, "bf16": 16, "f32": 32, "f64": 64}
 
 

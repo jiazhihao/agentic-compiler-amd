@@ -15,13 +15,13 @@
    ],
    "battery": "49/49",
    "bit_identical": true,
-   "speed_over_amdclang": 1.0068,
+   "speed_over_amdclang": 1.0033,
    "ci95": [
-    0.9987,
-    1.0149
+    0.9953,
+    1.0114
    ],
-   "amdclang_ms": 0.1671,
-   "own_ms": 0.1666,
+   "amdclang_ms": 0.17074,
+   "own_ms": 0.16948,
    "outcome": "parity"
   },
   "cast_bf16": {
@@ -34,29 +34,29 @@
    ],
    "battery": "49/49",
    "bit_identical": true,
-   "speed_over_amdclang": 1.0015,
+   "speed_over_amdclang": 1.003,
    "ci95": [
-    0.9961,
-    1.007
+    0.9973,
+    1.0087
    ],
-   "amdclang_ms": 0.15466,
-   "own_ms": 0.15414,
+   "amdclang_ms": 0.15326,
+   "own_ms": 0.15278,
    "outcome": "parity"
   },
   "fa_attention": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "fa_attention.hip: 3 construct(s) outside the supported subset: `ConditionalOperator` as an assignable location at 1334:10; `min` does not end with a return at 13:31; call of `online_softmax_row`: several functions have this name and signature at 14:3"
+   "reason": "fa_attention.hip: 2 construct(s) outside the supported subset: `ConditionalOperator` as an assignable location at 1334:10; call of `online_softmax_row`: several functions have this name and signature at 14:3"
   },
   "fa_attention_causal": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "fa_attention.hip: 3 construct(s) outside the supported subset: `ConditionalOperator` as an assignable location at 1334:10; `min` does not end with a return at 13:31; call of `online_softmax_row`: several functions have this name and signature at 14:3"
+   "reason": "fa_attention.hip: 2 construct(s) outside the supported subset: `ConditionalOperator` as an assignable location at 1334:10; call of `online_softmax_row`: several functions have this name and signature at 14:3"
   },
   "fi_fused_add_rmsnorm": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "fi_fused_add_rmsnorm.hip: 40 construct(s) outside the supported subset: type `T` at 11:65; type `T` at 11:88; type `T` at 12:65; type `float[]` at 22:27; reference to `smem` (VarDecl) at 23:19; type `flashinfer::vec_t<float, 4>` at 28:24 ..."
+   "reason": "fi_fused_add_rmsnorm.hip: 38 construct(s) outside the supported subset: type `T` at 11:65; type `T` at 11:88; type `T` at 12:65; type `float[]` at 22:27; reference to `smem` (VarDecl) at 23:19; type `flashinfer::vec_t<float, 4>` at 28:24 ..."
   },
   "fi_gelu_tanh_and_mul": {
    "stage": "frontend",
@@ -66,22 +66,22 @@
   "fi_merge_state": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "fi_merge_state.hip: 12 construct(s) outside the supported subset: call of `__builtin_fmaxf`, which has no body in this translation unit at 1341:42; `max` does not end with a return at 20:17; reference to `s_max` (VarDecl) at 23:42; reference to `s_max` (VarDecl) at 24:42; type `flashinfer::vec_t<float, 4>` at 28:26; type `flashinfer::vec_t<float, 4>` at 28:35 ..."
+   "reason": "fi_merge_state.hip: 11 construct(s) outside the supported subset: call of `__builtin_fmaxf`, which has no body in this translation unit at 1341:42; reference to `inf` (VarDecl) at 23:50; reference to `inf` (VarDecl) at 24:50; type `flashinfer::vec_t<float, 4>` at 28:26; type `flashinfer::vec_t<float, 4>` at 28:35; type `flashinfer::vec_t<float, 4>` at 28:44 ..."
   },
   "fi_merge_state_in_place": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "fi_merge_state_in_place.hip: 12 construct(s) outside the supported subset: expression `CXXNullPtrLiteralExpr` at 16:15; call of `__builtin_fmaxf`, which has no body in this translation unit at 1341:42; `max` does not end with a return at 23:17; reference to `s_max` (VarDecl) at 26:38; reference to `s_max` (VarDecl) at 27:50; type `flashinfer::vec_t<float, 4>` at 31:26 ..."
+   "reason": "fi_merge_state_in_place.hip: 11 construct(s) outside the supported subset: expression `CXXNullPtrLiteralExpr` at 16:15; call of `__builtin_fmaxf`, which has no body in this translation unit at 1341:42; reference to `inf` (VarDecl) at 26:46; reference to `inf` (VarDecl) at 27:58; type `flashinfer::vec_t<float, 4>` at 31:26; type `flashinfer::vec_t<float, 4>` at 31:33 ..."
   },
   "fi_merge_states": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "fi_merge_states.hip: 17 construct(s) outside the supported subset: type `flashinfer::vec_t<float, 4>` at 20:29; expression `CXXMemberCallExpr` at 21:5; expression `CXXMemberCallExpr` at 22:5; expression `CXXNullPtrLiteralExpr` at 23:32; a `return` that is not the last statement of its function at 26:5; type `flashinfer::vec_t<float, 4>` at 30:29 ..."
+   "reason": "fi_merge_states.hip: 15 construct(s) outside the supported subset: type `flashinfer::vec_t<float, 4>` at 20:29; expression `CXXMemberCallExpr` at 21:5; expression `CXXMemberCallExpr` at 22:5; expression `CXXNullPtrLiteralExpr` at 23:32; type `flashinfer::vec_t<float, 4>` at 30:29; expression `CXXMemberCallExpr` at 31:5 ..."
   },
   "fi_rmsnorm": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "fi_rmsnorm.hip: 27 construct(s) outside the supported subset: type `T` at 11:55; type `T` at 11:78; type `T` at 11:102; type `float[]` at 22:27; type `flashinfer::vec_t<float, 4>` at 27:24; expression `CXXMemberCallExpr` at 28:5 ..."
+   "reason": "fi_rmsnorm.hip: 25 construct(s) outside the supported subset: type `T` at 11:55; type `T` at 11:78; type `T` at 11:102; type `float[]` at 22:27; type `flashinfer::vec_t<float, 4>` at 27:24; expression `CXXMemberCallExpr` at 28:5 ..."
   },
   "fi_rope": {
    "stage": "frontend",
@@ -96,22 +96,168 @@
   "gelu": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "gelu.hip: 2 construct(s) outside the supported subset: call of `__ocml_tanh_f32`, which has no body in this translation unit at 728:33; `tanhf` does not end with a return at 8:35"
+   "reason": "gelu.hip: 1 construct(s) outside the supported subset: call of `__ocml_tanh_f32`, which has no body in this translation unit at 728:33"
   },
   "gemm_bf16": {
-   "stage": "frontend",
-   "stopped": "frontend",
-   "reason": "gemm_bf16.hip: 1 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 10:27"
+   "stage": "battery",
+   "instructions": 52,
+   "amdclang_instructions": 53,
+   "decisions": [
+    "kernel.fp.contract",
+    "loop0.loop.unroll",
+    "loop0.loop.inflight",
+    "if0.branch.skip_empty"
+   ],
+   "battery": "77/77",
+   "bit_identical": true,
+   "speed_over_amdclang": 0.9996,
+   "ci95": [
+    0.9993,
+    0.9999
+   ],
+   "amdclang_ms": 14.93604,
+   "own_ms": 14.94408,
+   "outcome": "parity",
+   "loop_decisions": {
+    "tried": [
+     {
+      "overrides": {
+       "loop.unroll": 4,
+       "loop.inflight": "first"
+      },
+      "outcome": "parity",
+      "speed_over_amdclang": 1.0014,
+      "ci95": [
+       1.0005,
+       1.0023
+      ],
+      "own_ms": 14.98049,
+      "bit_identical": true,
+      "instructions": 94
+     },
+     {
+      "overrides": {
+       "loop.unroll": 8,
+       "loop.inflight": "first"
+      },
+      "outcome": "parity",
+      "speed_over_amdclang": 0.9993,
+      "ci95": [
+       0.9973,
+       1.0012
+      ],
+      "own_ms": 14.99767,
+      "bit_identical": true,
+      "instructions": 122
+     },
+     {
+      "overrides": {
+       "loop.unroll": 16,
+       "loop.inflight": "first"
+      },
+      "outcome": "parity",
+      "speed_over_amdclang": 1.0016,
+      "ci95": [
+       1.0006,
+       1.0027
+      ],
+      "own_ms": 14.9792,
+      "bit_identical": true,
+      "instructions": 178
+     }
+    ],
+    "best": null
+   }
   },
   "gemm_fp8": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "gemm_fp8.hip: 5 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 15:27; call of `__builtin_amdgcn_ldexpf`, which has no body in this translation unit at 510:43; `ldexpf` does not end with a return at 8:32; reference to `mag` (VarDecl) at 9:26; `e4m3_to_float` does not end with a return at 19:40"
+   "reason": "gemm_fp8.hip: 1 construct(s) outside the supported subset: call of `__builtin_amdgcn_ldexpf`, which has no body in this translation unit at 510:43"
   },
   "gemm_naive": {
-   "stage": "frontend",
-   "stopped": "frontend",
-   "reason": "gemm_naive.hip: 1 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 7:27"
+   "stage": "battery",
+   "instructions": 50,
+   "amdclang_instructions": 62,
+   "decisions": [
+    "kernel.fp.contract",
+    "loop0.loop.unroll",
+    "loop0.loop.inflight",
+    "if0.branch.skip_empty"
+   ],
+   "battery": "105/105",
+   "bit_identical": true,
+   "speed_over_amdclang": 0.9046,
+   "ci95": [
+    0.9038,
+    0.9054
+   ],
+   "amdclang_ms": 4.03838,
+   "own_ms": 4.4647,
+   "outcome": "loss",
+   "loop_decisions": {
+    "tried": [
+     {
+      "overrides": {
+       "loop.unroll": 4,
+       "loop.inflight": "first"
+      },
+      "outcome": "win",
+      "speed_over_amdclang": 2.0838,
+      "ci95": [
+       2.0781,
+       2.0895
+      ],
+      "own_ms": 1.94305,
+      "bit_identical": true,
+      "instructions": 99
+     },
+     {
+      "overrides": {
+       "loop.unroll": 8,
+       "loop.inflight": "first"
+      },
+      "outcome": "win",
+      "speed_over_amdclang": 2.1471,
+      "ci95": [
+       2.1418,
+       2.1524
+      ],
+      "own_ms": 1.87843,
+      "bit_identical": true,
+      "instructions": 136
+     },
+     {
+      "overrides": {
+       "loop.unroll": 16,
+       "loop.inflight": "first"
+      },
+      "outcome": "win",
+      "speed_over_amdclang": 2.157,
+      "ci95": [
+       2.1503,
+       2.1637
+      ],
+      "own_ms": 1.87247,
+      "bit_identical": true,
+      "instructions": 210
+     }
+    ],
+    "best": {
+     "overrides": {
+      "loop.unroll": 16,
+      "loop.inflight": "first"
+     },
+     "outcome": "win",
+     "speed_over_amdclang": 2.157,
+     "ci95": [
+      2.1503,
+      2.1637
+     ],
+     "own_ms": 1.87247,
+     "bit_identical": true,
+     "instructions": 210
+    }
+   }
   },
   "gemm_tiled": {
    "stage": "frontend",
@@ -129,9 +275,90 @@
    "reason": "layernorm.hip: 6 construct(s) outside the supported subset: type `float[256]` at 6:22; type `(lambda at tests/kernels/layernorm.hip:9:16)` at 9:10; reference to `red` (VarDecl) at 12:31; reference to `mean` (VarDecl) at 14:72; reference to `red` (VarDecl) at 15:45; reference to `mean` (VarDecl) at 16:76"
   },
   "matvec": {
-   "stage": "frontend",
-   "stopped": "frontend",
-   "reason": "matvec.hip: 1 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 6:20"
+   "stage": "battery",
+   "instructions": 37,
+   "amdclang_instructions": 38,
+   "decisions": [
+    "kernel.fp.contract",
+    "loop0.loop.unroll",
+    "load1.load.uniform",
+    "loop0.loop.inflight",
+    "if0.branch.skip_empty"
+   ],
+   "battery": "77/77",
+   "bit_identical": true,
+   "speed_over_amdclang": 0.9764,
+   "ci95": [
+    0.9748,
+    0.9779
+   ],
+   "amdclang_ms": 0.55711,
+   "own_ms": 0.57015,
+   "outcome": "loss",
+   "loop_decisions": {
+    "tried": [
+     {
+      "overrides": {
+       "loop.unroll": 4,
+       "loop.inflight": "first"
+      },
+      "outcome": "win",
+      "speed_over_amdclang": 2.0903,
+      "ci95": [
+       2.0759,
+       2.1048
+      ],
+      "own_ms": 0.26982,
+      "bit_identical": true,
+      "instructions": 60
+     },
+     {
+      "overrides": {
+       "loop.unroll": 8,
+       "loop.inflight": "first"
+      },
+      "outcome": "win",
+      "speed_over_amdclang": 2.4366,
+      "ci95": [
+       2.4018,
+       2.472
+      ],
+      "own_ms": 0.23094,
+      "bit_identical": true,
+      "instructions": 66
+     },
+     {
+      "overrides": {
+       "loop.unroll": 16,
+       "loop.inflight": "first"
+      },
+      "outcome": "win",
+      "speed_over_amdclang": 2.7727,
+      "ci95": [
+       2.763,
+       2.7823
+      ],
+      "own_ms": 0.20242,
+      "bit_identical": true,
+      "instructions": 78
+     }
+    ],
+    "best": {
+     "overrides": {
+      "loop.unroll": 16,
+      "loop.inflight": "first"
+     },
+     "outcome": "win",
+     "speed_over_amdclang": 2.7727,
+     "ci95": [
+      2.763,
+      2.7823
+     ],
+     "own_ms": 0.20242,
+     "bit_identical": true,
+     "instructions": 78
+    }
+   }
   },
   "mla_decode": {
    "stage": "frontend",
@@ -141,27 +368,27 @@
   "mo_active_fwd": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "mo_active_fwd.hip: 6 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 56:9; type `float[4]` at 58:13; type `float[4]` at 59:13; reference to `data` (VarDecl) at 61:26; a reference parameter of `ActivationFunction` at 63:24; type `float * __attribute__((ext_vector_type(4)))` at 65:7"
+   "reason": "mo_active_fwd.hip: 5 construct(s) outside the supported subset: type `float[4]` at 58:13; type `float[4]` at 59:13; reference to `data` (VarDecl) at 61:26; a reference parameter of `ActivationFunction` at 63:24; type `float * __attribute__((ext_vector_type(4)))` at 65:7"
   },
   "mo_adam": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "mo_adam.hip: 10 construct(s) outside the supported subset: call of `__ocml_pow_f64`, which has no body in this translation unit at 1025:45; `pow` does not end with a return at 539:1; `-` on f64 and i32 at 39:27; `-` on f64 and i32 at 40:27; call of `__builtin_fmaxf`, which has no body in this translation unit at 1341:42; `max` does not end with a return at 68:35 ..."
+   "reason": "mo_adam.hip: 7 construct(s) outside the supported subset: `-` on f64 and i32 at 39:27; `-` on f64 and i32 at 40:27; call of `__builtin_fmaxf`, which has no body in this translation unit at 1341:42; call of `sqrt`: several functions have this name and signature at 70:35; call of `sqrt`: several functions have this name and signature at 74:17; reference to `bias_correction1` (VarDecl) at 77:25 ..."
   },
   "mo_bn_infer": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "mo_bn_infer.hip: 12 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 111:9; type `float[4]` at 118:17; type `float[4]` at 119:17; type `float[4]` at 120:17; type `float[4]` at 121:17; type `float[4]` at 122:17 ..."
+   "reason": "mo_bn_infer.hip: 11 construct(s) outside the supported subset: type `float[4]` at 118:17; type `float[4]` at 119:17; type `float[4]` at 120:17; type `float[4]` at 121:17; type `float[4]` at 122:17; reference to `mean` (VarDecl) at 145:13 ..."
   },
   "mo_glu_fwd": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "mo_glu_fwd.hip: 5 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 17:9; call of `exp`: several functions have this name and signature at 8:71; `sigmoid` does not end with a return at 20:24; reference to `val2` (VarDecl) at 21:31; reference to `val` (VarDecl) at 22:24"
+   "reason": "mo_glu_fwd.hip: 1 construct(s) outside the supported subset: call of `exp`: several functions have this name and signature at 8:71"
   },
   "mo_prelu_bwd": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "mo_prelu_bwd.hip: 3 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 24:9; expression `CXXNullPtrLiteralExpr` at 29:22; expression `CXXNullPtrLiteralExpr` at 35:33"
+   "reason": "mo_prelu_bwd.hip: 2 construct(s) outside the supported subset: expression `CXXNullPtrLiteralExpr` at 29:22; expression `CXXNullPtrLiteralExpr` at 35:33"
   },
   "mo_reduce_sum": {
    "stage": "frontend",
@@ -169,19 +396,19 @@
    "reason": "mo_reduce_sum.hip: 1 construct(s) outside the supported subset: call of `block_reduce`: several functions have this name and signature at 17:23"
   },
   "mo_rope_fwd": {
-   "stage": "frontend",
-   "stopped": "frontend",
-   "reason": "mo_rope_fwd.hip: 1 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 20:9"
+   "stage": "lower",
+   "stopped": "unsupported",
+   "reason": "no per-lane `rem` on u64 yet (roadmap M13)"
   },
   "mo_t5_layernorm": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "mo_t5_layernorm.hip: 12 construct(s) outside the supported subset: type `float[256]` at 28:28; reference to `ltmp` (VarDecl) at 39:5; call of `__builtin_amdgcn_fence`, which has no body in this translation unit at 677:5; call of `__builtin_amdgcn_s_barrier`, which has no body in this translation unit at 678:5; call of `__builtin_amdgcn_fence`, which has no body in this translation unit at 679:5; r"
+   "reason": "mo_t5_layernorm.hip: 9 construct(s) outside the supported subset: type `float[256]` at 28:28; reference to `ltmp` (VarDecl) at 39:5; call of `__builtin_amdgcn_fence`, which has no body in this translation unit at 677:5; call of `__builtin_amdgcn_s_barrier`, which has no body in this translation unit at 678:5; call of `__builtin_amdgcn_fence`, which has no body in this translation unit at 679:5; re"
   },
   "moe_gate_topk": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "moe_gate_topk.hip: 10 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 16:24; call of `__builtin_inff`, which has no body in this translation unit at 19:14; reference to `m` (VarDecl) at 20:41; reference to `m` (VarDecl) at 22:60; type `int[16]` at 24:7; call of `__builtin_inff`, which has no body in this translation unit at 27:21 ..."
+   "reason": "moe_gate_topk.hip: 9 construct(s) outside the supported subset: call of `__builtin_inff`, which has no body in this translation unit at 19:14; reference to `m` (VarDecl) at 20:41; reference to `m` (VarDecl) at 22:60; type `int[16]` at 24:7; call of `__builtin_inff`, which has no body in this translation unit at 27:21; reference to `picked` (VarDecl) at 30:45 ..."
   },
   "rb_axpy": {
    "stage": "battery",
@@ -198,13 +425,13 @@
    ],
    "battery": "49/49",
    "bit_identical": true,
-   "speed_over_amdclang": 0.9957,
+   "speed_over_amdclang": 1.0008,
    "ci95": [
-    0.9898,
-    1.0017
+    0.9907,
+    1.011
    ],
-   "amdclang_ms": 0.15642,
-   "own_ms": 0.15684,
+   "amdclang_ms": 0.15518,
+   "own_ms": 0.155,
    "outcome": "parity"
   },
   "rb_copy": {
@@ -220,13 +447,13 @@
    ],
    "battery": "49/49",
    "bit_identical": true,
-   "speed_over_amdclang": 1.0042,
+   "speed_over_amdclang": 0.9957,
    "ci95": [
-    0.9982,
-    1.0102
+    0.9877,
+    1.0038
    ],
-   "amdclang_ms": 0.10976,
-   "own_ms": 0.10908,
+   "amdclang_ms": 0.10964,
+   "own_ms": 0.11032,
    "outcome": "parity"
   },
   "rb_dot": {
@@ -237,17 +464,99 @@
   "rb_gemvn": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "rb_gemvn.hip: 57 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 190:9; a `return` that is not the last statement of its function at 194:9; a `return` that is not the last statement of its function at 34:9; type `float[4096]` at 43:22; type `float[4]` at 45:11; type `float[4]` at 46:11 ..."
+   "reason": "rb_gemvn.hip: 54 construct(s) outside the supported subset: type `float[4096]` at 43:22; type `float[4]` at 45:11; type `float[4]` at 46:11; reference to `res_A` (VarDecl) at 48:5; reference to `res_x` (VarDecl) at 57:9; reference to `res_x` (VarDecl) at 58:9 ..."
   },
   "rb_gemvt": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "rb_gemvt.hip: 6 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 88:9; a `return` that is not the last statement of its function at 29:9; type `float[256]` at 39:22; reference to `sdata` (VarDecl) at 50:5; reference to `sdata` (VarDecl) at 55:38; reference to `sdata` (VarDecl) at 73:41"
+   "reason": "rb_gemvt.hip: 4 construct(s) outside the supported subset: type `float[256]` at 39:22; reference to `sdata` (VarDecl) at 50:5; reference to `sdata` (VarDecl) at 55:38; reference to `sdata` (VarDecl) at 73:41"
   },
   "rb_ger": {
-   "stage": "frontend",
-   "stopped": "frontend",
-   "reason": "rb_ger.hip: 1 construct(s) outside the supported subset: a `return` that is not the last statement of its function at 23:9"
+   "stage": "battery",
+   "instructions": 64,
+   "amdclang_instructions": 100,
+   "decisions": [
+    "kernel.fp.contract",
+    "loop0.loop.unroll",
+    "load0.load.uniform",
+    "loop0.loop.inflight",
+    "if0.branch.skip_empty",
+    "if1.branch.skip_empty"
+   ],
+   "battery": "77/77",
+   "bit_identical": true,
+   "speed_over_amdclang": 0.7917,
+   "ci95": [
+    0.7832,
+    0.8002
+   ],
+   "amdclang_ms": 0.10478,
+   "own_ms": 0.13222,
+   "outcome": "loss",
+   "loop_decisions": {
+    "tried": [
+     {
+      "overrides": {
+       "loop.unroll": 4,
+       "loop.inflight": "first"
+      },
+      "outcome": "win",
+      "speed_over_amdclang": 1.0423,
+      "ci95": [
+       1.0355,
+       1.049
+      ],
+      "own_ms": 0.10108,
+      "bit_identical": true,
+      "instructions": 135
+     },
+     {
+      "overrides": {
+       "loop.unroll": 8,
+       "loop.inflight": "first"
+      },
+      "outcome": "win",
+      "speed_over_amdclang": 1.0438,
+      "ci95": [
+       1.0339,
+       1.0538
+      ],
+      "own_ms": 0.10092,
+      "bit_identical": true,
+      "instructions": 191
+     },
+     {
+      "overrides": {
+       "loop.unroll": 16,
+       "loop.inflight": "first"
+      },
+      "outcome": "loss",
+      "speed_over_amdclang": 0.7828,
+      "ci95": [
+       0.7775,
+       0.7882
+      ],
+      "own_ms": 0.13336,
+      "bit_identical": true,
+      "instructions": 303
+     }
+    ],
+    "best": {
+     "overrides": {
+      "loop.unroll": 4,
+      "loop.inflight": "first"
+     },
+     "outcome": "win",
+     "speed_over_amdclang": 1.0423,
+     "ci95": [
+      1.0355,
+      1.049
+     ],
+     "own_ms": 0.10108,
+     "bit_identical": true,
+     "instructions": 135
+    }
+   }
   },
   "rb_nrm2": {
    "stage": "frontend",
@@ -264,13 +573,13 @@
    ],
    "battery": "49/49",
    "bit_identical": true,
-   "speed_over_amdclang": 1.0025,
+   "speed_over_amdclang": 0.9962,
    "ci95": [
-    0.9904,
-    1.0147
+    0.9902,
+    1.0022
    ],
-   "amdclang_ms": 0.20496,
-   "own_ms": 0.20418,
+   "amdclang_ms": 0.18254,
+   "own_ms": 0.18352,
    "outcome": "parity"
   },
   "rb_scal": {
@@ -287,13 +596,13 @@
    ],
    "battery": "49/49",
    "bit_identical": true,
-   "speed_over_amdclang": 1.0004,
+   "speed_over_amdclang": 1.0038,
    "ci95": [
-    0.9871,
-    1.0138
+    0.9903,
+    1.0176
    ],
-   "amdclang_ms": 0.1043,
-   "own_ms": 0.10386,
+   "amdclang_ms": 0.10454,
+   "own_ms": 0.10398,
    "outcome": "parity"
   },
   "rb_swap": {
@@ -311,19 +620,19 @@
    ],
    "battery": "49/49",
    "bit_identical": true,
-   "speed_over_amdclang": 1.0047,
+   "speed_over_amdclang": 0.9957,
    "ci95": [
-    0.9917,
-    1.018
+    0.9859,
+    1.0057
    ],
-   "amdclang_ms": 0.1814,
-   "own_ms": 0.18104,
+   "amdclang_ms": 0.1806,
+   "own_ms": 0.18156,
    "outcome": "parity"
   },
   "rmsnorm": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "rmsnorm.hip: 5 construct(s) outside the supported subset: type `float[256]` at 5:22; reference to `red` (VarDecl) at 10:23; call of `__builtin_sqrtf`, which has no body in this translation unit at 722:33; `sqrtf` does not end with a return at 11:26; reference to `scale` (VarDecl) at 12:75"
+   "reason": "rmsnorm.hip: 3 construct(s) outside the supported subset: type `float[256]` at 5:22; reference to `red` (VarDecl) at 10:23; call of `__builtin_sqrtf`, which has no body in this translation unit at 722:33"
   },
   "row_argmax": {
    "stage": "frontend",
@@ -341,14 +650,28 @@
    "reason": "softmax.hip: 7 construct(s) outside the supported subset: type `float[256]` at 5:22; call of `__builtin_inff`, which has no body in this translation unit at 8:16; reference to `m` (VarDecl) at 9:57; reference to `m` (VarDecl) at 10:5; reference to `m` (VarDecl) at 12:76; reference to `red` (VarDecl) at 13:22 ..."
   },
   "transpose": {
-   "stage": "lower",
-   "stopped": "unsupported",
-   "reason": "no per-lane `mul` on u64 yet (roadmap M13)"
+   "stage": "battery",
+   "instructions": 35,
+   "amdclang_instructions": 34,
+   "decisions": [
+    "kernel.fp.contract",
+    "if0.branch.skip_empty"
+   ],
+   "battery": "77/77",
+   "bit_identical": true,
+   "speed_over_amdclang": 0.9974,
+   "ci95": [
+    0.9914,
+    1.0034
+   ],
+   "amdclang_ms": 0.11688,
+   "own_ms": 0.11762,
+   "outcome": "parity"
   },
   "vl_fused_add_rms_norm": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "vl_fused_add_rms_norm.hip: 17 construct(s) outside the supported subset: type `scalar_t` at 12:28; type `scalar_t` at 14:28; type `scalar_t` at 15:34; reference to `input` (ParmVarDecl) at 22:18; reference to `z` (VarDecl) at 23:5; reference to `z` (VarDecl) at 24:22 ..."
+   "reason": "vl_fused_add_rms_norm.hip: 16 construct(s) outside the supported subset: type `scalar_t` at 12:28; type `scalar_t` at 14:28; type `scalar_t` at 15:34; reference to `input` (ParmVarDecl) at 22:18; reference to `z` (VarDecl) at 23:5; reference to `z` (VarDecl) at 24:22 ..."
   },
   "vl_moe_align": {
    "stage": "frontend",
@@ -358,7 +681,7 @@
   "vl_rms_norm": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "vl_rms_norm.hip: 28 construct(s) outside the supported subset: type `scalar_t` at 15:28; type `scalar_t` at 16:34; type `scalar_t` at 22:34; type `scalar_t` at 30:19; type `scalar_t` at 31:19; reference to `input_row` (VarDecl) at 34:5 ..."
+   "reason": "vl_rms_norm.hip: 27 construct(s) outside the supported subset: type `scalar_t` at 15:28; type `scalar_t` at 16:34; type `scalar_t` at 22:34; type `scalar_t` at 30:19; type `scalar_t` at 31:19; reference to `input_row` (VarDecl) at 34:5 ..."
   },
   "vl_rotary_embedding": {
    "stage": "frontend",
@@ -375,10 +698,10 @@
  "what": "agc's own lowering from HIP (default plan) against amdclang -O3 on the source as shipped",
  "summary": {
   "kernels": 50,
-  "frontend_ok": 8,
-  "battery_ok": 7,
-  "bit_identical": 7,
-  "geomean_speed_over_amdclang": 1.002,
-  "slowest": 0.9957
+  "frontend_ok": 13,
+  "battery_ok": 12,
+  "bit_identical": 12,
+  "geomean_speed_over_amdclang": 0.97,
+  "slowest": 0.7917
  }
 }

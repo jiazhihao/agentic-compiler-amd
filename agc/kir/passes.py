@@ -62,6 +62,10 @@ def _identity(s: Op):
             return a[1] if a[0].value else a[2]
         if a[1] is a[2] or (isinstance(a[1], Const) and a[1] == a[2]):
             return a[1]
+        if t.is_bool and isinstance(a[1], Const) and isinstance(a[2], Const) and a[1].value and not a[2].value:
+            return a[0]
+    if n in ("add", "sub") and t.is_int and a[0] is a[1] and n == "sub":
+        return Const(0, t)
     if n in ("cast", "bitcast") and a[0].type == t:
         return a[0]
     if n == "gep" and _is(a[1], 0):
@@ -73,22 +77,92 @@ def _key(x):
     return ("c", x.value, str(x.type), str(x.value)) if isinstance(x, Const) else ("v", id(x))
 
 
+_INVERSE = {"lt": "ge", "ge": "lt", "gt": "le", "le": "gt", "eq": "ne", "ne": "eq"}
+
+
 def simplify(f: Func) -> Func:
     for _ in range(50):
-        before = _count(f)
+        before = print_len(f)
         subst: dict[int, object] = {}
-        f.body = _rewrite(f.body, subst, {})
+        ctx = {"defs": {id(s.result): s for s in f.walk() if isinstance(s, Op) and s.result is not None},
+               "namer": None, "f": f, "changed": False}
+        f.body = _rewrite(f.body, subst, {}, ctx)
         _dce(f)
-        if _count(f) == before and not subst:
+        if print_len(f) == before and not subst and not ctx["changed"]:
             break
     return f
+
+
+def print_len(f: Func) -> int:
+    return _count(f)
+
+
+def _fresh(ctx: dict, hint: str, t: Type) -> Value:
+    if ctx["namer"] is None:
+        ctx["namer"] = _namer(ctx["f"])
+    return Value(ctx["namer"].fresh(hint), t)
+
+
+def _negatable(x, defs: dict) -> bool:
+    d = defs.get(id(x)) if isinstance(x, Value) else None
+    return d is not None and (d.name == "not" or (d.name in _INVERSE and not d.args[0].type.is_float))
+
+
+def _logic(s: Op, out: list, ctx: dict) -> bool:
+    """Rewrites of conditions that need new operations or look through definitions. True when `s`
+    was rewritten in place (it is then simplified again)."""
+    defs, n, a = ctx["defs"], s.name, s.args
+    t = s.result.type
+    if not t.is_bool:
+        return False
+
+    def emit(name: str, args: list) -> Value:
+        v = _fresh(ctx, "c", I1)
+        op = Op(name, args, v, loc=s.loc)
+        out.append(op)
+        defs[id(v)] = op
+        return v
+
+    if n == "not":
+        d = defs.get(id(a[0])) if isinstance(a[0], Value) else None
+        if d is None:
+            return False
+        if d.name == "not":                                 # !!x: handled by the caller through substitution
+            return False
+        if d.name in _INVERSE and not d.args[0].type.is_float:
+            s.name, s.args = _INVERSE[d.name], list(d.args)       # !(a < b) is a >= b for integers (not for floats: NaN)
+            return True
+        if d.name in ("or", "and") and all(_negatable(x, defs) for x in d.args):
+            s.name, s.args = ("and" if d.name == "or" else "or"), [emit("not", [d.args[0]]), emit("not", [d.args[1]])]
+            return True
+        return False
+    if n == "select":
+        c, x, y = a
+        tc = lambda v: isinstance(v, Const) and bool(v.value)
+        fc = lambda v: isinstance(v, Const) and not v.value
+        if fc(x) and tc(y):
+            s.name, s.args = "not", [c]
+        elif fc(y):
+            s.name, s.args = "and", [c, x]
+        elif tc(x):
+            s.name, s.args = "or", [c, y]
+        elif fc(x):
+            s.name, s.args = "and", [emit("not", [c]), y]
+        elif tc(y):
+            s.name, s.args = "or", [emit("not", [c]), x]
+        else:
+            return False
+        return True
+    return False
 
 
 def _count(f: Func) -> int:
     return sum(1 for _ in f.walk())
 
 
-def _rewrite(stmts: list, subst: dict, table: dict) -> list:
+def _rewrite(stmts: list, subst: dict, table: dict, ctx: dict) -> list:
+    defs = ctx["defs"]
+
     def r(x):
         while isinstance(x, Value) and id(x) in subst:
             x = subst[id(x)]
@@ -106,6 +180,32 @@ def _rewrite(stmts: list, subst: dict, table: dict) -> list:
                 new = fold_const(s.name, s.args, s.result.type)
             if new is None:
                 new = _identity(s)
+            if new is None and s.name == "not" and isinstance(s.args[0], Value):
+                d = defs.get(id(s.args[0]))
+                if d is not None and d.name == "not":
+                    new = r(d.args[0])
+            if new is None and _logic(s, out, ctx):
+                ctx["changed"] = True
+            if new is None and s.name == "add" and s.result.type.is_int and isinstance(s.args[1], Const) and isinstance(s.args[0], Value):
+                d = defs.get(id(s.args[0]))                 # (x + c1) + c2 is x + (c1 + c2)
+                if d is not None and d.name == "add" and isinstance(d.args[1], Const):
+                    c = fold_const("add", [d.args[1], s.args[1]], s.result.type)
+                    if c is not None:
+                        s.args = [d.args[0], c]
+                        s.attrs = {"nsw": True} if s.attrs.get("nsw") and d.attrs.get("nsw") and \
+                            (int(d.args[1].value) >= 0) == (int(s.args[1].value) >= 0) else {}
+                        ctx["changed"] = True
+            if new is None and s.name == "add" and s.result.type.is_int and not any(isinstance(x, Const) for x in s.args):
+                for i in (0, 1):                             # x + (y + c) is (x + y) + c: the constant last
+                    d = defs.get(id(s.args[i]))
+                    if d is not None and d.name == "add" and isinstance(d.args[1], Const) and isinstance(d.args[0], Value):
+                        v = _fresh(ctx, "s", s.result.type)
+                        op = Op("add", [s.args[1 - i], d.args[0]], v, loc=s.loc)
+                        defs[id(v)] = op
+                        out.append(op)
+                        s.args, s.attrs = [v, d.args[1]], {}
+                        ctx["changed"] = True
+                        break
             if new is None and s.name in PURE:
                 args = sorted(s.args, key=lambda a: repr(_key(a))) if s.name in COMMUTATIVE else s.args
                 key = (s.name, tuple(_key(a) for a in args), str(s.result.type), tuple(sorted(s.attrs.items())))
@@ -121,12 +221,12 @@ def _rewrite(stmts: list, subst: dict, table: dict) -> list:
             s.cond = r(s.cond)
             if isinstance(s.cond, Const):
                 taken = s.then if s.cond.value else s.orelse
-                out += _rewrite(taken, subst, table)
+                out += _rewrite(taken, subst, table, ctx)
                 for m in s.merges:
                     subst[id(m.result)] = r(m.a if s.cond.value else m.b)
                 continue
-            s.then = _rewrite(s.then, subst, dict(table))
-            s.orelse = _rewrite(s.orelse, subst, dict(table))
+            s.then = _rewrite(s.then, subst, dict(table), ctx)
+            s.orelse = _rewrite(s.orelse, subst, dict(table), ctx)
             keep = []
             for m in s.merges:
                 m.a, m.b = r(m.a), r(m.b)
@@ -135,13 +235,29 @@ def _rewrite(stmts: list, subst: dict, table: dict) -> list:
                 else:
                     keep.append(m)
             s.merges = keep
+            if not s.then and not s.orelse and s.mode is None:      # nothing runs: the merges are selects
+                for m in s.merges:
+                    op = Op("select", [s.cond, m.a, m.b], m.result, loc=s.loc)
+                    defs[id(m.result)] = op
+                    out.append(op)
+                    ctx["changed"] = True
+                continue
             out.append(s)
         else:
             s.init = [r(x) for x in s.init]
+            for i, (c, nx) in enumerate(zip(s.carried, s.next)):     # carried but never changed: its initial value
+                if nx is c:
+                    subst[id(c)] = s.init[i]
+                    subst[id(s.out[i])] = s.init[i]
+            keep = [i for i, (c, nx) in enumerate(zip(s.carried, s.next)) if nx is not c]
+            if len(keep) != len(s.carried):
+                ctx["changed"] = True
+                for name in ("carried", "init", "next", "out"):
+                    setattr(s, name, [getattr(s, name)[i] for i in keep])
             inner = dict(table)
-            s.head = _rewrite(s.head, subst, inner)
+            s.head = _rewrite(s.head, subst, inner, ctx)
             s.cond = r(s.cond)
-            s.body = _rewrite(s.body, subst, inner)
+            s.body = _rewrite(s.body, subst, inner, ctx)
             s.next = [r(x) for x in s.next]
             if isinstance(s.cond, Const) and not s.cond.value:      # never runs
                 for o, i in zip(s.out, s.init):
@@ -426,8 +542,112 @@ def widen_indices(f: Func) -> Func:
                         out.append(cast)
                         defs[id(x)] = cast
                         s.name, s.args, s.attrs = "add", [x, Const(c, s.result.type)], {}
+            elif s.name == "mul" and s.result.type.is_int and s.result.type.bits == 64:
+                # (x + c) * y is x * y + c * y: the index of iteration k + c is that of iteration k plus a
+                # loop-invariant stride
+                for i, a in enumerate(s.args):
+                    d = defs.get(id(a)) if isinstance(a, Value) else None
+                    other = s.args[1 - i]
+                    if d is not None and d.name == "add" and isinstance(d.args[1], Const) and not isinstance(other, Const):
+                        t64 = s.result.type
+                        base, stride = Value(namer.fresh("m"), t64), Value(namer.fresh("stride"), t64)
+                        o1 = Op("mul", [d.args[0], other], base, loc=s.loc)
+                        o2 = Op("mul", [Const(int(d.args[1].value), t64), other], stride, loc=s.loc)
+                        out += [o1, o2]
+                        defs[id(base)], defs[id(stride)] = o1, o2
+                        s.name, s.args, s.attrs = "add", [base, stride], {}
+                        break
             out.append(s)
         return out
 
     f.body = go(f.body)
     return simplify(f)
+
+
+HOISTABLE = PURE | {"ptradd", "mulw", "extract", "pack"}
+
+
+def licm(f: Func) -> Func:
+    """Loop-invariant code motion: an operation without side effects whose operands are all defined
+    outside a loop is computed once, before the loop. Works on `kir` and on `wir`. Only statements
+    directly in the loop's head or body move (not those inside its regions)."""
+    from .ir import results
+
+    def go(stmts: list) -> list:
+        out = []
+        for s in stmts:
+            if isinstance(s, If):
+                s.then, s.orelse = go(s.then), go(s.orelse)
+                out.append(s)
+            elif isinstance(s, Loop):
+                s.head, s.body = go(s.head), go(s.body)
+                inside = {id(c) for c in s.carried}
+                for x in walk(s.head + s.body):
+                    inside.update(id(v) for v in results(x))
+                hoisted = []
+                changed = True
+                while changed:
+                    changed = False
+                    for part in ("head", "body"):
+                        keep = []
+                        for x in getattr(s, part):
+                            if isinstance(x, Op) and x.result is not None and x.name in HOISTABLE and x.result is not s.cond and \
+                                    all(isinstance(a, Const) or id(a) not in inside for a in x.args):
+                                hoisted.append(x)
+                                inside.discard(id(x.result))
+                                changed = True
+                            else:
+                                keep.append(x)
+                        setattr(s, part, keep)
+                out += hoisted
+                out.append(s)
+            else:
+                out.append(s)
+        return out
+
+    f.body = go(f.body)
+    return f
+
+
+def cse(f: Func) -> Func:
+    """Common subexpressions only (no folding, no rewriting): an operation without side effects that
+    repeats one visible at that point takes its value. Works on `kir` and on `wir` (where the kind of
+    the result is part of what must match)."""
+    subst: dict[int, object] = {}
+
+    def r(x):
+        while isinstance(x, Value) and id(x) in subst:
+            x = subst[id(x)]
+        return x
+
+    def go(stmts: list, table: dict) -> list:
+        out = []
+        for s in stmts:
+            if isinstance(s, Op):
+                s.args = [r(a) for a in s.args]
+                if s.result is not None and s.name in HOISTABLE:
+                    args = sorted(s.args, key=lambda a: repr(_key(a))) if s.name in COMMUTATIVE else s.args
+                    key = (s.name, tuple(_key(a) for a in args), str(s.result.type), s.result.kind, tuple(sorted(s.attrs.items())))
+                    if key in table:
+                        subst[id(s.result)] = table[key]
+                        continue
+                    table[key] = s.result
+                out.append(s)
+            elif isinstance(s, If):
+                s.cond = r(s.cond)
+                s.then, s.orelse = go(s.then, dict(table)), go(s.orelse, dict(table))
+                for m in s.merges:
+                    m.a, m.b = r(m.a), r(m.b)
+                out.append(s)
+            else:
+                s.init = [r(x) for x in s.init]
+                inner = dict(table)
+                s.head = go(s.head, inner)
+                s.cond = r(s.cond)
+                s.body = go(s.body, inner)
+                s.next = [r(x) for x in s.next]
+                out.append(s)
+        return out
+
+    f.body = go(f.body, {})
+    return f

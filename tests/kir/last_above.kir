@@ -1,0 +1,47 @@
+kir func last_above(%x: ptr<f32>, %out: ptr<i32>, %t: f32, %rows: i32, %cols: i32) {
+  %bid_x: u32 = bid.x
+  %bdim_x: u32 = bdim.x
+  %t0: u32 = mul %bid_x, %bdim_x
+  %tid_x: u32 = tid.x
+  %t1: u32 = add %t0, %tid_x
+  %i: i32 = cast %t1
+  %t3: i1 = lt %i, %rows
+  if %t3 @if0 {
+    %t4: i64 = cast %i
+    %p: ptr<i32> = gep %out, %t4
+    %t5: u64 = cast %i
+    %t6: u64 = cast %cols
+    %t7: u64 = mul %t5, %t6
+    %t8: i64 = cast %t7
+    %p9: ptr<f32> = gep %x, %t8
+    %j: i32 = sub[nsw=true] %cols, 1:i32
+    loop @loop0 {
+      carry %j11: i32 = %j, %j22 -> %j11_23
+      carry %ret: i1 = false:i1, %t18 -> %ret24
+      carry %val: i32 = 0:i32, %t19 -> %val25
+      %t12: i1 = ge %j11, 0:i32
+      %t13: i1 = not %ret
+      %t14: i1 = and %t12, %t13
+      while %t14
+      %t15: i64 = cast %j11
+      %p16: ptr<f32> = gep %p9, %t15
+      %v: f32 = load %p16 @load0
+      %t17: i1 = ge %v, %t
+      if %t17 @if1 {
+      }
+      merge %t18: i1 = true:i1, %ret
+      merge %t19: i32 = %j11, %val
+      %t20: i1 = not %t18
+      if %t20 @if2 {
+        %t21: i32 = sub[nsw=true] %j11, 1:i32
+      }
+      merge %j22: i32 = %t21, %j11
+    }
+    %t26: i1 = not %ret24
+    if %t26 @if3 {
+    }
+    merge %t27: i1 = true:i1, %ret24
+    merge %t28: i32 = -1:i32, %val25
+    store %p, %t28 @store0
+  }
+}

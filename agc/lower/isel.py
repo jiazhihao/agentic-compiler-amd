@@ -18,12 +18,13 @@ registers the kernel asks the runtime for.
 """
 from __future__ import annotations
 
+import copy
 import struct
 
 from ..gen.builder import Builder
-from ..kir.ir import Const, Func, If, Loop, Op, Type, Value, operands
+from ..kir.ir import Const, Func, If, Loop, Op, Type, Value, operands, walk
 from ..mir import abi
-from ..mir.ir import Imm, Reg
+from ..mir.ir import Imm, Label, Reg
 from .plan import Plan
 from .table import Table
 from .wave import LowerError
@@ -49,6 +50,10 @@ class Selector:
         self.pending: dict[int, Op] = {}                 # uniform conditions, emitted at their branch
         self.addr: list[dict] = [{}]                     # address registers computed in the open regions
         self.negated: dict[int, object] = {}             # a float negation read only by fma -> its operand
+        self.direct: dict[int, Reg] = {}                 # value -> the register it must be computed into
+        self.depth = 0                                   # loops around the statement being selected
+        self.defdepth: dict[int, int] = {}               # value -> the loop depth it was defined at
+        self.noskip = 0                                  # open `where` regions entered without the empty-mask branch
         self.hint: dict[int, tuple] = {}                 # value -> (the value owning a register tuple, element)
         self.tuples: dict[int, object] = {}              # tuple owner -> its register
         self.wg: list[str] = []
@@ -92,6 +97,11 @@ class Selector:
 
     def new(self, v: Value) -> Reg:
         """The register an instruction writes `v` into."""
+        if id(v) in self.direct:                         # the next value of a loop-carried one: its register
+            r = self.direct.pop(id(v))
+            self.loc[id(v)] = r
+            self.defdepth[id(v)] = self.depth
+            return r
         if id(v) in self.hint:                           # an element of a tuple another value owns
             owner, i = self.hint[id(v)]
             r = Builder.part(self.tuple_of(owner), i)
@@ -106,6 +116,7 @@ class Selector:
         else:
             r = self.b.v(2 if self.wide(v.type) else 1)
         self.loc[id(v)] = r
+        self.defdepth[id(v)] = self.depth
         return r
 
     def tuple_of(self, v: Value) -> Reg:
@@ -206,7 +217,7 @@ class Selector:
         else:
             self.vop3(mn, dst, a, b)
 
-    def vop3(self, mn: str, dst, *srcs, tail=()):
+    def vop3(self, mn: str, dst, *srcs, tail=(), carry=None):
         srcs, scalars = list(srcs), 0
         for i, o in enumerate(srcs):
             if self.literal(o):
@@ -215,7 +226,7 @@ class Selector:
                 scalars += 1
                 if scalars > 1:
                     srcs[i] = self.to_v(o)
-        self.b.emit(mn, dst, *srcs, *tail)
+        self.b.emit(mn, dst, *([carry] if carry is not None else []), *srcs, *tail)
 
     # ---- masks ---------------------------------------------------------------------------------
     def compare(self, s: Op, into_vcc: bool):
@@ -270,13 +281,35 @@ class Selector:
             name = "hidden_" + s.attrs["field"]
             off, size = next((o, sz) for k, o, sz in abi.HIDDEN_ARGS if k == name)
             dst = self.new(r)
-            self.b.emit(self.t.data["memory"]["kernarg"][4], dst, self.t.limit("kernarg_pointer"), self.hidden_base + off)
-            if size < 4:
+            at = self.hidden_base + off
+            # a scalar load reads whole aligned dwords: a 16-bit field is the low or the high half of one
+            self.b.emit(self.t.data["memory"]["kernarg"][4], dst, self.t.limit("kernarg_pointer"), at - at % 4)
+            if at % 4:
+                self.b.emit(self.t.salu("shr", r.type), dst, dst, 8 * (at % 4))
+            if size < 4 and at % 4 + size < 4:
                 self.b.emit(self.t.salu("and", r.type), dst, dst, (1 << (8 * size)) - 1)
         elif n.startswith("wg."):
             self.loc[id(r)] = Builder.S(self.t.limit("first_workgroup_id_sgpr") + self.wg.index(n[-1]))
         elif n.startswith("lane."):
-            self.loc[id(r)] = Builder.V(self.t.limit("first_workitem_id_vgpr") + "xyz".index(n[-1]))
+            v0, d = Builder.V(self.t.limit("first_workitem_id_vgpr")), "xyz".index(n[-1])
+            bits = self.t.limit("workitem_id_bits")
+            if self.lanes == 0:
+                self.loc[id(r)] = v0
+            elif d == 0:
+                self.vop2(self.t.valu("and", r.type), self.new(r), Imm(hex((1 << bits) - 1)), v0)
+            else:
+                self.vop3(self.t.valu("bfe", Type("int", 32)), self.new(r), v0, Imm(str(bits * d)), Imm(str(bits)))
+        elif n == "load" and r.kind == "u":
+            self.scalar_load(s)
+        elif n == "mulw":
+            a32, b32 = self.src(s.args[0]), self.src(s.args[1])
+            t32 = s.args[0].type
+            if r.kind == "u":
+                dst = self.new(r)
+                self.b.emit(self.t.salu("mul", t32), Builder.part(dst, 0), a32, b32)
+                self.b.emit(self.t.salu("mulhi", t32), Builder.part(dst, 1), a32, b32)
+            else:
+                self.vop3(self.t.valu("mulw", t32), self.new(r), a32, b32, Imm("0"), carry=self.b.s(2))
         elif n in ("load", "store", "ptradd"):
             self.memory(s)
         elif n == "extract":
@@ -306,7 +339,7 @@ class Selector:
                         self.left[self.rt(a)] = self.left.get(self.rt(a), 0) + 1
                 return
             only_next = self.left.get(id(r), 0) == 1 and nxt is not None and any(x is r for x in operands(nxt)) and \
-                (isinstance(nxt, If) or nxt.name in ("select", "and", "or", "not"))
+                ((isinstance(nxt, If) and not nxt.merges) or (isinstance(nxt, Op) and nxt.name in ("select", "and", "or", "not")))
             self.compare(s, only_next)
             return
         if n in ("and", "or", "xor"):
@@ -360,6 +393,16 @@ class Selector:
             elif n in ("and", "or", "xor"):
                 for h in (0, 1):
                     self.b.emit(self.t.salu(n, Type("int", 32)), Builder.part(dst, h), self.src(a[0], h), self.src(a[1], h))
+            elif n == "mul":
+                u32 = Type("int", 32)
+                a0, a1, b0, b1 = self.src(a[0], 0), self.src(a[0], 1), self.src(a[1], 0), self.src(a[1], 1)
+                hi, t1 = self.b.s(), self.b.s()
+                self.b.emit(self.t.salu("mulhi", u32), hi, a0, b0)
+                self.b.emit(self.t.salu("mul", u32), t1, a0, b1)
+                self.b.emit(self.t.salu("add", u32), hi, hi, t1)
+                self.b.emit(self.t.salu("mul", u32), t1, a1, b0)
+                self.b.emit(self.t.salu("mul", u32), Builder.part(dst, 0), a0, b0)
+                self.b.emit(self.t.salu("add", u32), Builder.part(dst, 1), hi, t1)
             else:
                 raise LowerError(f"scalar `{n}` on {t}", s.site)
             return
@@ -406,14 +449,18 @@ class Selector:
             oa, ob, c = self.src(a[0]), self.src(a[1]), a[2]
             tied = self.t.valu("fma.tied", t)
             oc = self.src(c)
-            if tied and self.is_v(oc) and oc.name is not None and self.last_use(c) and id(r) not in self.hint:
+            # the tied form overwrites `c`: only when this is its last read and it was not defined outside the
+            # loop being selected (the next trip would read the overwritten register)
+            if tied and self.is_v(oc) and oc.name is not None and self.last_use(c) and id(r) not in self.hint \
+                    and self.defdepth.get(self.rt(c), -1) == self.depth \
+                    and (id(r) not in self.direct or self.same_reg(self.direct[id(r)], oc)):
+                self.direct.pop(id(r), None)
                 if not self.is_v(ob):
                     oa, ob = ob, oa
                 if not self.is_v(ob):
                     ob = self.to_v(ob)
                 self.b.emit(tied + "_e32", oc, oa, ob)
                 self.alias(r, c)
-                self.left[self.rt(c)] = self.left.get(self.rt(c), 0) + 1    # the read below is of the old value
                 return
             self.vop3(self.t.valu("fma", t), self.new(r), oa, ob, oc)
             return
@@ -463,6 +510,19 @@ class Selector:
         elif n in ("and", "or", "xor"):
             for h in (0, 1):
                 self.vop2(self.t.valu(n, Type("int", 32)), Builder.part(dst, h), self.src(a[0], h), self.src(a[1], h), True)
+        elif n == "mul":
+            # the low 64 bits of a 64 x 64 product: lo(a0 b0), hi(a0 b0) + lo(a0 b1) + lo(a1 b0)
+            u32 = Type("int", 32)
+            a0, a1, b0, b1 = self.src(a[0], 0), self.src(a[0], 1), self.src(a[1], 0), self.src(a[1], 1)
+            if not self.is_v(a0) and not self.is_v(b0):
+                a0 = self.to_v(a0)
+            hi, t1, t2 = self.b.v(), self.b.v(), self.b.v()
+            self.vop3(self.t.valu("mulhi", u32), hi, a0, b0)
+            self.vop3(self.t.valu("mul", u32), t1, a0, b1)
+            self.vop3(self.t.valu("mul", u32), t2, a1, b0)
+            self.vop3(self.t.valu("mul", u32), Builder.part(dst, 0), a0, b0)
+            self.vop2(self.t.valu("add", u32), hi, hi, t1, True)
+            self.vop2(self.t.valu("add", u32), Builder.part(dst, 1), hi, t2, True)
         else:
             raise LowerError(f"no per-lane `{n}` on {t} yet (roadmap M13)", s.site)
 
@@ -588,41 +648,235 @@ class Selector:
             data = self.v64(x) if self.wide(elem) else self.to_v(self.src(x))
             self.b.emit(mn, reg, data, "off", **mods)
 
+    def scalar_load(self, s: Op) -> None:
+        """A load at a uniform address: one `s_load_dword*` for the wave. It runs whatever the mask is, so
+        every `where` around it must be entered through the empty-mask branch (then some lane reads the
+        address in the source too, and it is valid)."""
+        if self.noskip:
+            raise LowerError("a scalar load inside a region entered without the empty-mask branch: choose "
+                             "`branch.skip_empty: branch` for the regions around it, or `load.uniform: vector`", s.site)
+        base, idx = s.args[0], s.args[1]
+        scale, off = s.attrs["scale"], s.attrs["off"]
+        if isinstance(idx, Const):
+            off += int(idx.value) * scale
+            idx = None
+        lo, hi = self.t.limit("scalar_offset")
+        key = ("s", self.rt(base), self.rt(idx) if idx is not None else None, scale)
+        addr = next((d[key] for d in reversed(self.addr) if key in d), None)
+        i32 = Type("int", 32)
+        if addr is None:
+            if idx is None:
+                addr = self.src(base)
+            else:
+                shift = scale.bit_length() - 1
+                if scale & (scale - 1):
+                    raise LowerError(f"an index scaled by {scale}", s.site)
+                addr = self.b.s(2)
+                self.b.emit(self.t.salu("shl", Type("int", 64)), addr, self.src(idx), shift)
+                self.b.emit(self.t.salu("add", i32), Builder.part(addr, 0), Builder.part(addr, 0), self.src(base, 0))
+                self.b.emit(self.t.salu("addc", i32), Builder.part(addr, 1), Builder.part(addr, 1), self.src(base, 1))
+            self.addr[-1][key] = addr
+        if not lo <= off <= hi:
+            a2 = self.b.s(2)
+            c = Const(off, Type("int", 64, True))
+            self.b.emit(self.t.salu("add", i32), Builder.part(a2, 0), Builder.part(addr, 0), self.src(c, 0))
+            self.b.emit(self.t.salu("addc", i32), Builder.part(a2, 1), Builder.part(addr, 1), self.src(c, 1))
+            addr, off = a2, 0
+        elem = s.args[0].type.elem
+        dwords = s.attrs.get("n", 1) * (2 if elem.size == 8 else 1)
+        mn = self.t.data["memory"]["scalar"].get(dwords)
+        if mn is None or elem.size not in (4, 8):
+            raise LowerError(f"no scalar load of {dwords} dwords of {elem}", s.site)
+        r = s.result
+        if r.type.is_vec:
+            dst = self.b.s(r.type.count)
+            self.loc[id(r)] = dst
+            self.defdepth[id(r)] = self.depth
+        else:
+            dst = self.new(r)
+        self.b.emit(mn, dst, addr, off)
+
+    # ---- loops ---------------------------------------------------------------------------------
+    def copy(self, dst: Reg, v: Value, x) -> None:
+        """`dst` (the register of a value shaped like `v`) = `x`."""
+        if v.type.is_bool:
+            src = self.mask(x) if not isinstance(x, Const) else (-1 if x.value else 0)
+            self.b.emit(self.t.control("mask_copy"), dst, src)
+            return
+        wide = self.wide(v.type)
+        mn = self.mov_v() if v.kind == "v" else self.t.salu("mov", Type("int", 32))
+        for h in ((0, 1) if wide else (None,)):
+            self.b.emit(mn, dst if h is None else Builder.part(dst, h), self.src(x, h))
+
+    def same_reg(self, a, b) -> bool:
+        return isinstance(a, Reg) and isinstance(b, Reg) and a.name is not None and (a.name, a.index, a.count) == (b.name, b.index, b.count)
+
+    def loop(self, s: Loop) -> None:
+        uniform = (s.cond.kind if isinstance(s.cond, Value) else "u") == "u"
+        regs = []
+        for c, i in zip(s.carried, s.init):
+            r = self.new(c)
+            self.copy(r, c, i)
+            self.use(i)
+            regs.append(r)
+        save = None
+        if not uniform:
+            save = self.b.s(2)
+            self.b.emit(self.t.control("mask_copy"), save, "exec")
+        head, done = self.b.new_label(), self.b.new_label()
+        self.depth += 1
+        for c in s.carried:
+            self.defdepth[id(c)] = self.depth
+        # a next value nothing else reads, defined after the last read of the carried value, is computed
+        # straight into the carried register (no copy at the end of the trip)
+        top = {id(x.result): i for i, x in enumerate(s.body) if isinstance(x, Op) and x.result is not None}
+        for r, c, n in zip(regs, s.carried, s.next):
+            if isinstance(n, Value) and id(n) in top and self.left.get(id(n), 0) == 1 and id(n) not in self.hint \
+                    and n.kind == c.kind and n.type == c.type and not c.type.is_bool:
+                later = [x for st in s.body[top[id(n)]:] for x in ([st] + list(walk(st.then + st.orelse if isinstance(st, If)
+                         else st.head + st.body if isinstance(st, Loop) else [])))]
+                if not any(a is c for x in later[1:] for a in operands(x)) and not any(a is c for a in s.body[top[id(n)]].args
+                                                                                     if s.body[top[id(n)]].name == "fma" and False):
+                    self.direct[id(n)] = r
+        # the test: once before the loop and again at the bottom (one branch per trip, as amdclang's loops),
+        # when the head is straight-line code; otherwise at the top, with a jump back
+        rotate = all(isinstance(x, Op) for x in s.head)
+        if not rotate:
+            self.b.label(head)
+        self.addr.append({})
+        mark = (len(self.b.blocks), len(self.b.blocks[-1].insts))
+        self.body(s.head, False)
+        if uniform:
+            if isinstance(s.cond, Const):
+                if not s.cond.value:
+                    self.b.emit(self.t.control("jump"), done)
+            else:
+                self.scalar_condition(s.cond, s.site)
+                self.b.emit(self.t.control("branch_false"), done)
+        else:
+            self.b.emit(self.t.control("mask_and"), "exec", "exec", self.mask(s.cond))
+            self.use(s.cond)
+            self.b.emit(self.t.control("skip_empty"), done)
+        test = None
+        if rotate and mark[0] == len(self.b.blocks) and not (uniform and isinstance(s.cond, Const)):
+            test = [copy.deepcopy(x) for x in self.b.blocks[-1].insts[mark[1]:]]
+            self.b.label(head)
+        elif rotate:
+            rotate = False                                   # the head opened a block after all: keep the top test
+            raise LowerError("a loop head that is not straight-line code", s.site)
+        self.body(s.body, False)
+        # the next values into the carried registers: through temporaries when one carried value feeds another
+        srcs = [self.src(n) for n in s.next]
+        todo = [(r, c, n, o) for r, c, n, o in zip(regs, s.carried, s.next, srcs) if not self.same_reg(r, o)]
+        crossed = any(isinstance(n, Value) and any(self.rt(n) == self.rt(c2) for c2 in s.carried) for _, _, n, _ in todo)
+        if crossed:
+            temps = []
+            for r, c, n, _ in todo:
+                tmp = self.b.s(2) if c.type.is_bool else (self.b.v if c.kind == "v" else self.b.s)(2 if self.wide(c.type) else 1)
+                self.copy(tmp, c, n)
+                temps.append(tmp)
+            for (r, c, n, _), tmp in zip(todo, temps):
+                if c.type.is_bool:
+                    self.b.emit(self.t.control("mask_copy"), r, tmp)
+                else:
+                    mn = self.mov_v() if c.kind == "v" else self.t.salu("mov", Type("int", 32))
+                    for h in ((0, 1) if self.wide(c.type) else (None,)):
+                        self.b.emit(mn, r if h is None else Builder.part(r, h), tmp if h is None else Builder.part(tmp, h))
+        else:
+            for r, c, n, _ in todo:
+                self.copy(r, c, n)
+        for n in s.next:
+            self.use(n)
+        self.addr.pop()
+        if test is not None:
+            test[-1].mnemonic = self.t.control("branch_true" if uniform else "continue_nonempty")
+            test[-1].operands = [Label(head)]
+            self.b.blocks[-1].insts += test
+        else:
+            self.b.emit(self.t.control("jump"), head)
+        self.b.label(done)
+        self.depth -= 1
+        if save is not None:
+            self.b.emit(self.t.control("where_leave"), "exec", "exec", save)
+        for o, c in zip(s.out, s.carried):
+            self.alias(o, c)
+
+    def scalar_condition(self, cond, site) -> None:
+        """Set the scalar condition code from a uniform integer comparison."""
+        c = self.pending.get(id(cond))
+        if c is None:
+            raise LowerError("a branch on a condition that is not a uniform integer comparison", site)
+        a, b, name = c.args[0], c.args[1], c.name
+        if isinstance(a, Const):
+            a, b, name = b, a, _FLIP[name]
+        self.b.emit(self.t.salu(name, a.type), self.src(a), self.src(b))
+        self.use(a), self.use(b), self.use(cond)
+
     # ---- regions -------------------------------------------------------------------------------
     def where(self, s: If, tail: bool) -> None:
         m = self.mask(s.cond)
         self.use(s.cond)
+        tail = tail and not s.merges
         save = self.b.s(2)
         skip = self.plan.choose(s.site or "if", "branch.skip_empty", ["branch", "none"]) == "branch"
         end = self.b.new_label()
         other = self.b.new_label() if s.orelse else end
+        # A merged value is one register: it holds the else-side value before the region (when that value
+        # exists there), and each side copies its value into it at its end. The copies run under the side's
+        # mask, so each lane gets the value of the side it took, and no path reads a register it did not write.
+        from ..kir.ir import results
+        inside = {id(v) for part in (s.then, s.orelse) for x in walk(part) for v in results(x)}
+        merged = []
+        for mg in s.merges:
+            dst = self.new(mg.result)
+            early = isinstance(mg.b, Const) or id(mg.b) not in inside
+            rt = mg.result.type
+            self.copy(dst, mg.result, mg.b if early else Const(False if rt.is_bool else 0.0 if rt.is_float else 0, rt))
+            merged.append((mg, dst, early))
         self.b.emit(self.t.control("where_enter"), save, m)
         if skip:
             self.b.emit(self.t.control("skip_empty"), other)
+        self.noskip += not skip
+
+        def copies(side: str):
+            for mg, dst, early in merged:
+                if side == "b" and early:
+                    self.use(mg.b)
+                    continue
+                x = getattr(mg, side)
+                if mg.result.type.is_bool:                   # the side's lanes take the bits of `x`
+                    tmp = self.b.s(2)
+                    self.b.emit(self.t.control("where_else"), dst, dst, "exec")
+                    self.b.emit(self.t.control("mask_and"), tmp, "exec", self.mask(x) if not isinstance(x, Const) else (-1 if x.value else 0))
+                    self.b.emit(self.t.salu("or", Type("int", 64)), dst, dst, tmp)
+                else:
+                    for h in ((0, 1) if self.wide(mg.result.type) else (None,)):
+                        self.b.emit(self.mov_v(), dst if h is None else Builder.part(dst, h), self.src(x, h))
+                self.use(x)
+
         self.addr.append({})
         self.body(s.then, tail and not s.orelse)
+        copies("a")
         self.addr.pop()
-        if s.orelse:
+        if s.orelse or any(not early for _, _, early in merged):
             self.b.label(other)
             self.b.emit(self.t.control("where_else"), "exec", save, "exec")
             if skip:
                 self.b.emit(self.t.control("skip_empty"), end)
             self.addr.append({})
             self.body(s.orelse, tail)
+            copies("b")
             self.addr.pop()
+        else:
+            for mg, _, _ in merged:
+                self.use(mg.b)
+        self.noskip -= not skip
         self.b.label(end)
         if not tail:
             self.b.emit(self.t.control("where_leave"), "exec", "exec", save)
 
     def branch(self, s: If, tail: bool) -> None:
-        c = self.pending.get(id(s.cond))
-        if c is None:
-            raise LowerError("a branch on a condition that is not a uniform integer comparison", s.site)
-        a, b, name = c.args[0], c.args[1], c.name
-        if isinstance(a, Const):
-            a, b, name = b, a, _FLIP[name]
-        self.b.emit(self.t.salu(name, a.type), self.src(a), self.src(b))
-        self.use(a), self.use(b), self.use(s.cond)
+        self.scalar_condition(s.cond, s.site)
         end = self.b.new_label()
         other = self.b.new_label() if (s.orelse or s.merges) else end
         self.b.emit(self.t.control("branch_false"), other)
@@ -662,7 +916,7 @@ class Selector:
                 else:
                     self.branch(s, last)
             else:
-                raise LowerError("loops are not selected yet (roadmap M12)", s.site)
+                self.loop(s)
 
     def run(self):
         self.readers: dict[int, list] = {}

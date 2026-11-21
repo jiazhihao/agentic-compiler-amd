@@ -493,20 +493,35 @@ all bit-identical to amdclang; numbers in `progress.md`.
 
 #### M12: control flow, loops, the first decisions that beat amdclang
 
-- [ ] Frontend: `for` / `while` / `do`, `break`, `continue`, early `return`, ternaries, compound
-      assignment, mutated locals (SSA construction), `__builtin_assume`.
-- [ ] `kir` passes: constant folding, DCE, CSE, simplification, LICM, induction variables.
-- [ ] Wave lowering of control flow: uniform conditions to scalar branches; varying conditions to
-      mask regions (`s_and_saveexec_b64`, `s_andn2_b64`, `s_or_b64`); varying loops with an active
-      mask that end when it is empty; `break` / `continue` / `return` as masks; mask values in
-      SGPR pairs.
-- [ ] Decisions: `loop.unroll`, `loop.inflight`, `loop.bulk`, `branch.form`, `branch.skip_empty`.
-- [ ] `replan`, `plan_diff`; the policy tries the loop decisions.
+- [x] Frontend: `for` / `while` / `do`, `break`, `continue`, early `return` (also from a loop of an
+      inlined function), ternaries, compound assignment, mutated locals (SSA construction).
+      `__builtin_assume` is accepted and ignored.
+- [x] `kir` passes: constant folding, DCE, CSE, simplification of conditions, LICM, reassociation of
+      constant index offsets, counted-loop recognition (`agc/kir/loops.py`).
+- [x] Wave lowering of control flow: uniform conditions to scalar branches; varying conditions to
+      mask regions (`s_and_saveexec_b64`, `s_andn2_b64`, `s_or_b64`); loops each lane leaves on its own,
+      under a mask that shrinks (`s_and_b64 exec`, `s_cbranch_execnz`); `break` / `continue` /
+      `return` as carried conditions; merged values as one register written on each side.
+- [x] Loops test at the bottom (one branch per trip); a next value is computed straight into the
+      carried register; the three workitem ids are read from the packed `v0`.
+- [x] Decisions: `loop.unroll` (1, 2, 4, 8, 16; also for a per-thread bound `base + iv < stop`),
+      `loop.inflight` (`as_written`, `first`), `load.uniform` (`scalar`, `vector`), `access.width` up
+      to 16 for scalar loads, `branch.skip_empty`. `branch.form` (if-conversion) and `loop.bulk` are
+      not built: no kernel so far needs them (a merge is already a masked copy).
+- [x] `replan`, `plan`, `explain` (M11). The loop decisions are swept by `scripts/own_path.py
+      --decisions` and are candidates of `optimize(s, own=True)`; they are not in the default policy
+      yet (its records and tests are those of the import path until M15 and M21).
+- [x] Brought forward: 64-bit multiply (`v_mad_i64_i32`, the general 64 x 64 form, the scalar form).
 
 Exit: every corpus and LLM kernel with loops and no LDS or transcendental math passes the battery
 through the own path. Default plan at 0.90 of amdclang or better on each. With `loop.inflight`
 chosen by the policy: `matvec` at 2.5x and `gemm_naive` at 2.0x over amdclang `-O3` (the pass on
 imported assembly reached 2.79 and 2.19), bit-identical. Size: about 3 k.
+
+Done (#81), with one miss: `rb_ger` is at 0.80 with the default plan, because amdclang's default
+already runs two iterations per trip there (its loop vectorizer) and agc's default is the loop as
+written; `loop.unroll` closes it (numbers in `progress.md`). `mo_rope_fwd` waits for 64-bit division
+(M13).
 
 #### M13: memory, LDS, barriers, cross-lane operations
 

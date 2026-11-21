@@ -1,0 +1,57 @@
+kir func gemm_naive(%A: ptr<f32>, %B: ptr<f32>, %C: ptr<f32>, %M: i32, %N: i32, %K: i32) {
+  %bid_x: u32 = bid.x
+  %bdim_x: u32 = bdim.x
+  %t: u32 = mul %bid_x, %bdim_x
+  %tid_x: u32 = tid.x
+  %t0: u32 = add %t, %tid_x
+  %n: i32 = cast %t0
+  %bid_y: u32 = bid.y
+  %bdim_y: u32 = bdim.y
+  %t2: u32 = mul %bid_y, %bdim_y
+  %tid_y: u32 = tid.y
+  %t3: u32 = add %t2, %tid_y
+  %m: i32 = cast %t3
+  %t5: i1 = ge %m, %M
+  %t6: i1 = ge %n, %N
+  %c: i1 = or %t5, %t6
+  if %c @if0 {
+  }
+  merge %t7: i1 = true:i1, false:i1
+  %t8: i1 = not %t7
+  if %t8 @if1 {
+    loop @loop0 {
+      carry %k: i32 = 0:i32, %t26 -> %k27
+      carry %acc: f32 = 0.0:f32, %t25 -> %acc28
+      %t9: i1 = lt %k, %K
+      while %t9
+      %t10: u64 = cast %m
+      %t11: u64 = cast %K
+      %t12: u64 = mul %t10, %t11
+      %t13: u64 = cast %k
+      %t14: u64 = add %t12, %t13
+      %t15: i64 = cast %t14
+      %p: ptr<f32> = gep %A, %t15
+      %v: f32 = load %p @load0
+      %t16: u64 = cast %k
+      %t17: u64 = cast %N
+      %t18: u64 = mul %t16, %t17
+      %t19: u64 = cast %n
+      %t20: u64 = add %t18, %t19
+      %t21: i64 = cast %t20
+      %p22: ptr<f32> = gep %B, %t21
+      %v23: f32 = load %p22 @load1
+      %t24: f32 = mul %v, %v23
+      %t25: f32 = add %acc, %t24
+      %t26: i32 = add[nsw=true] %k, 1:i32
+    }
+    %t29: u64 = cast %m
+    %t30: u64 = cast %N
+    %t31: u64 = mul %t29, %t30
+    %t32: u64 = cast %n
+    %t33: u64 = add %t31, %t32
+    %t34: i64 = cast %t33
+    %p35: ptr<f32> = gep %C, %t34
+    store %p35, %acc28 @store0
+  }
+  merge %t36: i1 = false:i1, %t7
+}

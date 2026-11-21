@@ -25,7 +25,7 @@ kir func rb_scal(%n: i32, %alpha: f32, %x: ptr<f32>) {
         %t13: i64 = cast %t12
         %p14: ptr<f32> = gep %x, %t13
         store %p14, %res @store0
-        %t15: i32 = add %j, 1:i32
+        %t15: i32 = add[nsw=true] %j, 1:i32
       }
     }
     %t17: i32 = rem %n, 2:i32

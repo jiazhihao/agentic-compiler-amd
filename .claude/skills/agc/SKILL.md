@@ -45,8 +45,15 @@ result is a new root state; check and time it like any other.
   every site that takes the decision.
 - `ir(id, "kir" | "wir")` shows the program above the assembly; `explain(id, site)` one site.
 - Decisions so far: `fp.contract` (fma or separate multiply and add), `access.width` (merge accesses
-  of consecutive elements into `dwordx2/x4`), `branch.skip_empty` (branch over a region no lane
-  enters). More arrive with each roadmap milestone (`docs/roadmap.md`, phase 2).
+  of consecutive elements into `dwordx2/x4`, scalar loads up to `s_load_dwordx16`), `load.uniform`
+  (a load at a uniform address as one scalar load), `loop.unroll` (1, 2, 4, 8, 16 iterations per
+  trip, remainder loop kept, bit-identical), `loop.inflight` (`first`: all loads of a trip before any
+  arithmetic, so one wait covers them), `branch.skip_empty`. More arrive with each roadmap milestone
+  (`docs/roadmap.md`, phase 2).
+- The loop pair is the first thing to try on a kernel whose loop waits for every load:
+  `replan(id, {"loop.unroll": 16, "loop.inflight": "first"})` gave `matvec` 2.78x and `gemm_naive`
+  2.15x over amdclang, bit-identical. A decision that does not exist in the kernel is refused with
+  the list of those that do.
 - A kernel outside the supported subset is refused with kind `frontend` (every unsupported construct
   with its source location) or `unsupported` (a lowering not built yet). `ref`, amdclang's build,
   stays available: `tests/baselines/own-gfx950.json` says how far each kernel gets.

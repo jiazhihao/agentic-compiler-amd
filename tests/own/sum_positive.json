@@ -1,0 +1,62 @@
+{
+ "name": "sum_positive",
+ "source": "control.hip",
+ "entry": "sum_positive",
+ "shapes": {
+  "rows": 300,
+  "cols": 37
+ },
+ "dynamic": [
+  "rows",
+  "cols"
+ ],
+ "params": [
+  {
+   "name": "x",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "rows",
+    "cols"
+   ],
+   "role": "in"
+  },
+  {
+   "name": "out",
+   "kind": "tensor",
+   "dtype": "f32",
+   "shape": [
+    "rows"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "rows",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "rows"
+  },
+  {
+   "name": "cols",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "cols"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "cdiv(rows, 128)"
+  ],
+  "block": [
+   128
+  ]
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "sum_positive"
+ },
+ "tags": [
+  "control-flow"
+ ]
+}
