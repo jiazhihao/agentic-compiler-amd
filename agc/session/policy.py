@@ -70,6 +70,22 @@ def optimize(s: Session, log=None) -> dict:
         rows.append(row)
         if log:
             log(row)
+    # non-temporal loads combine with the other transformations: try them on top of the best other win
+    others = [r for r in rows if r.get("outcome") == "win" and not r["how"].startswith("stream_loads")]
+    if others and s.ref_id is not None:
+        top = max(others, key=lambda r: r["ci95"][0])
+        row = {"path": top["path"], "how": f"{top['how']} + stream_loads(scope=all)", "bit_identical": top["bit_identical"]}
+        try:
+            st = s.apply(top["state"], "stream_loads", {"scope": "all"})
+            row["state"] = st["id"]
+            b = s.bench(st["id"])
+            row.update(verified=True, outcome=b["outcome"], speedup=b.get("speedup"), ci95=b.get("speedup_ci95"),
+                       ms=b.get("candidate_ms"), amdclang_ms=b.get("reference_ms"))
+        except SessionError as e:
+            row.update(verified=False, outcome="rejected", reason=f"{e.kind}: {e.message}"[:300])
+        rows.append(row)
+        if log:
+            log(row)
     wins = [r for r in rows if r.get("outcome") == "win"]
     report = {"kernel": s.manifest.name, "session": s.id, "candidates": rows}
     if wins:
