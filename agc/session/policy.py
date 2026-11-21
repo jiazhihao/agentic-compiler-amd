@@ -1,7 +1,8 @@
 """The default policy: what agc does with a manifest when nobody steers it.
 
 Candidates: the baseline (the strongest amdclang build, see the manifest's `baseline`) with `unroll_loads` at each factor (when a loop qualifies) and with
-`coarsen` at each factor (several workgroups of the original per launched workgroup) and `throttle`
+`coarsen` at each factor (several workgroups of the original per launched workgroup), `stream_loads`
+(non-temporal loads) and `throttle`
 (an LDS reservation that limits the workgroups per compute unit), and the
 manifest's tensor program compiled with every parameter of the matching template. Each candidate
 goes through the static checks, the full battery and a paired timing against amdclang. The result
@@ -28,6 +29,8 @@ def candidates(s: Session) -> list[dict]:
         for f in COARSEN_FACTORS:
             out.append({"path": "import+pass", "how": f"coarsen(factor={f})", "bit_identical": True,
                         "make": lambda f=f: s.apply("baseline", "coarsen", {"factor": f})})
+        out.append({"path": "import+pass", "how": "stream_loads(scope=all)", "bit_identical": True,
+                    "make": lambda: s.apply("baseline", "stream_loads", {"scope": "all"})})
         for n in THROTTLE:
             out.append({"path": "import+pass", "how": f"throttle(workgroups_per_cu={n})", "bit_identical": True,
                         "make": lambda n=n: s.apply("baseline", "throttle", {"workgroups_per_cu": n})})

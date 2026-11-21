@@ -5,13 +5,15 @@ benchmark measured (issue #64, 2026-11-21): which ISA-level optimization transfe
 when, and which pass does it. Numbers are harness-verified gains over the strongest amdclang build
 unless marked "session" (the session's own 240-pair timing).
 
+The complete catalog is `OPTIMIZATIONS.md`; every verified result with its recipe is `RECIPES.md`.
+
 ## Decide first: which kind of kernel is this
 
 | kind | how to tell | what 1.5x needs | examples |
 |---|---|---|---|
 | re-reading | a tensor is read once per head, query or pass; traffic is above the touch-once model | read it once: wave-uniform rows through scalar loads, MFMA tiles, values kept in registers | `fa_attention` 2.09, `fa_attention_causal` 1.99, `mla_decode` 1.57, `attn_decode` 1.55 |
 | serialized on one resource | one workgroup does the work, the others idle; probes show two bounds of equal size | remove both bounds (cold reads, LDS atomics on shared addresses) | `vl_moe_align` 1.55 |
-| touch-once, memory floor | every element read once and written once; `reference_headroom` 0.9 to 1.1 | nothing found at the ISA level; best 1.12 (`rb_scal`), most at parity | all `rb_*` level 1, `mo_*`, `fi_*` elementwise, row norms |
+| touch-once, memory floor | every element read once and written once; `reference_headroom` 0.9 to 1.1 | non-temporal loads (`stream_loads`) move the floor itself: 1.09 to 1.14 on a copy. Body rewrites do not: best 1.12 (`rb_scal`), most at parity | all `rb_*` level 1, `mo_*`, `fi_*` elementwise, row norms |
 
 On a touch-once kernel the instruction count of the body is free: hand-written bodies with 25 % to
 60 % fewer instructions measured 0.99 to 1.00 on `rb_axpy`, `rb_dot`, `fi_gelu_tanh_and_mul`,
@@ -61,10 +63,12 @@ per compute unit, and nothing else.
 - **Two equal bounds hide each other.** Removing one phase in a probe may show nothing because the
   other bound takes over (`vl_moe_align`: 45.5 us, 43.3 without cold loads, 42.6 without atomics,
   23.2 without both). Probe pairs of phases when single probes add up to less than the total.
-- **The baseline's time has two modes** on the long touch-once kernels (`rb_axpy` 154 to 157 us or
-  161 to 165 us, `rb_swap` the same). A win at 60 or 120 pairs taken in the slow mode disappears at
-  240: `fi_gelu_tanh_and_mul` 1.019 became 1.006, `fi_merge_state` 1.039 became 1.012. Only two
-  240-pair timings count.
+- **Time depends on where the tensors were allocated** (up to 6 %, differently for each code
+  object, stable for the life of the allocation). One allocation measures one placement: on
+  `rb_axpy` a candidate measured 0.97 to 1.05 across allocations. `bench` and `compare` now spread
+  the pairs over several allocations and take the CI over them; a result near 1.02 needs
+  `pairs=240`. Single-allocation wins of the campaign (`fi_gelu_tanh_and_mul` 1.019,
+  `fi_merge_state` 1.039, `rb_axpy` 1.029) were this.
 - **Check which path the battery takes** before trusting a fast path: on `kda_step` all battery
   shapes run the slow loop.
 - **Differential check** (`equivalent`): states built on a `-ffast-math` baseline are within

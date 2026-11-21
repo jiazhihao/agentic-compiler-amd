@@ -278,6 +278,11 @@ def knowledge(name: str, result: dict) -> None:
             for e in entries:
                 f.write(f"\n## {e['title']}\n\n- **Verdict:** {e.get('verdict', '')}\n- **Applies when:** {e.get('applies_when', '')}\n"
                         f"- **How:** {e.get('how', '')}\n- **Measured:** {e.get('measured', '')}\n- **Session:** {day}\n")
+    try:                                                     # the generated index and recipe list follow the entries
+        from .. import kb
+        kb.write()
+    except Exception:
+        pass
 
 
 def replay(names: list[str] | None = None, root: str | Path | None = None, log=print, update: bool = False) -> dict:

@@ -158,19 +158,19 @@ One agent session per kernel through the harness (`agc agent`); each number is t
 
 | kernel | library | amdclang -O3, shipped source (ms) | strongest amdclang build | its speedup over -O3 shipped | baseline ms | default policy over the baseline | agent session over the baseline (95% CI) | how | total over -O3 shipped |
 |---|---|---|---|---|---|---|---|---|---|
-| `attn_decode` | port | 1.2532 | restructured source + own launch | 7.39 | 0.1663 | fallback | **1.549** (1.548 to 1.551) | source + edit | 11.59 |
-| `fa_attention` | port | 0.2205 | restructured source + -ffast-math + own launch | 3.94 | 0.0546 | fallback | **2.085** (2.082 to 2.090) | source + edit_ir + fix_waits + fix_hazards | 8.23 |
-| `fa_attention_causal` | port | 0.2000 | restructured source + -ffast-math + own launch | 2.23 | 0.0889 | fallback | **1.992** (1.987 to 1.995) | source + edit + edit + fix_waits + fix_hazards + edit + edit + fix_waits + fix_hazards | 4.46 |
+| `attn_decode` | port | 1.2532 | restructured source + own launch | 7.39 | 0.1663 | fallback | **1.552** (1.547 to 1.556) | source + edit | 11.50 |
+| `fa_attention` | port | 0.2205 | restructured source + -ffast-math + own launch | 3.94 | 0.0546 | fallback | **2.105** (2.101 to 2.108) | source + edit_ir + fix_waits + fix_hazards | 8.18 |
+| `fa_attention_causal` | port | 0.2000 | restructured source + -ffast-math + own launch | 2.23 | 0.0889 | fallback | **1.981** (1.977 to 1.985) | source + edit + edit + fix_waits + fix_hazards + edit + edit + fix_waits + fix_hazards | 4.40 |
 | `fi_fused_add_rmsnorm` | flashinfer | 0.0968 | -O3, source as shipped |  | 0.1023 | fallback |  |  | 1.00 |
 | `fi_gelu_tanh_and_mul` | flashinfer | 0.1060 | restructured source + -ffast-math + own launch | 1.13 | 0.0928 | fallback |  |  | 1.13 |
 | `fi_merge_state` | flashinfer | 0.1024 | restructured source + -ffast-math + own launch | 1.05 | 0.1026 | fallback |  |  | 1.05 |
 | `fi_merge_state_in_place` | flashinfer | 0.1009 | -O3, source as shipped |  | 0.1010 | fallback |  |  | 1.00 |
-| `fi_merge_states` | flashinfer | 0.1082 | -O3, source as shipped |  | 0.1076 | 1.050 `coarsen(factor=2)` | **1.105** (1.100 to 1.109) | import + edit_ir + fix_waits + coarsen | 1.09 |
-| `fi_rmsnorm` | flashinfer | 0.1305 | -ffast-math | 1.04 | 0.1256 | 1.044 `coarsen(factor=2)` | **1.081** (1.077 to 1.084) | source + relaunch + edit_ir + fix_hazards | 1.11 |
-| `fi_rope` | flashinfer | 0.1070 | restructured source + -ffast-math + own launch | 2.23 | 0.0496 | fallback | **1.037** (1.030 to 1.041) | source + edit + edit + fix_hazards + edit | 2.30 |
-| `fi_silu_and_mul` | flashinfer | 0.1030 | restructured source + own launch | 1.06 | 0.0969 | fallback | **1.021** (1.018 to 1.026) | source + edit_ir + edit + edit + relaunch | 1.07 |
+| `fi_merge_states` | flashinfer | 0.1082 | -O3, source as shipped |  | 0.1076 | 1.050 `coarsen(factor=2)` | **1.122** (1.117 to 1.126) | import + edit_ir + fix_waits + coarsen | 1.12 |
+| `fi_rmsnorm` | flashinfer | 0.1305 | -ffast-math | 1.04 | 0.1256 | 1.044 `coarsen(factor=2)` | **1.073** (1.068 to 1.077) | source + relaunch + edit_ir + fix_hazards | 1.11 |
+| `fi_rope` | flashinfer | 0.1070 | restructured source + -ffast-math + own launch | 2.23 | 0.0496 | fallback | **1.032** (1.028 to 1.036) | source + edit + edit + fix_hazards + edit | 2.43 |
+| `fi_silu_and_mul` | flashinfer | 0.1030 | restructured source + own launch | 1.06 | 0.0969 | fallback | **1.029** (1.024 to 1.035) | source + edit_ir + edit + edit + relaunch | 1.10 |
 | `kda_step` | port | 0.2055 | restructured source + -fno-slp-vectorize -fno-vectorize -ffast-math + own launch | 1.90 | 0.1079 | fallback |  |  | 1.90 |
-| `mla_decode` | port | 0.4593 | restructured source + -ffast-math + own launch | 1.71 | 0.2654 | fallback | **1.565** (1.564 to 1.566) | source + edit + edit | 2.67 |
+| `mla_decode` | port | 0.4593 | restructured source + -ffast-math + own launch | 1.71 | 0.2654 | fallback | **1.562** (1.561 to 1.564) | source + edit + edit | 2.67 |
 | `mo_active_fwd` | miopen | 0.1111 | restructured source + -ffast-math + own launch | 1.03 | 0.1087 | fallback |  |  | 1.03 |
 | `mo_adam` | miopen | 0.3818 | restructured source + -ffast-math + own launch | 1.10 | 0.3360 | fallback | **1.025** (1.024 to 1.027) | source + edit_ir + edit_ir | 1.07 |
 | `mo_bn_infer` | miopen | 0.1037 | restructured source + own launch | 1.22 | 0.0885 | fallback |  |  | 1.22 |
@@ -197,7 +197,7 @@ One agent session per kernel through the harness (`agc agent`); each number is t
 
 The baseline is the strongest amdclang build found per kernel (`scripts/strong_baseline.py`): the source as shipped or a restructured source, with or without `-ffast-math`, with its own launch where that is faster; all of it is amdclang's code. The policy and session columns are what agc adds on top of that build (machine IR passes and edits), verified by the full battery and paired timings. The last column is for orientation: the best verified agc state, or else the baseline, over amdclang -O3 on the source as shipped.
 
-20 of 36 kernels have a verified agc gain over the strongest amdclang build; 16 fallbacks; geomean of the agc gain 1.098 with fallbacks at 1.0; geomean over -O3 on the shipped source 1.686.
+20 of 36 kernels have a verified agc gain over the strongest amdclang build; 16 fallbacks; geomean of the agc gain 1.098 with fallbacks at 1.0; geomean over -O3 on the shipped source 1.690.
 
 ## Reproduce
 

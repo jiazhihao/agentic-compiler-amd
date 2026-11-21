@@ -284,6 +284,20 @@ def mix(ref: str = "baseline", blocks: list | None = None) -> dict:
 
 
 @tool
+def kb(query: str, limit: int = 8) -> dict:
+    """Search the knowledge base of measured optimizations on this device: the curated catalog and the entries of
+    every kernel's sessions (wins, parities and losses). `query` is free text: an instruction (`ds_add_u32`), a kernel
+    kind ("elementwise touch-once"), a technique ("loads in flight", "LDS reservation"). Each hit says when it
+    applies, how to do it and what it measured. The files: `.claude/skills/agc-notes/kb/OPTIMIZATIONS.md` (all
+    optimizations), `RECIPES.md` (every verified result and its recipe), `PATTERNS.md` (which kind of kernel is this)."""
+    from ..kb import search
+    hits = search(query, max(1, min(int(limit), 20)))
+    return {"hits": [{"from": "OPTIMIZATIONS.md" if h["kernel"] == "catalog" else f"{h['kernel']}.md", "title": h["title"],
+                      "verdict": h["verdict"], "applies_when": h["applies"], "how": h["how"], "measured": h["measured"]} for h in hits],
+            "note": "session entries carry the sessions' own numbers; RECIPES.md has the harness-verified ones"}
+
+
+@tool
 def isa_diff(a: str, b: str) -> dict:
     """Instruction-mix difference of two states by cost class (b minus a), with registers and launch of both: what
     one code does that the other does not. Use it to compare amdclang's code with your own state, or two amdclang

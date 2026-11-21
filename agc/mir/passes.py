@@ -103,6 +103,27 @@ def register_transforms() -> None:
         fix_hazards(m.kernel(kernel))
         return m
 
+    @transform("stream_loads", "mark every vector load non-temporal (`nt`, with the widest cache scope `sc0 sc1`): the data is not "
+               "kept in the caches on its way in. For kernels that read each element once (bit-identical; 1.09x to 1.14x "
+               "on a plain copy); it loses when the kernel reads the same data again",
+               {"scope": ["all", "none"]})
+    def _stream_loads(m: Module, kernel: str, scope: str = "all") -> Module:
+        if scope not in ("all", "none"):
+            raise ValueError("scope is `all` (sc0 sc1 nt) or `none` (nt)")
+        want = ("sc0", "sc1", "nt") if scope == "all" else ("nt",)
+        n = 0
+        for b in m.kernel(kernel).blocks:
+            for inst in b.insts:
+                if inst.mnemonic.startswith("global_load_") and "lds" not in inst.mnemonic:
+                    have = {k for k, _ in inst.mods}
+                    add = [(k, None) for k in want if k not in have]
+                    if add:
+                        inst.mods = list(inst.mods) + add
+                        n += 1
+        if not n:
+            raise ValueError("no vector load to mark (or all are marked already)")
+        return m
+
     @transform("throttle", "the same code launched with an LDS reservation that lets only `workgroups_per_cu` workgroups share a "
                "compute unit (bit-identical; fewer waves compete for the memory pipeline: 1.02x to 1.04x measured on "
                "memory-bound reductions, see the knowledge base)", {"workgroups_per_cu": "integer of at least 1 (the policy tries 2 and 4)"},

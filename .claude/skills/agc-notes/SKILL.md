@@ -8,9 +8,11 @@ description: What has been learned about optimizing kernels for AMD MI355X (gfx9
 Each note says what was measured and where. Numbers are paired speedups over `amdclang -O3` under
 the agc timing protocol unless stated.
 
-Per-kernel entries and the cross-kernel summary are in `kb/`: read `kb/PATTERNS.md` first (which
-optimization transfers between kernels, when, and which pass does it), then the files of kernels of
-the same kind.
+The knowledge base is `kb/` (see `kb/README.md`): `PATTERNS.md` (which kind of kernel is this),
+`OPTIMIZATIONS.md` (the catalog of every optimization: when it applies, how, what it measured),
+`RECIPES.md` (every verified result with its recipe), `INDEX.md` and one file per kernel. In a
+session, `kb(query)` searches it. The notes below are the older summary; where they disagree with
+the catalog, the catalog is newer.
 
 ## What pays
 

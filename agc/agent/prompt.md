@@ -50,7 +50,7 @@ Three levels, to be combined:
    every shape, including tails that do not fill a thread's group of elements.
 2. **Tensor program** — `program()`, `generate(template, params)` when the manifest has one.
 3. **Machine IR** — `edit`, `edit_ir`, `apply` (`actions(id)` lists the transforms: `coarsen`,
-   `unroll_loads`, `throttle`, `fix_waits`, `fix_hazards`) on any state: `baseline`, or one made by `source`.
+   `unroll_loads`, `stream_loads`, `throttle`, `fix_waits`, `fix_hazards`) on any state: `baseline`, or one made by `source`.
    This is the place for what amdclang does not do, and the level your result is measured at.
 
 Reading large kernels: `state(id)` gives an outline above 400 instructions; `state(id, blocks=[...])`
@@ -60,8 +60,12 @@ lists blocks, `find(id, regex)` searches, `liveness(id, block)` gives live and f
 where the time goes; it is a diagnosis, never a result.
 
 `check` then `bench` every candidate; a state that fails the battery has no speed. `compare(a, b)` times two verified states against each other when they are too close to rank
-through the baseline. For effects of a few percent pass `pairs=240` to `bench` and `compare`: the harness
-verifies with two 240-pair timings and takes the lower one, so a 60-pair win at 1.02 is not safe.
+through the baseline. A timing is spread over several allocations of the tensors (10 pairs each), because the time of a
+memory-bound kernel depends on where its tensors are, by up to 6 % and differently for each code
+object: `placement_speedups` shows the lowest and highest speedup among the allocations, and the CI
+covers that spread. For effects of a few percent pass `pairs=240` to `bench` and `compare` (24
+allocations): the harness verifies with two such timings and takes the lower one. A 60-pair result
+near 1.02 says nothing yet.
 
 ## Analysis first
 
@@ -75,8 +79,10 @@ Before the first edit:
    reduction, the store, the loads), and `bench`'s traffic numbers. State the split in microseconds.
 3. A list of ISA-level opportunities, each with what it would remove and what it could give at most
    according to the split. Take them from the code in front of you and from the knowledge base:
-   `.claude/skills/agc-notes/kb/PATTERNS.md` first (what transfers between kernels and which pass
-   does it), then `Glob(".claude/skills/agc-notes/kb/*.md")`: read the entries of kernels of the same kind (their
+   `.claude/skills/agc-notes/kb/PATTERNS.md` first (which kind of kernel this is), then
+   `OPTIMIZATIONS.md` (the catalog: every optimization, when it applies, how, what it measured)
+   and `RECIPES.md` (every verified result with its recipe). `kb(query)` searches the catalog and
+   every kernel's entries by instruction, technique or kernel kind. Then read the entries of kernels of the same kind (their
    `applies_when` says when an entry transfers), and what paid there first.
 
 Then measure every opportunity on the list as its own verified state, largest expected gain first.

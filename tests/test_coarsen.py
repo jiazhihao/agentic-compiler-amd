@@ -197,3 +197,15 @@ def test_throttle_keeps_the_code_and_reserves_lds_for_n_workgroups_per_cu(tmp_pa
     assert arch.res("lds_per_cu") // lds == 4 and lds % arch.res("lds_granule") == 0
     with pytest.raises(SessionError, match="at least 1"):
         s.apply("ref", "throttle", {"workgroups_per_cu": 0})
+
+
+@needs_toolchain
+def test_stream_loads_marks_every_vector_load_non_temporal(tmp_path):
+    s = Session.open(KERNELS / "axpy.json", tmp_path, quick=True)
+    st = s.apply("ref", "stream_loads")
+    loads = [l for l in s.store.get(st["id"]).ir.splitlines() if "global_load_" in l]
+    stores = [l for l in s.store.get(st["id"]).ir.splitlines() if "global_store_" in l]
+    assert loads and all(l.rstrip().endswith("sc0 sc1 nt") for l in loads) and not any(" nt" in l for l in stores)
+    assert s.static_check(st["id"])["ok"]
+    with pytest.raises(SessionError, match="marked already"):
+        s.apply(st["id"], "stream_loads")
