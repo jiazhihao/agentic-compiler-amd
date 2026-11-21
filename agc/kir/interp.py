@@ -93,6 +93,11 @@ def eval_op(name: str, args: list, types: list[Type], rtype: Type | None):
         if name in ("min", "max"):
             f = (np.fmin if name == "min" else np.fmax) if t.is_float else (np.minimum if name == "min" else np.maximum)
             return f(args[0], args[1])
+        if name == "mulhi":
+            wide = np.int64 if t.signed else np.uint64
+            return ((args[0].astype(wide) * args[1].astype(wide)) >> wide(32)).astype(args[0].dtype)
+        if name == "rcp":
+            return (np.asarray(1, dtype=args[0].dtype) / args[0]).astype(args[0].dtype)
         if name == "neg":
             return np.negative(args[0]).astype(args[0].dtype)
         if name == "not":
@@ -185,6 +190,7 @@ class Interp:
         self.f, self.ids = f, thread_ids(grid, block)
         self.n = self.ids["threads"]
         self.env = bind_args(f.params, args)
+        self.lds: dict[str, np.ndarray] = {}
 
     def val(self, x):
         return const(x) if isinstance(x, Const) else self.env[id(x)]
@@ -198,6 +204,21 @@ class Interp:
             self.env[id(s.result)] = Ptr(p.raw, p.off + i.astype(np.int64) * s.args[0].type.elem.size, p.name)
         elif n == "bitcast" and s.result.type.is_ptr:
             self.env[id(s.result)] = self.val(s.args[0])
+        elif n in ("shared", "region"):                      # the workgroup's shared memory: one copy per workgroup
+            name, size = s.attrs["name"], s.attrs["bytes"]
+            groups = int(self.ids["group"].max()) + 1 if self.n else 1
+            if name not in self.lds:
+                self.lds[name] = np.full(groups * size, 0xDA, dtype=np.uint8)
+            self.env[id(s.result)] = Ptr(self.lds[name], self.ids["group"].astype(np.int64) * size, f"lds:{name}")
+        elif n == "barrier":
+            pass                                             # threads run in lockstep here: every statement is a barrier
+        elif n == "wgreduce":
+            from .idioms import workgroup_reduce
+            x = np.broadcast_to(self.val(s.args[0]), mask.shape)
+            size = s.attrs["size"]
+            if self.n % size or int(self.ids["bdim.x"]) * int(self.ids["bdim.y"]) * int(self.ids["bdim.z"]) != size:
+                raise InterpError(f"wgreduce over {size} threads in a workgroup of another size")
+            self.env[id(s.result)] = workgroup_reduce(np.ascontiguousarray(x), s.attrs["op"], size)
         elif n == "load":
             self.env[id(s.result)] = Memory.load(self.val(s.args[0]), s.result.type, mask, s.site or "")
         elif n == "store":

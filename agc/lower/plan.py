@@ -27,9 +27,17 @@ DECISIONS: dict[str, dict] = {
                     "doc": "run a counted loop 1 (as written), 2, 4, 8 or 16 iterations per trip, with the original loop for "
                            "the remainder; the operations keep the order of the source, so results are bit-identical"},
     "loop.inflight": {"level": "wir", "site": "loop", "kb": "A1",
-                      "doc": "the loads of one trip of the loop: issued where the source reads them (`as_written`, amdclang: "
-                             "the loop then waits for each load), or all `first`, before any arithmetic, so that one wait "
-                             "covers them; with `loop.unroll` this puts several iterations' loads in flight"},
+                      "doc": "the loads of one trip of a loop: all `first`, ahead of the arithmetic that consumes them, so "
+                             "that one wait covers them (amdclang's scheduler also clusters the loads of a block); or "
+                             "`as_written`, where the source reads them. With `loop.unroll` the first form puts several "
+                             "iterations' loads in flight"},
+    "order.loads": {"level": "wir", "site": "kernel", "kb": "F1",
+                    "doc": "outside loops: the loads of each straight-line run `first` (amdclang), or `as_written`"},
+    "reduce.form": {"level": "kir", "site": "reduce", "kb": "C1",
+                    "doc": "a tree reduction over the workgroup through shared memory: `lds_tree` as written (a barrier "
+                           "per level), or `dpp`: each wave combines its 64 lanes with DPP and `v_readlane`, the waves "
+                           "meet through one LDS slot each and one barrier. The order of combination changes: a "
+                           "floating-point sum differs in the last bits (the tolerance is the contract)"},
     "branch.skip_empty": {"level": "mir", "site": "if", "kb": "F3",
                           "doc": "at a `where` region: `branch` over it when no lane of the wave enters (amdclang), "
                                  "or `none`: run it under the empty mask (one branch fewer; costs when the region has "

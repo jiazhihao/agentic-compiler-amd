@@ -56,3 +56,15 @@ extern "C" __global__ void last_above(const float* x, int* out, float t, int row
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < rows) out[i] = last_at_least(x + (size_t)i * cols, cols, t);
 }
+
+// Integer division and remainder: by a variable, by constants, signed and unsigned, 32 and 64 bits
+// (the machine has no integer divide). q[i] and r[i] mix the results so that each one is checked.
+extern "C" __global__ void divmod(const int* a, const int* b, int* q, int* r, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+    int x = a[i], y = b[i];
+    unsigned ux = (unsigned)x, uy = (unsigned)y;
+    size_t wx = ux, wy = uy;                       // 64-bit operands that are 32-bit values extended
+    q[i] = x / y + x / 7 - x / 16 + (int)(ux / uy) + (int)(ux / 641u) + (int)(wx / wy);
+    r[i] = x % y - x % 13 + x % 8 + (int)(ux % uy) + (int)(ux % 10u) + (int)(wx % 1000u);
+}

@@ -525,23 +525,39 @@ written; `loop.unroll` closes it (numbers in `progress.md`). `mo_rope_fwd` waits
 
 #### M13: memory, LDS, barriers, cross-lane operations
 
-- [ ] Frontend: `__shared__` arrays, `__syncthreads`, `atomicAdd`, `__shfl_xor` / `__shfl_down`,
-      fixed local arrays, records of scalars, pointer arithmetic, 64-bit integers, integer division
-      and remainder, `reinterpret_cast` and `__builtin_bit_cast` views.
-- [ ] `wir`: LDS regions, barriers, wave roles, `lds.*`, `lane.reduce`, `lane.shuffle`, streams.
-- [ ] `wir` gates in the four categories, each validated by a seeded mutation suite as in M4.
-- [ ] Lowering: 64-bit integers on register pairs; division (the expansion of
-      `AMDGPUCodeGenPrepare`, constants by multiplication); private arrays to registers or an LDS
-      slot per thread (scratch memory is refused with a reason; stretch).
-- [ ] Decisions: `reduce.form`, `reduce.order`, `load.uniform`, `load.addr`, `access.width`,
-      `load.hint`, `kernarg.load`, `array.home`.
-- [ ] `mir` interpreter for the instructions the selector emits; each instruction's semantics
-      checked against the device by generated single-instruction probe kernels through the executor.
+- [x] Frontend: `__shared__` arrays (one or more dimensions), `__syncthreads`, captureless lambdas
+      passed to inlined templates, integer division and remainder, `__builtin_inff`. (Pointer
+      arithmetic, 64-bit integers and `__builtin_bit_cast` came in M11 and M12.)
+- [x] `kir` / `wir`: LDS pointers (`lds<T>`), `shared` / `region` (the kernel's LDS size is derived),
+      `barrier`, LDS loads and stores (`ds_read_*`, `ds_write_*`, wide forms up to `b128`),
+      `wgreduce` / `lane.reduce`.
+- [x] Division (`expand_division`): shifts for powers of two, a multiply-high by a precomputed
+      reciprocal for other constants, the reciprocal estimate of `AMDGPUCodeGenPrepare::expandDivRem32`
+      for variables, 64-bit operands that are 32-bit values extended. Exact (interpreter on 4096 pairs
+      per form; the device on `tests/own/divmod`).
+- [x] Decisions: `reduce.form` (`lds_tree`, `dpp`), `order.loads` (`first`, `as_written`);
+      `loop.inflight` now defaults to `first` (amdclang's scheduler clusters a block's loads);
+      `loop.unroll` also when the counter starts at a thread's index. `load.uniform`, `access.width`
+      and `load.addr`'s immediate form exist since M11 and M12. Not built: `load.hint`,
+      `kernarg.load`, `array.home`, `reduce.order` as a separate decision (the DPP form changes the
+      order; it is one decision).
+- [x] `wir` safety gates (`agc/wir/verify.py: safety`): an LDS load of a slot the lane did not store
+      with no barrier since a store to the region; a barrier in a loop each lane leaves on its own.
+      Validated by deleting every barrier of three lowerings: 11 of 13 caught; the two misses are a
+      barrier nothing follows and a write-after-read race the gate does not model.
+- [ ] Moved to M15 (they are frontend work, and no kernel reachable before M15 needs them): records
+      (`row_argmax`), `atomicAdd`, `__shfl_*`, local arrays.
+- [ ] Moved to M16: the `mir` interpreter (it serves the back-end changes of that milestone; until
+      then the emitted code is checked by the static check and the battery).
 
 Exit: all corpus kernels without transcendental math, including `gemm_tiled`, `row_sum`,
 `row_argmax` and `transpose`, pass through the own path; default plan at 0.90 or better each;
 `reduce.form = dpp` on `row_sum` at 1.2x over amdclang (template `rowwise`: 1.25 to 1.30); the
 `mir` interpreter agrees with the device on every probe. Size: about 4 k.
+
+Done (#83) except as marked: `row_argmax` and the `mir` interpreter are moved; numbers in
+`progress.md`. The 1.2x on `row_sum` is reached, but by `loop.unroll` (bit-identical), not by the
+DPP reduction, which is worth a few percent there.
 
 #### M14: math and numerics
 
@@ -565,6 +581,8 @@ paid, the policy with tolerance-admitted alternatives is at least as fast as amd
 
 #### M15: frontend breadth, the whole benchmark through the own path
 
+- [ ] From M13: records (struct values and arrays of them), `atomicAdd`, `__shfl_*`, local arrays
+      (`array.home`).
 - [ ] Templates (instantiated bodies as Clang resolved them), helper functions inlined, classes
       with methods, references, `constexpr`, the benchmark's headers (`flashinfer_common.h`,
       `miopen_common.h`, `attn_port.h`, `rowwise.h`). Ported from the reference frontend, bounded
@@ -579,6 +597,10 @@ Size: about 4 k.
 
 #### M16: parity, the default plan as fast as amdclang -O3
 
+- [ ] From M13: the `mir` interpreter for the instructions the selector emits, each instruction's
+      semantics checked against the device by single-instruction probe kernels.
+- [ ] From M12: strength reduction of loop addresses (pointer increments), which is what puts
+      `gemm_naive`'s default plan 9 % behind amdclang.
 - [ ] `scripts/parity.py`: per kernel `isa_diff` of own against amdclang, time ratio, the gaps
       ranked. This list, not a plan made in advance, orders the work below.
 - [ ] `kir`: GVN, strength reduction of addresses, SROA, value ranges from the manifest's shapes

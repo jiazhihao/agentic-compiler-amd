@@ -22,7 +22,7 @@ from .passes import _namer, clone, simplify
 class Counted:
     index: int                   # which carried value is the induction variable
     iv: Value
-    start: int
+    start: int | None            # the constant the counter starts at; None: a non-negative value such as a thread index
     step: int
     stop: object                 # operand defined outside the loop
     increment: Op
@@ -71,9 +71,12 @@ def counted(loop: Loop, defs: dict | None = None) -> Counted | str:
     start = loop.init[i]
     if step <= 0:
         return "the counter does not count up"
-    if not isinstance(start, Const) or not 0 <= int(start.value) <= 1 << 16:
-        return "the counter does not start at a small non-negative constant"
-    return Counted(i, iv, int(start.value), step, stop, inc, base)
+    if isinstance(start, Const):
+        if not 0 <= int(start.value) <= 1 << 16:
+            return "the counter does not start at a small non-negative constant"
+    elif not nonneg(start, defs or {}):
+        return "the counter does not start at a value known to be non-negative (a constant or a thread index)"
+    return Counted(i, iv, int(start.value) if isinstance(start, Const) else None, step, stop, inc, base)
 
 
 def nonneg(x, defs: dict, depth: int = 0) -> bool:

@@ -1,0 +1,60 @@
+kir func divmod(%a: ptr<i32>, %b: ptr<i32>, %q: ptr<i32>, %r: ptr<i32>, %n: i32) {
+  %bid_x: u32 = bid.x
+  %bdim_x: u32 = bdim.x
+  %t: u32 = mul %bid_x, %bdim_x
+  %tid_x: u32 = tid.x
+  %t0: u32 = add %t, %tid_x
+  %i: i32 = cast %t0
+  %t2: i1 = ge %i, %n
+  if %t2 @if0 {
+  }
+  merge %t3: i1 = true:i1, false:i1
+  %t4: i1 = not %t3
+  if %t4 @if1 {
+    %t5: i64 = cast %i
+    %p: ptr<i32> = gep %a, %t5
+    %v: i32 = load %p @load0
+    %t6: i64 = cast %i
+    %p7: ptr<i32> = gep %b, %t6
+    %v8: i32 = load %p7 @load1
+    %ux: u32 = cast %v
+    %uy: u32 = cast %v8
+    %wx: u64 = cast %ux
+    %wy: u64 = cast %uy
+    %t13: i64 = cast %i
+    %p14: ptr<i32> = gep %q, %t13
+    %t15: i32 = div %v, %v8
+    %t16: i32 = div %v, 7:i32
+    %t17: i32 = add[nsw=true] %t15, %t16
+    %t18: i32 = div %v, 16:i32
+    %t19: i32 = sub[nsw=true] %t17, %t18
+    %t20: u32 = div %ux, %uy
+    %t21: i32 = cast %t20
+    %t22: i32 = add[nsw=true] %t19, %t21
+    %t23: u32 = div %ux, 641:u32
+    %t24: i32 = cast %t23
+    %t25: i32 = add[nsw=true] %t22, %t24
+    %t26: u64 = div %wx, %wy
+    %t27: i32 = cast %t26
+    %t28: i32 = add[nsw=true] %t25, %t27
+    store %p14, %t28 @store0
+    %t29: i64 = cast %i
+    %p30: ptr<i32> = gep %r, %t29
+    %t31: i32 = rem %v, %v8
+    %t32: i32 = rem %v, 13:i32
+    %t33: i32 = sub[nsw=true] %t31, %t32
+    %t34: i32 = rem %v, 8:i32
+    %t35: i32 = add[nsw=true] %t33, %t34
+    %t36: u32 = rem %ux, %uy
+    %t37: i32 = cast %t36
+    %t38: i32 = add[nsw=true] %t35, %t37
+    %t39: u32 = rem %ux, 10:u32
+    %t40: i32 = cast %t39
+    %t41: i32 = add[nsw=true] %t38, %t40
+    %t42: u64 = rem %wx, 1000:u64
+    %t43: i32 = cast %t42
+    %t44: i32 = add[nsw=true] %t41, %t43
+    store %p30, %t44 @store1
+  }
+  merge %t45: i1 = false:i1, %t3
+}

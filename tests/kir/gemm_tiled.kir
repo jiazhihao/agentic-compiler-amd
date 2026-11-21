@@ -1,0 +1,106 @@
+kir func gemm_tiled(%A: ptr<f32>, %B: ptr<f32>, %C: ptr<f32>, %M: i32, %N: i32, %K: i32) {
+  %Bs: lds<f32> = shared[name=Bs3, bytes=1024]
+  %As: lds<f32> = shared[name=As2, bytes=1024]
+  %tid_x: u32 = tid.x
+  %t: i32 = cast %tid_x
+  %tid_y: u32 = tid.y
+  %ty: i32 = cast %tid_y
+  %bid_x: u32 = bid.x
+  %t1: u32 = mul %bid_x, 16:u32
+  %t2: u32 = cast %t
+  %t3: u32 = add %t1, %t2
+  %n: i32 = cast %t3
+  %bid_y: u32 = bid.y
+  %t5: u32 = mul %bid_y, 16:u32
+  %t6: u32 = cast %ty
+  %t7: u32 = add %t5, %t6
+  %m: i32 = cast %t7
+  loop @loop0 {
+    carry %k0_9: i32 = 0:i32, %t66 -> %k0_9_67
+    carry %acc: f32 = 0.0:f32, %acc47_65 -> %acc68
+    %t10: i1 = lt %k0_9, %K
+    while %t10
+    %t11: i64 = cast %ty
+    %t12: i64 = mul %t11, 16:i64
+    %p: lds<f32> = gep %As, %t12
+    %t13: i64 = cast %t
+    %p14: lds<f32> = gep %p, %t13
+    %t15: i1 = lt %m, %M
+    %t16: i32 = add[nsw=true] %k0_9, %t
+    %t17: i1 = lt %t16, %K
+    %c: i1 = and %t15, %t17
+    if %c @if0 {
+      %t18: u64 = cast %m
+      %t19: u64 = cast %K
+      %t20: u64 = mul %t18, %t19
+      %t21: u64 = cast %k0_9
+      %t22: u64 = add %t20, %t21
+      %t23: u64 = cast %t
+      %t24: u64 = add %t22, %t23
+      %t25: i64 = cast %t24
+      %p26: ptr<f32> = gep %A, %t25
+      %v: f32 = load %p26 @load0
+    }
+    merge %t27: f32 = %v, 0.0:f32
+    store %p14, %t27 @store0
+    %t28: i64 = cast %ty
+    %t29: i64 = mul %t28, 16:i64
+    %p30: lds<f32> = gep %Bs, %t29
+    %t31: i64 = cast %t
+    %p32: lds<f32> = gep %p30, %t31
+    %t33: i32 = add[nsw=true] %k0_9, %ty
+    %t34: i1 = lt %t33, %K
+    %t35: i1 = lt %n, %N
+    %c36: i1 = and %t34, %t35
+    if %c36 @if1 {
+      %t37: i32 = add[nsw=true] %k0_9, %ty
+      %t38: u64 = cast %t37
+      %t39: u64 = cast %N
+      %t40: u64 = mul %t38, %t39
+      %t41: u64 = cast %n
+      %t42: u64 = add %t40, %t41
+      %t43: i64 = cast %t42
+      %p44: ptr<f32> = gep %B, %t43
+      %v45: f32 = load %p44 @load1
+    }
+    merge %t46: f32 = %v45, 0.0:f32
+    store %p32, %t46 @store1
+    barrier
+    loop @loop1 {
+      carry %k: i32 = 0:i32, %t63 -> %k64
+      carry %acc47: f32 = %acc, %t62 -> %acc47_65
+      %t48: i1 = lt %k, 16:i32
+      while %t48
+      %t49: i64 = cast %ty
+      %t50: i64 = mul %t49, 16:i64
+      %p51: lds<f32> = gep %As, %t50
+      %t52: i64 = cast %k
+      %p53: lds<f32> = gep %p51, %t52
+      %v54: f32 = load %p53 @load2
+      %t55: i64 = cast %k
+      %t56: i64 = mul %t55, 16:i64
+      %p57: lds<f32> = gep %Bs, %t56
+      %t58: i64 = cast %t
+      %p59: lds<f32> = gep %p57, %t58
+      %v60: f32 = load %p59 @load3
+      %t61: f32 = mul %v54, %v60
+      %t62: f32 = add %acc47, %t61
+      %t63: i32 = add[nsw=true] %k, 1:i32
+    }
+    barrier
+    %t66: i32 = add[nsw=true] %k0_9, 16:i32
+  }
+  %t69: i1 = lt %m, %M
+  %t70: i1 = lt %n, %N
+  %c71: i1 = and %t69, %t70
+  if %c71 @if2 {
+    %t72: u64 = cast %m
+    %t73: u64 = cast %N
+    %t74: u64 = mul %t72, %t73
+    %t75: u64 = cast %n
+    %t76: u64 = add %t74, %t75
+    %t77: i64 = cast %t76
+    %p78: ptr<f32> = gep %C, %t77
+    store %p78, %acc68 @store2
+  }
+}

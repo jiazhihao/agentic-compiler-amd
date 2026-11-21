@@ -1,0 +1,81 @@
+{
+ "name": "divmod",
+ "source": "control.hip",
+ "entry": "divmod",
+ "shapes": {
+  "N": 5000
+ },
+ "dynamic": [
+  "N"
+ ],
+ "params": [
+  {
+   "name": "a",
+   "kind": "tensor",
+   "dtype": "i32",
+   "shape": [
+    "N"
+   ],
+   "role": "in",
+   "init": {
+    "kind": "int_range",
+    "lo": -2000000000,
+    "hi": 2000000000
+   }
+  },
+  {
+   "name": "b",
+   "kind": "tensor",
+   "dtype": "i32",
+   "shape": [
+    "N"
+   ],
+   "role": "in",
+   "init": {
+    "kind": "int_range",
+    "lo": 1,
+    "hi": 70000
+   }
+  },
+  {
+   "name": "q",
+   "kind": "tensor",
+   "dtype": "i32",
+   "shape": [
+    "N"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "r",
+   "kind": "tensor",
+   "dtype": "i32",
+   "shape": [
+    "N"
+   ],
+   "role": "out"
+  },
+  {
+   "name": "n",
+   "kind": "scalar",
+   "dtype": "i32",
+   "value": "N"
+  }
+ ],
+ "launch": {
+  "grid": [
+   "cdiv(N, 128)"
+  ],
+  "block": [
+   128
+  ]
+ },
+ "reference": {
+  "kind": "python",
+  "file": "refs.py",
+  "function": "divmod"
+ },
+ "tags": [
+  "division"
+ ]
+}

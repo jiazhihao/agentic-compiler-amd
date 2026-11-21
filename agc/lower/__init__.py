@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 
 from ..kir import print_func
 from ..kir.ir import Func, number_sites
-from ..kir.passes import contract, cse, licm, reduce_strength, simplify, unroll_constant_loops, widen_indices
+from ..kir.passes import contract, cse, expand_division, licm, reduce_strength, simplify, unroll_constant_loops, widen_indices
 from ..kir.verify import assert_ok
 from ..manifest import Manifest
 from ..mir import abi
@@ -45,11 +45,14 @@ def normalize(f: Func, plan: Plan) -> Func:
     if plan.choose("kernel", "fp.contract", ["on", "off"]) == "on":
         contract(f)
     reduce_strength(f)
+    expand_division(f)
     widen_indices(f)
     licm(f)
     for s in f.walk():
         s.site = None
     number_sites(f)
+    from ..kir import idioms
+    idioms.reductions(f, plan)
     # loop decisions, on the numbered sites; the copies an unrolling makes are sites `load0.1`, `loop0.x4`
     from ..kir import loops
     from ..kir.ir import Loop

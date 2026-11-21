@@ -86,17 +86,17 @@ class _Wave:
         self.blocks[-1].append(Op(name, list(args), r, attrs, src.site if src else None, src.loc if src else None))
         return r
 
-    def emit_entry(self, name: str, t: Type, kind: str, hint: str, **attrs) -> Value:
+    def emit_entry(self, opname: str, t: Type, kind: str, hint: str, **attrs) -> Value:
         r = self.new(t, kind, hint)
         n = sum(1 for s in self.entry if isinstance(s, Op) and (s.name in wops.SOURCES_U or s.name in wops.SOURCES_V))
-        self.entry.insert(n, Op(name, [], r, attrs))
+        self.entry.insert(n, Op(opname, [], r, attrs))
         return r
 
-    def source(self, name: str, kind: str, **attrs) -> Value:
-        key = name + str(sorted(attrs.items()))
+    def source(self, opname: str, kind: str, t: Type = U32, **attrs) -> Value:
+        key = opname + str(sorted(attrs.items()))
         if key not in self.sources:
-            hint = (attrs.get("field") or name).replace(".", "_")
-            self.sources[key] = self.emit_entry(name, U32, kind, hint, **attrs)
+            hint = str(attrs.get("field") or attrs.get("name") or opname).replace(".", "_")
+            self.sources[key] = self.emit_entry(opname, t, kind, hint, **attrs)
         return self.sources[key]
 
     # ---- operands ------------------------------------------------------------------------------
@@ -121,6 +121,10 @@ class _Wave:
     def retyped(self, p: PtrForm, t: Type) -> PtrForm:
         if p.base.type == t:
             return p
+        if p.base.type.is_lds:
+            t = Type("ptr", 64, elem=t.elem, name="lds")
+            if p.base.type == t:
+                return p
         return PtrForm(self.emit("bitcast", [p.base], t, p.base.kind, "p"), p.index, p.scale, p.off)
 
     # ---- operations ----------------------------------------------------------------------------
@@ -150,6 +154,59 @@ class _Wave:
                                     self.source(f"wg.{d}", "u") if n.startswith("bid") else
                                     self.source("hidden", "u", field=("group_size_" if n.startswith("bdim") else "block_count_") + d))
             return
+        if n == "shared":
+            self.m[id(s.result)] = PtrForm(self.source("region", "u", t=s.result.type, **s.attrs), None, 1, 0)
+            return
+        if n == "barrier":
+            self.emit("barrier", [], None, None, src=s)
+            return
+        if n == "wgreduce":
+            # each wave combines its lanes without memory; the waves meet through one LDS slot each
+            x, t, opn = self.val(s.args[0]), s.result.type, s.attrs["op"]
+            x = x if wops.kind_of(x) == "v" and not isinstance(x, Const) else self.emit("bitcast", [x], t, "v")
+            w = self.emit("lane.reduce", [x], t, "v", s.result.name, s, op=opn)
+            waves = s.attrs["size"] // 64
+            if waves > 1:
+                slots = self.source("region", "u", t=Type("ptr", 64, elem=t, name="lds"), name=f"{s.site or 'reduce'}.waves",
+                                    bytes=4 * waves)
+                slot = self.emit("shr", [self.source("lane.x", "v"), Const(6, U32)], U32, "v")
+                self.emit("store", [slots, slot, w], None, None, scale=4, off=0)
+                self.emit("barrier", [], None, None)
+                w = self.emit("load", [slots, Const(0, U32)], t, "v", scale=4, off=0)
+                for k in range(1, waves):
+                    v = self.emit("load", [slots, Const(0, U32)], t, "v", scale=4, off=4 * k)
+                    w = self.emit(opn, [w, v], t, "v")
+            self.m[id(s.result)] = w
+            return
+        if n == "gep" and s.args[0].type.is_lds:
+            # an LDS index is 32 bits: the low half of what the source computed
+            p, size = self.ptr(s.args[0]), s.args[0].type.elem.size
+            i = s.args[1]
+            if isinstance(i, Const):
+                self.m[id(s.result)] = PtrForm(p.base, p.index, p.scale, p.off + int(i.value) * size)
+                return
+            d = self.defs.get(id(i))
+            extra = 0
+            if d is not None and d.name == "add" and isinstance(d.args[1], Const):
+                i, extra = d.args[0], int(d.args[1].value) * size
+                d = self.defs.get(id(i))
+            if d is not None and d.name == "cast" and d.args[0].type.is_int and d.args[0].type.bits == 32 and isinstance(d.args[0], Value):
+                wi = self.val(d.args[0])
+            else:
+                wi = self.val(i)
+                if not (wi.type.is_int and wi.type.bits == 32):
+                    wi = self.emit("cast", [wi], U32, wops.kind_of(wi))
+            if p.index is not None:                          # two indices: one sum, in bytes
+                first = p.index if p.scale == 1 else self.emit("mul", [p.index, Const(p.scale, p.index.type)], p.index.type,
+                                                                wops.kind_of(p.index))
+                second = wi if size == 1 else self.emit("mul", [wi, Const(size, wi.type)], wi.type, wops.kind_of(wi))
+                if second.type != first.type:
+                    second = self.emit("bitcast", [second], first.type, wops.kind_of(second))
+                both = self.emit("add", [first, second], first.type, "v" if "v" in (wops.kind_of(first), wops.kind_of(second)) else "u")
+                self.m[id(s.result)] = PtrForm(p.base, both, 1, p.off + extra)
+            else:
+                self.m[id(s.result)] = PtrForm(p.base, wi, size, p.off + extra)
+            return
         if n == "gep":
             p, size = self.ptr(s.args[0]), s.args[0].type.elem.size
             i, extra = s.args[1], 0
@@ -177,10 +234,11 @@ class _Wave:
             return
         if n in ("load", "store"):
             p = self.retyped(self.ptr(s.args[0]), s.args[0].type)
-            idx = p.index if p.index is not None else Const(0, I64)
+            idx = p.index if p.index is not None else Const(0, U32 if p.base.type.is_lds else I64)
             if n == "load":
                 kind = "v"
-                if p.base.kind == "u" and wops.kind_of(idx) == "u" and s.result.type.size in (4, 8) and not s.result.type.is_bool:
+                if p.base.kind == "u" and wops.kind_of(idx) == "u" and s.result.type.size in (4, 8) and not s.result.type.is_bool \
+                        and not p.base.type.is_lds:
                     if self.choose(s.site or "load", "load.uniform", ["scalar", "vector"]) == "scalar":
                         kind = "u"
                 self.m[id(s.result)] = self.emit("load", [p.base, idx], s.result.type, kind, s.result.name, s, scale=p.scale, off=p.off)

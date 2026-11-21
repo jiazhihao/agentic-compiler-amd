@@ -23,9 +23,9 @@ from conftest import gpu, needs_toolchain
 KIR = Path(__file__).parent / "kir"
 LLM = Path(__file__).parent.parent / "bench" / "llm"
 OWN = Path(__file__).parent / "own"                    # control-flow kernels written for the lowering
-LOWERED = ["axpy", "cast_bf16", "gemm_bf16", "gemm_naive", "matvec", "rb_axpy", "rb_copy", "rb_ger", "rb_rot", "rb_scal",
-           "rb_swap", "transpose"]                     # pass the battery through the own path (own-gfx950.json)
-CONTROL = ["first_below", "halvings", "last_above", "sum_positive"]
+LOWERED = ["axpy", "cast_bf16", "gemm_bf16", "gemm_naive", "gemm_tiled", "matvec", "mo_rope_fwd", "rb_axpy", "rb_copy", "rb_ger",
+           "rb_rot", "rb_scal", "rb_swap", "row_sum", "transpose"]     # pass the battery through the own path (own-gfx950.json)
+CONTROL = ["divmod", "first_below", "halvings", "last_above", "sum_positive"]
 
 
 def manifest(name: str) -> Manifest:
@@ -196,6 +196,9 @@ def test_counted_loops_and_why_others_are_not():
     h = normalize(parse_func((KIR / "first_below.kir").read_text()), Plan({}))
     assert not any(e["decision"] == "loop.unroll" for e in lower_kir(parse_func((KIR / "first_below.kir").read_text())).plan)
     assert isinstance(loops.counted(next(s for s in h.walk() if isinstance(s, Loop))), str)
+    # a counter that starts at the thread's index and a bound offset by it are counted too
+    assert any(e["decision"] == "loop.unroll" for e in lowered("row_sum").plan)
+    assert any(e["decision"] == "loop.unroll" for e in lowered("rb_ger").plan)
 
 
 def test_scalar_loads_need_the_empty_mask_branch():
@@ -211,6 +214,101 @@ def test_control_flow_becomes_masks():
     b = body(r)
     assert "s_cbranch_execnz" in b and "s_or_b64 exec, exec" in b    # lanes leave one by one; the mask is restored
     assert "do" not in lowered("halvings").kir.split("{", 1)[1].split()[0:1]
+
+
+def test_shared_memory_and_barriers():
+    r = lowered("row_sum")
+    assert "shared[name=" in r.kir and "barrier" in r.kir and "region[name=" in r.wir
+    b = body(r)
+    assert "ds_write_b32" in b and "ds_read_b32" in b and b.count("s_barrier") == 10       # 1 + 8 levels + 1
+    assert r.module.kernels[0].descriptor["group_segment_fixed_size"] == 1024             # the LDS size is derived
+    g = lowered("gemm_tiled")
+    assert "ds_read_b128" in body(g) and g.module.kernels[0].descriptor["group_segment_fixed_size"] == 2048
+    assert any(e["decision"] == "order.loads" and e["chosen"] == "first" for e in g.plan)
+
+
+def test_reduce_form_replaces_the_tree_by_dpp():
+    m = manifest("row_sum")
+    tree = lowered("row_sum")
+    assert [(e["site"], e["chosen"], e["alternatives"]) for e in tree.plan if e["decision"] == "reduce.form"] == \
+        [("reduce0", "lds_tree", ["lds_tree", "dpp"])]
+    r = lowered("row_sum", {"reduce.form": "dpp"})
+    assert "wgreduce[op=add, size=256]" in r.kir and "lane.reduce[op=add]" in r.wir
+    b = body(r)
+    assert b.count("v_add_f32_dpp") == 4 and b.count("v_readlane_b32") == 4 and b.count("s_barrier") == 1
+    assert len(b.splitlines()) < len(body(tree).splitlines()) // 2
+    assert cpu_check(m, r)["ok"]                         # kir and wir combine in the same order, bit for bit
+    assert mircheck.static_check(r.module, encode=False, strict=True)["ok"]
+    both = lowered("row_sum", {"reduce.form": "dpp", "loop.unroll": 4})        # the column loop starts at the thread index
+    assert cpu_check(m, both)["ok"] and body(both).count("global_load_dword") == 5
+    assert not any(e["decision"] == "reduce.form" for e in lowered("gemm_tiled").plan)
+
+
+def test_wave_reduce_order_is_the_dpp_order():
+    from agc.kir.idioms import wave_reduce, workgroup_reduce
+    x = np.arange(128, dtype=np.float32).reshape(2, 64) * np.float32(1.1)
+    assert np.allclose(wave_reduce(x, "add"), x.sum(axis=1), rtol=1e-6)
+    assert wave_reduce(x, "max").tolist() == x.max(axis=1).tolist()
+    y = np.random.default_rng(0).standard_normal(512).astype(np.float32)
+    out = workgroup_reduce(y, "add", 256)
+    assert out.shape == (512,) and len(set(out[:256].tolist())) == 1 and np.isclose(out[0], y[:256].sum(), rtol=1e-5)
+
+
+def test_integer_division_is_exact():
+    from agc.kir.passes import expand_division
+    rng = np.random.default_rng(1)
+    n = 1 << 12
+    a = rng.integers(-2 ** 31, 2 ** 31, n, dtype=np.int64).astype(np.int32)
+    b = rng.integers(-2 ** 31, 2 ** 31, n, dtype=np.int64).astype(np.int32)
+    b[b == 0] = 7
+    a[:6] = [0, 1, -1, 2 ** 31 - 1, -2 ** 31, -2 ** 31]
+    b[:6] = [1, 1, 1, 1, 1, 3]
+    b[100:200] = rng.integers(1, 50, 100)
+    src = ("kir func f(%o: ptr<TY>, %a: ptr<TY>, %b: ptr<TY>) {\n  %t: u32 = tid.x\n  %i: i64 = cast %t\n  %pa: ptr<TY> = gep %a, %i\n"
+           "  %pb: ptr<TY> = gep %b, %i\n  %x: TY = load %pa\n  %y: TY = load %pb\n  %q: TY = OP %x, RHS\n  %po: ptr<TY> = gep %o, %i\n"
+           "  store %po, %q\n}\n")
+    for ty, dt in (("i32", np.int32), ("u32", np.uint32)):
+        for op in ("div", "rem"):
+            for rhs in ("%y", f"7:{ty}", f"16:{ty}", f"641:{ty}", f"1000003:{ty}") + ((f"-13:{ty}",) if ty == "i32" else (f"4000000007:{ty}",)):
+                text = src.replace("TY", ty).replace("OP", op).replace("RHS", rhs)
+                exact, expanded = parse_func(text), expand_division(parse_func(text))
+                assert verify(expanded) == [] and f" {op} " not in print_func(expanded)
+                o1, o2 = np.zeros(n, dt), np.zeros(n, dt)
+                run_kir(exact, {"o": o1, "a": a.view(dt).copy(), "b": b.view(dt).copy()}, (n // 256,), (256,))
+                run_kir(expanded, {"o": o2, "a": a.view(dt).copy(), "b": b.view(dt).copy()}, (n // 256,), (256,))
+                assert np.array_equal(o1, o2), (ty, op, rhs)
+
+
+def test_safety_gates_catch_missing_barriers():
+    from agc.wir import safety
+    total = caught = 0
+    for name, ov in (("row_sum", {}), ("row_sum", {"reduce.form": "dpp"}), ("gemm_tiled", {})):
+        r = lowered(name, ov)
+        assert safety(r.wir_func) == []
+        lines = r.wir.splitlines()
+        for i in [k for k, ln in enumerate(lines) if ln.strip() == "barrier"]:
+            total += 1
+            caught += bool(safety(parse_func("\n".join(lines[:i] + lines[i + 1:]) + "\n")))
+    # the two not caught: the barrier after the last read of row_sum's tree (nothing follows it), and the one
+    # in gemm_tiled that keeps the next tile's stores behind this tile's reads (a write after a read, which the
+    # gate does not model)
+    assert (total, caught) == (13, 11)
+    bad = parse_func("""wir func f() {
+  %n: u i32 = arg[offset=0, size=4]
+  %lane: v u32 = lane.x
+  %li: v i32 = bitcast %lane
+  loop @loop0 {
+    carry %j: v i32 = %li, %j2 -> %jend
+    %more: v i1 = lt %j, %n
+    while %more
+    barrier
+    %j2: v i32 = add %j, 64:i32
+  }
+}
+""")
+    assert any("different number of times" in x["message"] for x in safety(bad))
+    with pytest.raises(IRError, match="different number of times"):
+        wir_ok(bad)
 
 
 def test_plan_refuses_unknown_decisions_and_alternatives():
@@ -270,7 +368,8 @@ def test_own_path_record_is_consistent():
     assert set(LOWERED) <= set(passed)
     for n in passed:
         k = rec["kernels"][n]
-        assert k["bit_identical"] is True and k["battery"].split("/")[0] == k["battery"].split("/")[1], n
+        # gemm_tiled: amdclang leaves that multiply and add unfused; `fp.contract: off` is bit-identical (a GPU test)
+        assert (k["bit_identical"] is True or n == "gemm_tiled") and k["battery"].split("/")[0] == k["battery"].split("/")[1], n
     assert rec["summary"]["battery_ok"] == len(passed)
 
 
@@ -286,11 +385,11 @@ def test_frontend_reproduces_the_fixtures():
 @needs_toolchain
 def test_frontend_lists_everything_unsupported():
     from agc.frontend import FrontendError, lower_hip
-    m = manifest("gemm_tiled")
     with pytest.raises(FrontendError) as e:
-        lower_hip(m.source, m.entry)
-    whats = [u["what"] for u in e.value.items]
-    assert len(whats) >= 3 and any("float[16][16]" in w for w in whats) and all(u["loc"] != "?" for u in e.value.items)
+        lower_hip(OWN / "unsupported.hip", "refused")
+    whats = " | ".join(u["what"] for u in e.value.items)
+    assert "float[4]" in whats and "SwitchStmt" in whats and "GotoStmt" in whats        # every construct, not the first one
+    assert all(u["loc"] != "?" for u in e.value.items) and {u["loc"].split(":")[0] for u in e.value.items} >= {"6", "7", "11"}
 
 
 @needs_toolchain
@@ -322,13 +421,28 @@ def test_loop_decisions_beat_amdclang_bit_identically(marks, agc_root):
     assert s.explain(fast["id"], "loop0")["decisions"][0]["chosen"] == 16
 
 
-@pytest.mark.parametrize("name", ["axpy", "rb_scal", "gemm_naive"])
+@pytest.mark.parametrize("marks", [pytest.param(None, marks=gpu)])
+def test_reduction_and_loop_decisions_on_row_sum(marks, agc_root):
+    from agc.session import Session
+    s = Session.open(corpus.CORPUS_DIR / "row_sum.json", agc_root)
+    base = s.lower()
+    assert s.check(base["id"])["ok"] and s.equivalent(base["id"], "ref")["bit_identical"]
+    dpp = s.replan(base["id"], {"reduce.form": "dpp"})
+    eq = s.equivalent(dpp["id"], "ref")
+    assert s.check(dpp["id"])["ok"] and eq["within_tolerance"] and not eq["bit_identical"]      # another order of additions
+    fast = s.replan(base["id"], {"loop.unroll": 4})
+    assert s.check(fast["id"])["ok"] and s.equivalent(fast["id"], "ref")["bit_identical"]
+    b = s.bench(fast["id"])
+    assert b["outcome"] == "win" and b["speedup_ci95"][0] > 1.15, b
+
+
+@pytest.mark.parametrize("name", ["axpy", "rb_scal", "gemm_naive", "gemm_tiled"])
 @pytest.mark.parametrize("marks", [pytest.param(None, marks=gpu)])
 def test_own_path_passes_the_battery_and_equals_amdclang(name, marks, agc_root):
     from agc.session import Session
     p = corpus.CORPUS_DIR / f"{name}.json"
     s = Session.open(p if p.exists() else LLM / f"{name}.json", agc_root)
-    st = s.lower()
+    st = s.lower({"fp.contract": "off"} if name == "gemm_tiled" else None)     # amdclang does not contract in gemm_tiled
     assert s.static_check(st["id"])["ok"]
     ck = s.check(st["id"])
     assert ck["ok"] and ck["cases_run"] == ck["cases_total"]

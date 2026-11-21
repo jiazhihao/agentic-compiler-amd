@@ -651,3 +651,156 @@ def cse(f: Func) -> Func:
 
     f.body = go(f.body, {})
     return f
+
+
+# ---- integer division ----------------------------------------------------------------------------
+def _magic_unsigned(d: int) -> tuple[int, int, bool]:
+    """(multiplier, shift, add): x // d for 32-bit unsigned x is `mulhi(x, m) >> s`, or with `add`
+    `(((x - q) >> 1) + q) >> (s - 1)` where q = mulhi(x, m) (the multiplier needed 33 bits)."""
+    top = (d - 1).bit_length()
+    for s in range(top + 1):
+        m = -(-(1 << (32 + s)) // d)
+        if m < 1 << 32 and m * d - (1 << (32 + s)) <= 1 << s:
+            return m, s, False
+    m = -(-(1 << (32 + top)) // d)
+    return m - (1 << 32), top, True
+
+
+def expand_division(f: Func) -> Func:
+    """Integer `div` and `rem` in terms of operations the machine has (it has no integer divide).
+
+    - by a power of two: shifts and masks;
+    - by another constant: a multiply-high by a precomputed reciprocal;
+    - by a variable: a reciprocal estimate in floating point (`rcp`), one Newton step and two corrections in
+      integers (LLVM's AMDGPUCodeGenPrepare::expandDivRem32; exact for every operand pair with a non-zero
+      divisor);
+    - 64-bit: as 32-bit when both operands are zero-extended 32-bit values, refused otherwise.
+    Signed forms divide the magnitudes and fix the sign (C truncates toward zero)."""
+    from .ir import I32, U32, T as _T
+    namer = _namer(f)
+    defs = {id(s.result): s for s in f.walk() if isinstance(s, Op) and s.result is not None}
+    F32 = _T("f32")
+
+    def zext32(x):
+        """The 32-bit unsigned value a 64-bit operand is the zero-extension of, or None."""
+        if isinstance(x, Const):
+            return Const(int(x.value), U32) if 0 <= int(x.value) < 1 << 32 else None
+        d = defs.get(id(x))
+        while d is not None and d.name == "cast" and d.args[0].type.is_int and d.args[0].type.bits == 64 and d.result.type.bits == 64:
+            d = defs.get(id(d.args[0]))                    # i64 <-> u64
+        if d is not None and d.name == "cast" and d.args[0].type.is_int and d.args[0].type.bits == 32 and isinstance(d.args[0], Value):
+            src = d.args[0]
+            if not src.type.signed:
+                return src
+            from .loops import nonneg
+            if nonneg(src, defs):
+                return ("bits", src)
+        return None
+
+    def go(stmts: list) -> list:
+        out = []
+
+        def E(name, args, t, **attrs):
+            if all(isinstance(a, Const) for a in args):
+                c = fold_const(name, list(args), t)
+                if c is not None:
+                    return c
+            v = Value(namer.fresh("d"), t)
+            op = Op(name, list(args), v, attrs)
+            out.append(op)
+            defs[id(v)] = op
+            return v
+
+        def udivrem(x, y):
+            """Quotient and remainder of two u32 values."""
+            if isinstance(y, Const):
+                d = int(y.value)
+                if d & (d - 1) == 0:
+                    k = d.bit_length() - 1
+                    return E("shr", [x, Const(k, U32)], U32), E("and", [x, Const(d - 1, U32)], U32)
+                m, s, add = _magic_unsigned(d)
+                q = E("mulhi", [x, Const(m, U32)], U32)
+                if add:
+                    q = E("add", [E("shr", [E("sub", [x, q], U32), Const(1, U32)], U32), q], U32)
+                    s -= 1
+                if s:
+                    q = E("shr", [q, Const(s, U32)], U32)
+                return q, E("sub", [x, E("mul", [q, y], U32)], U32)
+            z = E("cast", [E("mul", [E("rcp", [E("cast", [y], F32)], F32), Const(4294966784.0, F32)], F32)], U32)
+            z = E("add", [z, E("mulhi", [z, E("mul", [E("sub", [Const(0, U32), y], U32), z], U32)], U32)], U32)
+            q = E("mulhi", [x, z], U32)
+            r = E("sub", [x, E("mul", [q, y], U32)], U32)
+            for _ in range(2):
+                c = E("ge", [r, y], I1)
+                q = E("select", [c, E("add", [q, Const(1, U32)], U32), q], U32)
+                r = E("select", [c, E("sub", [r, y], U32), r], U32)
+            return q, r
+
+        def magnitude(x):
+            """(|x| as u32, the sign word of x: 0 or -1) of an i32."""
+            if isinstance(x, Const):
+                v = int(x.value)
+                return Const(abs(v), U32), Const(-1 if v < 0 else 0, I32)
+            sx = E("shr", [x, Const(31, I32)], I32)
+            return E("bitcast", [E("xor", [E("add", [x, sx], I32), sx], I32)], U32), sx
+
+        def signed(v, s):
+            """`v` (u32 magnitude) negated where the sign word `s` is -1, as i32."""
+            v = E("bitcast", [v], I32) if isinstance(v, Value) else Const(_wrap(int(v.value)), I32)
+            if isinstance(s, Const) and int(s.value) == 0:
+                return v
+            return E("sub", [E("xor", [v, s], I32), s], I32)
+
+        for s in stmts:
+            if isinstance(s, If):
+                s.then, s.orelse = go(s.then), go(s.orelse)
+            elif isinstance(s, Loop):
+                s.head, s.body = go(s.head), go(s.body)
+            elif s.name in ("div", "rem") and s.result.type.is_int:
+                t, (x, y) = s.result.type, s.args
+                final = None
+                if t.bits == 64:
+                    nx, ny = zext32(x), zext32(y)
+                    low = lambda v: E("bitcast", [v[1]], U32) if isinstance(v, tuple) else v
+                    if isinstance(y, Const) and int(y.value) > 0 and int(y.value) & (int(y.value) - 1) == 0 and not t.signed:
+                        k = int(y.value).bit_length() - 1      # an unsigned power of two: a shift or a mask
+                        s.name, s.args, s.attrs = ("shr", [x, Const(k, t)], {}) if s.name == "div" else \
+                            ("and", [x, Const(int(y.value) - 1, t)], {})
+                    elif nx is not None and ny is not None:
+                        q, r = udivrem(low(nx), low(ny))
+                        final = ("cast", q if s.name == "div" else r)
+                    elif nx is not None and not t.signed:
+                        # x fits in 32 bits: when y > x the quotient is 0 and the remainder x; otherwise y fits too
+                        # (amdclang's code for the same source does this)
+                        y32 = E("cast", [y], U32)
+                        q, r = udivrem(low(nx), y32)
+                        big = E("gt", [y, x], I1)
+                        v = E("cast", [q if s.name == "div" else r], t)
+                        s.name, s.args, s.attrs = "select", [big, Const(0, t) if s.name == "div" else x, v], {}
+                elif t.bits == 32 and not t.signed:
+                    q, r = udivrem(x, y)
+                    final = ("copy", q if s.name == "div" else r)
+                elif t.bits == 32:
+                    (ax, sx), (ay, sy) = magnitude(x), magnitude(y)
+                    q, r = udivrem(ax, ay)
+                    both = E("xor", [sx, sy], I32)
+                    final = ("copy", signed(q, both) if s.name == "div" else signed(r, sx))
+                if final is not None:
+                    kind, v = final
+                    if kind == "cast":
+                        s.name, s.args, s.attrs = "cast", [v], {}
+                    elif isinstance(v, Const):
+                        s.name, s.args, s.attrs = "bitcast", [v], {}
+                        s.name, s.args = "add", [v, Const(0, t)]
+                    else:
+                        s.name, s.args, s.attrs = "bitcast", [v], {}
+            out.append(s)
+        return out
+
+    f.body = go(f.body)
+    return simplify(f)
+
+
+def _wrap(v: int) -> int:
+    v &= 0xFFFFFFFF
+    return v - (1 << 32) if v >= 1 << 31 else v

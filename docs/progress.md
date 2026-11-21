@@ -20,9 +20,50 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 | Stretch: machine-model calibration, attention, LDS GEMM | #7, #12, #23 | not scheduled |
 | Phase 2 roadmap: agc's own lowering | #77 | PR #78 open |
 | M11 Tracer bullet: HIP to the GPU, own path | #79 | PR #80 open |
-| M12 Control flow, loops, loop decisions | #81 | PR open |
+| M12 Control flow, loops, loop decisions | #81 | PR #82 open |
+| M13 Shared memory, barriers, division, reductions | #83 | PR open |
 
 ## Log
+
+### 2026-11-21 — M13: shared memory, barriers, division, the reduction decision (#83)
+- **What.** Frontend: `__shared__` arrays, `__syncthreads`, captureless lambdas passed to inlined templates
+  (`block_reduce(red, acc, [](float a, float b) { return a + b; })`), integer `/` and `%`. `kir` / `wir`: LDS
+  pointers, `shared` / `region` (the LDS size in the descriptor is derived), `barrier`, LDS accesses
+  (`ds_read_*`, `ds_write_*`, wide forms), `wgreduce` / `lane.reduce`. Division is expanded in `kir`: shifts,
+  a multiply-high by a precomputed reciprocal, or the floating-point reciprocal estimate with one Newton step
+  and two corrections (LLVM's `expandDivRem32`); a 64-bit remainder of a 32-bit value the way amdclang's own
+  code does it. Tree reductions through shared memory are recognized (`agc/kir/idioms.py`).
+- **Decisions.** `reduce.form` (`lds_tree` / `dpp`), `order.loads` (`first` / `as_written`). `loop.inflight`
+  now defaults to `first`: amdclang issues a block's loads before the arithmetic too, and without that
+  `gemm_tiled` waited once per LDS read. `loop.unroll` is offered when the counter starts at a thread's index.
+- **Safety gates** on `wir`: an LDS load of a slot the lane did not store, with no barrier since a store to the
+  region; a barrier in a loop each lane leaves on its own. Deleting each of the 13 barriers of three lowerings:
+  11 caught. Not caught: a barrier nothing follows, and the barrier that keeps the next tile's stores behind
+  this tile's reads in `gemm_tiled` (a write after a read, not modelled).
+- **Measured** (`tests/baselines/own-gfx950.json`, paired against amdclang -O3, full battery on every row):
+
+| Kernel | Default plan (95 % CI) | Bit-identical | Instructions (own / amdclang) | Decisions | With them (95 % CI) |
+|---|---|---|---|---|---|
+| `row_sum` | 0.955 (0.952 to 0.957) | yes | 156 / 128 | `loop.unroll` 16 | **1.291** (1.279 to 1.303), bit-identical |
+| `row_sum` | | | | `reduce.form` dpp | 0.986 (0.981 to 0.992), within tolerance |
+| `row_sum` | | | | `reduce.form` dpp, `loop.unroll` 16 | **1.296** (1.285 to 1.308), within tolerance |
+| `gemm_tiled` | 0.757 (0.754 to 0.760) | no (yes with `fp.contract` off) | 128 / 120 | `loop.unroll` 4, 8, 16 | 0.76, 0.76, 0.63: losses |
+| `mo_rope_fwd` | 0.801 (0.797 to 0.804) | yes | 70 / 68 | none | |
+
+  15 of 50 kernels pass through the own path (14 bit-identical with the default plan); geomean of the default
+  plan 0.942. `tests/own/divmod` (division by a variable and by constants, signed, unsigned, 64-bit) passes the
+  battery: the reciprocal method is exact with the hardware's `v_rcp_f32`.
+- **Against the exit.** `row_sum` at 1.2x: reached (1.29x), but by `loop.unroll`, bit-identical, the same gain
+  the phase-1 pass had. The DPP reduction itself is worth 3 % there (0.955 to 0.986): the time is in the column
+  loop, where each lane waits for one load per trip, not in the eight barrier rounds. Default plan at 0.90 or
+  better: missed on `gemm_tiled` (0.76), `mo_rope_fwd` (0.80) and still `rb_ger` (0.80). `row_argmax` (records)
+  and the `mir` interpreter are moved to M15 and M16.
+- **Found.** amdclang does not fuse the multiply and the add in `gemm_tiled` (its vectorizer forms
+  `v_pk_mul_f32` first), so `fp.contract: on` is not always what amdclang does; `off` is bit-identical there.
+  The workgroup's tree reduction is a small part of `row_sum`'s time, contrary to what the roadmap assumed.
+- **Open.** `gemm_tiled` and `mo_rope_fwd` are 20 % to 24 % behind with no decision that closes it (not
+  analysed; M16). Records, atomics, lane shuffles, local arrays (M15). The gate does not model a store that
+  overwrites what another wave still reads. The GPU suite was run for the own-path tests only.
 
 ### 2026-11-21 — M12: control flow, loops, and the first decisions that beat amdclang (#81)
 - **What.** Frontend: early `return`, `break`, `continue`, `do`, a `return` from a loop of an inlined

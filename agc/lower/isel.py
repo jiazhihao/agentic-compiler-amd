@@ -51,6 +51,8 @@ class Selector:
         self.addr: list[dict] = [{}]                     # address registers computed in the open regions
         self.negated: dict[int, object] = {}             # a float negation read only by fma -> its operand
         self.direct: dict[int, Reg] = {}                 # value -> the register it must be computed into
+        self.regions: dict[int, int] = {}                # LDS region handle -> its byte offset
+        self.lds_bytes = 0
         self.depth = 0                                   # loops around the statement being selected
         self.defdepth: dict[int, int] = {}               # value -> the loop depth it was defined at
         self.noskip = 0                                  # open `where` regions entered without the empty-mask branch
@@ -64,7 +66,7 @@ class Selector:
                     self.left[id(x)] = self.left.get(id(x), 0) + 1
             if isinstance(s, Op) and s.name.startswith("wg."):
                 self.wg.append(s.name[-1])
-            if isinstance(s, Op) and s.name.startswith("lane."):
+            if isinstance(s, Op) and s.name in ("lane.x", "lane.y", "lane.z"):
                 self.lanes = max(self.lanes, "xyz".index(s.name[-1]))
         self.wg = [d for d in "xyz" if d in self.wg] or ["x"]
         lo, hi = table.limit("inline_int")
@@ -129,7 +131,7 @@ class Selector:
         of a `pack`, and the 32-bit value a cast widens (its register becomes the low half)."""
         defs = {id(s.result): s for s in self.w.walk() if isinstance(s, Op) and s.result is not None}
         writes = lambda d: d is not None and d.name not in ("cast", "bitcast", "extract", "arg", "hidden", "ptradd") \
-            and not d.name.startswith(("wg.", "lane."))
+            and not d.name.startswith("wg.") and d.name not in ("lane.x", "lane.y", "lane.z")
         for s in self.w.walk():
             if not isinstance(s, Op) or s.result is None:
                 continue
@@ -288,9 +290,34 @@ class Selector:
                 self.b.emit(self.t.salu("shr", r.type), dst, dst, 8 * (at % 4))
             if size < 4 and at % 4 + size < 4:
                 self.b.emit(self.t.salu("and", r.type), dst, dst, (1 << (8 * size)) - 1)
+        elif n == "lane.reduce":
+            rd = self.t.data["reduce_dpp"]
+            mn = self.t.valu(s.attrs["op"], r.type)
+            if mn is None or not self.t.has_e32(mn):
+                raise LowerError(f"no DPP form of `{s.attrs['op']}` on {r.type}", s.site)
+            cur = self.to_v(self.src(s.args[0]))
+            for step in rd["steps"]:
+                nxt = self.b.v()
+                self.b.emit(mn + "_dpp", nxt, cur, cur, **step, **rd["masks"])
+                cur = nxt
+            rows = [self.b.s() for _ in range(64 // rd["row"])]
+            for i, row in enumerate(rows):
+                self.b.emit(self.t.control("readlane"), row, cur, rd["row"] * i)
+            dst = self.new(r)
+            self.b.emit(self.mov_v(), dst, rows[0])
+            for row in rows[1:]:
+                self.b.emit(mn + "_e32", dst, row, dst)
+        elif n == "region":
+            self.loc[id(r)] = None                       # a handle, not a register
+            self.regions[id(r)] = self.lds_bytes         # the region's byte offset in the workgroup's LDS
+            self.lds_bytes += -(-s.attrs["bytes"] // 4) * 4
+        elif n == "barrier":
+            self.b.emit(self.t.control("barrier"))
+        elif n in ("load", "store") and s.args[0].type.is_lds:
+            self.lds_access(s)
         elif n.startswith("wg."):
             self.loc[id(r)] = Builder.S(self.t.limit("first_workgroup_id_sgpr") + self.wg.index(n[-1]))
-        elif n.startswith("lane."):
+        elif n in ("lane.x", "lane.y", "lane.z"):
             v0, d = Builder.V(self.t.limit("first_workitem_id_vgpr")), "xyz".index(n[-1])
             bits = self.t.limit("workitem_id_bits")
             if self.lanes == 0:
@@ -479,8 +506,11 @@ class Selector:
             else:
                 self.vop2(self.t.valu("sub", t), self.new(r), Imm("0"), self.src(a[0]))
             return
-        if n == "not":
-            self.b.emit(self.t.valu("not", t) + "_e32", self.new(r), self.src(a[0]))
+        if n in ("not", "rcp"):
+            mn = self.t.valu(n, t)
+            if mn is None:
+                raise LowerError(f"no per-lane `{n}` on {t} yet", s.site)
+            self.b.emit(mn + "_e32", self.new(r), self.src(a[0]))
             return
         if n == "mul" and t.is_int and isinstance(a[1], Const) and int(a[1].value) > 0 and int(a[1].value) & (int(a[1].value) - 1) == 0:
             self.vop2(self.t.valu("shl.rev", t), self.new(r), Imm(str(int(a[1].value).bit_length() - 1)), self.src(a[0]))
@@ -647,6 +677,55 @@ class Selector:
             x = s.args[2]
             data = self.v64(x) if self.wide(elem) else self.to_v(self.src(x))
             self.b.emit(mn, reg, data, "off", **mods)
+
+    def lds_access(self, s: Op) -> None:
+        """`ds_read_*` / `ds_write_*`: the address is the lane's byte offset in a VGPR plus an immediate."""
+        base, idx = s.args[0], s.args[1]
+        scale, off = s.attrs["scale"], s.attrs["off"] + self.regions[self.rt(base)]
+        elem = base.type.elem
+        if isinstance(idx, Const):
+            off += int(idx.value) * scale
+            idx = None
+        lo, hi = self.t.limit("lds_offset")
+        key = ("l", self.rt(idx) if idx is not None else None, scale)
+        addr = next((d[key] for d in reversed(self.addr) if key in d), None)
+        if addr is None:
+            if idx is None:
+                addr = self.b.v()
+                self.b.emit(self.mov_v(), addr, 0)
+            else:
+                oi = self.src(idx)
+                if scale == 1:
+                    addr = self.to_v(oi)
+                else:
+                    if scale & (scale - 1):
+                        raise LowerError(f"an LDS index scaled by {scale}", s.site)
+                    addr = self.b.v()
+                    self.vop2(self.t.valu("shl.rev", Type("int", 32)), addr, Imm(str(scale.bit_length() - 1)), oi)
+            self.addr[-1][key] = addr
+        if not lo <= off <= hi:
+            a2 = self.b.v()
+            self.vop2(self.t.valu("add", Type("int", 32)), a2, Imm(hex(off & 0xFFFFFFFF)), addr)
+            addr, off = a2, 0
+        mods = {"offset": off} if off else {}
+        count = s.attrs.get("n", 1)
+        if count > 1:                                    # consecutive dwords in one access
+            if s.name == "load":
+                self.b.emit(self.t.data["memory"]["lds_load_wide"][count], self.new(s.result), addr, **mods)
+            else:
+                self.b.emit(self.t.data["memory"]["lds_store_wide"][count], addr, self.loc[id(s.args[2])], **mods)
+            return
+        if s.name == "load":
+            mn = self.t.find("memory", "lds_load", elem)
+            if mn is None:
+                raise LowerError(f"no LDS load of {elem}", s.site)
+            self.b.emit(mn, self.new(s.result), addr, **mods)
+        else:
+            mn = self.t.find("memory", "lds_store", elem)
+            if mn is None:
+                raise LowerError(f"no LDS store of {elem}", s.site)
+            x = s.args[2]
+            self.b.emit(mn, addr, self.v64(x) if self.wide(elem) else self.to_v(self.src(x)), **mods)
 
     def scalar_load(self, s: Op) -> None:
         """A load at a uniform address: one `s_load_dword*` for the wave. It runs whatever the mask is, so
@@ -818,7 +897,9 @@ class Selector:
         self.use(s.cond)
         tail = tail and not s.merges
         save = self.b.s(2)
-        skip = self.plan.choose(s.site or "if", "branch.skip_empty", ["branch", "none"]) == "branch"
+        # a wave that branched over a barrier would leave the others waiting: such a region is always entered
+        has_barrier = any(isinstance(x, Op) and x.name == "barrier" for x in walk(s.then + s.orelse))
+        skip = self.plan.choose(s.site or "if", "branch.skip_empty", ["none"] if has_barrier else ["branch", "none"]) == "branch"
         end = self.b.new_label()
         other = self.b.new_label() if s.orelse else end
         # A merged value is one register: it holds the else-side value before the region (when that value
@@ -927,7 +1008,8 @@ class Selector:
         self.hints()
         self.body(self.w.body, True)
         self.b.emit(self.t.control("end"))
-        return self.b.finish(self.args, workgroup_id="".join(self.wg), workitem_id=self.lanes, hidden_args=True)
+        return self.b.finish(self.args, workgroup_id="".join(self.wg), workitem_id=self.lanes, hidden_args=True,
+                             lds_bytes=self.lds_bytes)
 
 
 def select(w: Func, table: Table, plan: Plan, args: list[abi.Arg], hidden_base: int, arch=None):

@@ -2,7 +2,7 @@
 """agc's own lowering from HIP (roadmap phase 2) on every kernel that has a HIP source.
 
     .venv/bin/python scripts/own_path.py [--no-time] [kernel ...]   -> tests/baselines/own-gfx950.json
-    .venv/bin/python scripts/own_path.py --decisions [kernel ...]   the loop decisions on the kernels that have them
+    .venv/bin/python scripts/own_path.py --decisions [kernel ...]   the loop and reduction decisions on the kernels that have them
     .venv/bin/python scripts/own_path.py --fixtures                 -> tests/kir/<kernel>.kir (the frontend's output)
 
 Per kernel: how far it gets (frontend, lowered, static check, battery) with the reason when it stops,
@@ -113,19 +113,24 @@ LOOPS = (4, 8, 16)
 
 
 def decisions(path: Path, root: str) -> dict | None:
-    """The loop decisions on one kernel: `loop.unroll` at each factor with `loop.inflight: first`, each through
-    the static check, the full battery, the differential check and a paired timing against amdclang -O3.
-    Returns the best verified one and every attempt; None when the kernel has no loop decision."""
+    """The decisions that change a kernel's schedule, on one kernel: `loop.unroll` at each factor, and
+    `reduce.form: dpp` alone and with the unrolling, each through the static check, the full battery, the
+    differential check and a paired timing against amdclang -O3. Returns the best verified one and every
+    attempt; None when the kernel has none of these decisions."""
     s = Session.open(path, root)
     try:
         base = s.lower()
     except SessionError:
         return None
-    if not any(e["decision"] == "loop.unroll" for e in s.plan(base["id"])["decisions"]):
+    have = {e["decision"] for e in s.plan(base["id"])["decisions"]}
+    loops = [{"loop.unroll": n} for n in LOOPS] if "loop.unroll" in have else []
+    tries = list(loops)
+    if "reduce.form" in have:
+        tries += [{"reduce.form": "dpp"}] + [{"reduce.form": "dpp", **ov} for ov in loops]
+    if not tries:
         return None
     rows = []
-    for n in LOOPS:
-        ov = {"loop.unroll": n, "loop.inflight": "first"}
+    for ov in tries:
         row = {"overrides": ov}
         try:
             sid = s.replan(base["id"], ov)["id"]
@@ -158,8 +163,10 @@ def main(argv) -> int:
             d = decisions(path, root)
             if d is None:
                 k.pop("loop_decisions", None)
+                k.pop("decisions_tried", None)
                 continue
-            k["loop_decisions"] = d
+            k.pop("loop_decisions", None)
+            k["decisions_tried"] = d
             b = d["best"]
             print(f"{name:26s} " + (f"{b['overrides']} {b['speed_over_amdclang']} {b['ci95']} bit-identical={b['bit_identical']}" if b
                                      else "no verified win: " + "; ".join(str(r.get('speed_over_amdclang') or r.get('reason'))[:60] for r in d["tried"])),
