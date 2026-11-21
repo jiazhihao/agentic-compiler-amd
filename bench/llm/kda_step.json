@@ -141,12 +141,11 @@
   "source": "baselines/kda_step.hip",
   "flags": [
    "-fno-slp-vectorize",
-   "-fno-vectorize"
+   "-fno-vectorize",
+   "-ffast-math"
   ],
   "defines": {
-   "CW": "4",
-   "UR": "8",
-   "PR": "8"
+   "LPOOL": "4096"
   },
   "launch": {
    "grid": [
@@ -158,8 +157,7 @@
     256,
     1,
     1
-   ],
-   "lds": 0
+   ]
   }
  }
 }

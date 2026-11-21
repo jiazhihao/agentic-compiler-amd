@@ -1058,12 +1058,12 @@
      "defines": null,
      "launch": null,
      "outcome": "loss",
-     "speedup": 0.9635,
+     "speedup": 0.9575,
      "ci95": [
-      0.9609,
-      0.9666
+      0.9556,
+      0.9592
      ],
-     "ms": 0.21524
+     "ms": 0.20862
     },
     {
      "what": "restructured source",
@@ -1072,9 +1072,7 @@
       "-fno-vectorize"
      ],
      "defines": {
-      "CW": "4",
-      "UR": "8",
-      "PR": "8"
+      "LPOOL": "4096"
      },
      "launch": {
       "grid": [
@@ -1086,44 +1084,15 @@
        256,
        1,
        1
-      ],
-      "lds": 0
+      ]
      },
      "outcome": "win",
-     "speedup": 1.7306,
+     "speedup": 1.8448,
      "ci95": [
-      1.7218,
-      1.7399
+      1.8371,
+      1.8557
      ],
-     "ms": 0.11832,
-     "verified": {
-      "outcome": "win",
-      "speedup": 1.6938,
-      "speedup_ci95": [
-       1.6892,
-       1.6985
-      ],
-      "candidate_ms": 0.11712,
-      "cases": 105,
-      "runs": [
-       {
-        "speedup": 1.7267,
-        "ci95": [
-         1.7205,
-         1.7325
-        ],
-        "valid": true
-       },
-       {
-        "speedup": 1.6938,
-        "ci95": [
-         1.6892,
-         1.6985
-        ],
-        "valid": true
-       }
-      ]
-     }
+     "ms": 0.11058
     },
     {
      "what": "restructured source",
@@ -1133,9 +1102,7 @@
       "-ffast-math"
      ],
      "defines": {
-      "CW": "4",
-      "UR": "8",
-      "PR": "8"
+      "LPOOL": "4096"
      },
      "launch": {
       "grid": [
@@ -1147,29 +1114,55 @@
        256,
        1,
        1
-      ],
-      "lds": 0
+      ]
      },
      "outcome": "win",
-     "speedup": 1.458,
+     "speedup": 1.8823,
      "ci95": [
-      1.4534,
-      1.4631
+      1.8772,
+      1.8933
      ],
-     "ms": 0.14084
+     "ms": 0.10556,
+     "verified": {
+      "outcome": "win",
+      "speedup": 1.8998,
+      "speedup_ci95": [
+       1.894,
+       1.9048
+      ],
+      "candidate_ms": 0.10896,
+      "cases": 105,
+      "runs": [
+       {
+        "speedup": 1.8998,
+        "ci95": [
+         1.894,
+         1.9048
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 1.9084,
+        "ci95": [
+         1.9035,
+         1.9125
+        ],
+        "valid": true
+       }
+      ]
+     }
     }
    ],
-   "amdclang_O3_ms": 0.20556,
+   "amdclang_O3_ms": 0.20548,
    "baseline": {
     "source": "baselines/kda_step.hip",
     "flags": [
      "-fno-slp-vectorize",
-     "-fno-vectorize"
+     "-fno-vectorize",
+     "-ffast-math"
     ],
     "defines": {
-     "CW": "4",
-     "UR": "8",
-     "PR": "8"
+     "LPOOL": "4096"
     },
     "launch": {
      "grid": [
@@ -1181,16 +1174,15 @@
       256,
       1,
       1
-     ],
-     "lds": 0
+     ]
     }
    },
-   "over_shipped_O3": 1.6938,
+   "over_shipped_O3": 1.8998,
    "ci95": [
-    1.6892,
-    1.6985
+    1.894,
+    1.9048
    ],
-   "ms": 0.11712
+   "ms": 0.10896
   },
   "mla_decode": {
    "candidates": [
@@ -1327,17 +1319,124 @@
      "defines": null,
      "launch": null,
      "outcome": "parity",
-     "speedup": 0.9991,
+     "speedup": 0.9988,
      "ci95": [
-      0.9935,
+      0.9954,
       1.0035
      ],
-     "ms": 0.11168
+     "ms": 0.1124
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": {
+      "LSZ": "64"
+     },
+     "launch": {
+      "grid": [
+       "cdiv(Q, LSZ)",
+       1,
+       1
+      ],
+      "block": [
+       "LSZ",
+       1,
+       1
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.0201,
+     "ci95": [
+      1.0121,
+      1.0298
+     ],
+     "ms": 0.1098
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": {
+      "LSZ": "64"
+     },
+     "launch": {
+      "grid": [
+       "cdiv(Q, LSZ)",
+       1,
+       1
+      ],
+      "block": [
+       "LSZ",
+       1,
+       1
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.0331,
+     "ci95": [
+      1.0259,
+      1.0379
+     ],
+     "ms": 0.1081,
+     "verified": {
+      "outcome": "win",
+      "speedup": 1.0281,
+      "speedup_ci95": [
+       1.0241,
+       1.0343
+      ],
+      "candidate_ms": 0.10824,
+      "cases": 49,
+      "runs": [
+       {
+        "speedup": 1.0281,
+        "ci95": [
+         1.0241,
+         1.0343
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 1.0331,
+        "ci95": [
+         1.029,
+         1.0374
+        ],
+        "valid": true
+       }
+      ]
+     }
     }
    ],
-   "amdclang_O3_ms": 0.11234,
-   "baseline": null,
-   "over_shipped_O3": 1.0
+   "amdclang_O3_ms": 0.11108,
+   "baseline": {
+    "source": "baselines/mo_active_fwd.hip",
+    "flags": [
+     "-ffast-math"
+    ],
+    "defines": {
+     "LSZ": "64"
+    },
+    "launch": {
+     "grid": [
+      "cdiv(Q, LSZ)",
+      1,
+      1
+     ],
+     "block": [
+      "LSZ",
+      1,
+      1
+     ]
+    }
+   },
+   "over_shipped_O3": 1.0281,
+   "ci95": [
+    1.0241,
+    1.0343
+   ],
+   "ms": 0.10824
   },
   "mo_adam": {
    "candidates": [
@@ -1900,17 +1999,117 @@
      "defines": null,
      "launch": null,
      "outcome": "parity",
-     "speedup": 0.9997,
+     "speedup": 0.9987,
      "ci95": [
-      0.9954,
-      1.003
+      0.9909,
+      1.0021
      ],
-     "ms": 0.1898
+     "ms": 0.1887
+    },
+    {
+     "what": "restructured source",
+     "flags": [],
+     "defines": null,
+     "launch": {
+      "grid": [
+       "cdiv(B * 2 * K, 1024)",
+       1,
+       1
+      ],
+      "block": [
+       256,
+       1,
+       1
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.6367,
+     "ci95": [
+      1.6299,
+      1.6439
+     ],
+     "ms": 0.1148
+    },
+    {
+     "what": "restructured source",
+     "flags": [
+      "-ffast-math"
+     ],
+     "defines": null,
+     "launch": {
+      "grid": [
+       "cdiv(B * 2 * K, 1024)",
+       1,
+       1
+      ],
+      "block": [
+       256,
+       1,
+       1
+      ]
+     },
+     "outcome": "win",
+     "speedup": 1.6492,
+     "ci95": [
+      1.6448,
+      1.6572
+     ],
+     "ms": 0.11392,
+     "verified": {
+      "outcome": "win",
+      "speedup": 1.64,
+      "speedup_ci95": [
+       1.6366,
+       1.6454
+      ],
+      "candidate_ms": 0.11448,
+      "cases": 77,
+      "runs": [
+       {
+        "speedup": 1.6686,
+        "ci95": [
+         1.6648,
+         1.6718
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 1.64,
+        "ci95": [
+         1.6366,
+         1.6454
+        ],
+        "valid": true
+       }
+      ]
+     }
     }
    ],
-   "amdclang_O3_ms": 0.18782,
-   "baseline": null,
-   "over_shipped_O3": 1.0
+   "amdclang_O3_ms": 0.18696,
+   "baseline": {
+    "source": "baselines/mo_rope_fwd.hip",
+    "flags": [
+     "-ffast-math"
+    ],
+    "launch": {
+     "grid": [
+      "cdiv(B * 2 * K, 1024)",
+      1,
+      1
+     ],
+     "block": [
+      256,
+      1,
+      1
+     ]
+    }
+   },
+   "over_shipped_O3": 1.64,
+   "ci95": [
+    1.6366,
+    1.6454
+   ],
+   "ms": 0.11448
   },
   "mo_t5_layernorm": {
    "candidates": [
@@ -2057,12 +2256,12 @@
      "defines": null,
      "launch": null,
      "outcome": "win",
-     "speedup": 1.0623,
+     "speedup": 1.063,
      "ci95": [
-      1.0611,
-      1.0636
+      1.0616,
+      1.0635
      ],
-     "ms": 0.62245
+     "ms": 0.61771
     },
     {
      "what": "restructured source",
@@ -2070,40 +2269,12 @@
      "defines": null,
      "launch": null,
      "outcome": "win",
-     "speedup": 18.8386,
+     "speedup": 20.2925,
      "ci95": [
-      18.7515,
-      18.9438
+      20.2155,
+      20.3717
      ],
-     "ms": 0.03498,
-     "verified": {
-      "outcome": "win",
-      "speedup": 18.2766,
-      "speedup_ci95": [
-       18.2463,
-       18.3075
-      ],
-      "candidate_ms": 0.03588,
-      "cases": 49,
-      "runs": [
-       {
-        "speedup": 18.2766,
-        "ci95": [
-         18.2463,
-         18.3075
-        ],
-        "valid": true
-       },
-       {
-        "speedup": 18.857,
-        "ci95": [
-         18.792,
-         18.9299
-        ],
-        "valid": true
-       }
-      ]
-     }
+     "ms": 0.03236
     },
     {
      "what": "restructured source",
@@ -2113,24 +2284,55 @@
      "defines": null,
      "launch": null,
      "outcome": "win",
-     "speedup": 17.89,
+     "speedup": 20.381,
      "ci95": [
-      17.8447,
-      17.9154
+      20.3031,
+      20.4527
      ],
-     "ms": 0.03668
+     "ms": 0.03224,
+     "verified": {
+      "outcome": "win",
+      "speedup": 20.5481,
+      "speedup_ci95": [
+       20.4953,
+       20.6028
+      ],
+      "candidate_ms": 0.03192,
+      "cases": 49,
+      "runs": [
+       {
+        "speedup": 20.5481,
+        "ci95": [
+         20.4953,
+         20.6028
+        ],
+        "valid": true
+       },
+       {
+        "speedup": 20.5964,
+        "ci95": [
+         20.5383,
+         20.6283
+        ],
+        "valid": true
+       }
+      ]
+     }
     }
    ],
-   "amdclang_O3_ms": 0.65755,
+   "amdclang_O3_ms": 0.65729,
    "baseline": {
-    "source": "baselines/moe_gate_topk.hip"
+    "source": "baselines/moe_gate_topk.hip",
+    "flags": [
+     "-ffast-math"
+    ]
    },
-   "over_shipped_O3": 18.2766,
+   "over_shipped_O3": 20.5481,
    "ci95": [
-    18.2463,
-    18.3075
+    20.4953,
+    20.6028
    ],
-   "ms": 0.03588
+   "ms": 0.03192
   },
   "rb_axpy": {
    "candidates": [
@@ -3342,5 +3544,5 @@
  },
  "what": "the strongest amdclang build per kernel (see scripts/strong_baseline.py); speedups are over amdclang -O3 on the source as shipped; the baseline is what agc's results are measured against",
  "protocol": "agc-timing-amd-2",
- "recorded": "2026-11-20"
+ "recorded": "2026-11-21"
 }

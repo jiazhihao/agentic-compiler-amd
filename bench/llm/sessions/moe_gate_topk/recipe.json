@@ -1,0 +1,122 @@
+{
+ "kernel": "moe_gate_topk",
+ "launch": null,
+ "strict": false,
+ "attribution": {
+  "levels": [
+   "mir",
+   "source"
+  ],
+  "baseline": {
+   "source": "baselines/moe_gate_topk.hip",
+   "flags": [
+    "-ffast-math"
+   ]
+  },
+  "over_strongest_amdclang": 1.0148,
+  "over_shipped_O3": 21.3518
+ },
+ "path": [
+  "source",
+  "edit"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 1.0148,
+  "speedup_ci95": [
+   1.0122,
+   1.0206
+  ],
+  "reference_ms": 0.03156,
+  "candidate_ms": 0.03108,
+  "cases": 49,
+  "protocol_version": "agc-timing-amd-2",
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 1.0179,
+    "ci95": [
+     1.0141,
+     1.0231
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 1.0148,
+    "ci95": [
+     1.0122,
+     1.0206
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "Best state ea498c783e5bd552: 1.148x over the baseline (240 pairs, CI 1.146..1.151; 31.3 us against 35.9 us). Most of it is a source rewrite (state a3f1f14b4b217381, 1.116x at 60 pairs, credited to amdclang): each (value, index) pair is packed into one finite double (high word = float bits + 0x00100000, low word = ~index for positive values / index for negative ones), so a compare-exchange of the top-8 sorting network is v_max_f64 + v_min_f64 instead of v_cmp_gt_i64 + four v_cndmask (hot loop 276 -> 173 instructions). The machine-level gain on top of that amdclang build is 1.027x (compare, 240 pairs, CI 1.023..1.031): the next iteration's two x4 loads are issued at the top of the loop and waited one iteration later (branch-free, last iteration re-reads its own chunk through an s_cselect step), and the 16 `v_max_f64 x, x` sNaN canonicalizations amdclang emits per iteration are removed (operands are finite by construction). 1.5x was not reached: the kernel is at 31 us with about 20 us of launch, and already below the copy-model floor (headroom 0.89); the model is touched-once and the kernel reads logits exactly once, so this is the 'at the floor / launch-dominated' case, with the remaining time in per-CU ALU throughput rather than bytes.",
+ "tried": [
+  {
+   "what": "relaunch baseline with block 64 (1024 one-wave workgroups)",
+   "state": "e3c368623431bda8",
+   "outcome": "parity",
+   "speedup": 0.9946
+  },
+  {
+   "what": "relaunch baseline with block 1024 (64 workgroups)",
+   "state": "ac2a7e536158a8d2",
+   "outcome": "loss",
+   "speedup": 0.4609
+  },
+  {
+   "what": "apply unroll_loads factor 2 on the baseline's loop .LBB0_31",
+   "state": "baseline",
+   "outcome": "refused: 'the kernel uses indexed vector registers (s_set_gpr_idx_on)' (the k != 8 fallback path, not the hot loop)",
+   "speedup": null
+  },
+  {
+   "what": "source: (value,index) as one finite double, compare-exchange = v_max_f64 + v_min_f64",
+   "state": "a3f1f14b4b217381",
+   "outcome": "win (source level, credited to amdclang)",
+   "speedup": 1.1157
+  },
+  {
+   "what": "machine IR on the source state: software-pipelined loads (next iteration's 2 x4 loads in flight during the current iteration's ALU, branch-free clamp on the last iteration)",
+   "state": "0621abb720e006f8",
+   "outcome": "win vs baseline at 60 pairs; not compared directly against the source state",
+   "speedup": 1.1587
+  },
+  {
+   "what": "pipelined loads + removal of 16 v_max_f64 x,x canonicalizations per iteration (register renaming of exp temporaries)",
+   "state": "ea498c783e5bd552",
+   "outcome": "win: 1.148 vs baseline (240 pairs); 1.027 vs the source state (compare, 240 pairs)",
+   "speedup": 1.1483
+  },
+  {
+   "what": "relaunch the best state with block 128 (512 workgroups of 2 waves)",
+   "state": "4c0c7b7215db8287",
+   "outcome": "loss vs best (compare 120 pairs)",
+   "speedup": 0.8801
+  }
+ ],
+ "friction": [
+  "edit() text does not accept label lines ('bad mnemonic .Lpf31:'): a block cannot be split or a skip-branch added without resending the whole 800-instruction body through edit_ir. I had to express 'no prefetch on the last iteration' branch-free (s_cselect step) instead. An op like {op: 'split', block, index, label} or labels in edit text would fix it.",
+  "unroll_loads refused the whole kernel because a cold fallback path (k != 8) uses s_set_gpr_idx_on; the hot loop .LBB0_31 named in `loop` does not. The refusal should be scoped to the named loop.",
+  "amdclang inserts v_max_f64 x,x canonicalization on every fmax/fmin input coming from a bit_cast (16 per iteration here); there is no transform to drop canonicalizations the author can prove unnecessary, and removing them by hand needed register renaming across 12 instructions. A 'rename register in index range' edit op would make this a one-liner.",
+  "The memory-floor model (20 us launch + bytes/4.5 TB/s) reports headroom 0.89..0.97 for this kernel, i.e. it is already beyond the 'floor'; the headroom says 'memory-bound' while the block-1024 relaunch (0.46x) shows the kernel is bound by ALU throughput per CU. A probe that reports time with loads kept but ALU removed (or the reverse) would have told this directly.",
+  "No tool states the cost (cycles) of an instruction class: whether v_max_f64 costs more than a 32-bit VALU op had to be inferred from end-to-end timing."
+ ],
+ "lessons": [
+  "A 64-bit (key, payload) compare-exchange can be two instructions: pack the pair into a finite double and use v_max_f64 / v_min_f64. For float keys: high word = bits(x + 0.0f) + 0x00100000 (keeps sign-magnitude order, never a double NaN/inf/denormal for non-NaN floats, including +-inf), low word = ~index for positive values and index for negative ones (lo = ~idx ^ (bits >> 31)); sentinel 0xff900000ffffffff decodes to value -inf, index -1. moe_gate_topk hot loop 276 -> 173 instructions, 1.12x end to end (kernel part about 15.9 -> 12.3 us after 20 us launch). Expressible in HIP with __builtin_fmax/__builtin_fmin on bit_cast doubles.",
+  "amdclang canonicalizes (v_max_f64 x, x) every fmax/fmin input it cannot prove non-sNaN: 16 extra f64 ops per iteration here. Removing them at machine level together with one-iteration-ahead load pipelining gave 1.027x (240-pair compare) on a 31 us kernel.",
+  "Software pipelining without a branch or a loop copy: keep the loop's own address register, prefetch from addr + (more_iterations ? stride : 0) computed with s_cmp + s_cselect_b32 and v_lshl_add_u64 v, v, 0, s[lo:hi]; the last iteration harmlessly re-reads its own chunk, no out-of-bounds read. Costs 4 v_mov_b64 per iteration to move the prefetched registers into place.",
+  "A headroom near 1.0 does not prove memory-bound on a 35 us kernel: relaunching with block 1024 (64 workgroups, 16 waves per CU) ran 0.46x, showing ALU throughput per CU was the bound; cutting 37 % of the loop instructions then paid 1.12x. Rough fit here: about 1.1 us per 1000 VALU instructions per wave (4 waves per CU, 256 CUs) on top of about 26 us.",
+  "Launch geometry for this kernel: block 256 (256 workgroups of 4 waves = one per CU) is best; block 64 parity (0.995) on the baseline, block 128 0.88x on the optimized state, block 1024 0.46x."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 3.1392244000000007,
+  "turns": 41,
+  "final": "The session is reported: the best state is `ea498c783e5bd552`, 1.148x over the baseline (240 pairs, CI 1.146\u20131.151; 31.3 us against 35.9 us). The 1.5x target was not reached, and the machine-level gain that counts is only about 1.027x.\n\n- **Source level (credited to amdclang), 1.116x:** state `a3f1f14b4b217381` packs each (value, index) pair into one finite double, so a compare-exchange in the top-8 sorting network is `v_max_f64` + `v_min_f64` instead of a 64-bit compare and four selects. The hot loop drops from 276 to 173 instructions.\n- **Machine level on top, 1.027x** (direct compare, 240 pairs, CI 1.023\u20131.031):\n  - The next iteration's two x4 loads are issued at the top of the loop and waited one iteration later.\n  - The 16 `v_max_f64 x, x` canonicalizations amdclang emits per iteration are removed.\n- **Why not 1.5x:** about 20 us of the 31 us is launch, and the kernel reads the logits exactly once. It is already below the copy-model floor (headroom 0.89), so 1.5x would need 23 us total. What remains is per-CU arithmetic throughput, not bytes.\n\nOther things tried:\n\n| What | Result |\n|---|---|\n| Baseline, block 64 | parity (0.995) |\n| Baseline, block 1024 | loss (0.46x) \u2014 this is what showed the kernel is compute-bound per CU |\n| Best state, block 128 | loss (0.88x against the best state) |\n| `unroll_loads` on the baseline | refused: the cold `k != 8` path uses indexed registers |\n\nFriction recorded for the compiler: `edit` text does not accept labels, so I could not split a block. I made the last-iteration prefetch branch-free instead; it re-reads its own chunk.",
+  "seconds": 363,
+  "log": ".agc/sessions/moe_gate_topk-c4da1493ea/agent/20261121-000335.jsonl"
+ },
+ "recorded": "2026-11-21"
+}

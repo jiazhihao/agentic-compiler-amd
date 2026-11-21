@@ -1,0 +1,136 @@
+{
+ "kernel": "rb_ger",
+ "launch": {
+  "grid": [
+   "cdiv(M, (4) * (64))",
+   "N",
+   1
+  ],
+  "block": [
+   "(64)",
+   1,
+   1
+  ],
+  "lds": 0
+ },
+ "strict": false,
+ "attribution": {
+  "levels": [
+   "mir",
+   "source"
+  ],
+  "baseline": {
+   "source": "baselines/rb_ger.hip",
+   "flags": [
+    "-ffast-math"
+   ],
+   "defines": {
+    "EPT": "4",
+    "BLK": "64"
+   },
+   "launch": {
+    "grid": [
+     "cdiv(M, EPT * BLK)",
+     "N",
+     1
+    ],
+    "block": [
+     "BLK",
+     1,
+     1
+    ]
+   }
+  },
+  "over_strongest_amdclang": 1.0147,
+  "over_shipped_O3": 1.1045
+ },
+ "path": [
+  "source",
+  "edit",
+  "edit"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 1.0147,
+  "speedup_ci95": [
+   1.0117,
+   1.0175
+  ],
+  "reference_ms": 0.0942,
+  "candidate_ms": 0.09286,
+  "cases": 77,
+  "protocol_version": "agc-timing-amd-2",
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 1.0147,
+    "ci95": [
+     1.0117,
+     1.0175
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 1.0145,
+    "ci95": [
+     1.0117,
+     1.018
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "rb_ger is at the memory floor: the baseline (loop-free, 16 bytes per lane, one 1 KB-contiguous wave per workgroup) has headroom 0.89-0.90 against the copy model (268 MB read + 268 MB written in 94 us, 5.7 TB/s), and every element of A must be read and written exactly once, so 1.5x is out of reach; x (32 KB) is re-read per column but from cache. The shipped state 119155ff4a28c113 only shortens the per-wave latency chain in the prologue: amdclang makes four sequential scalar-load round trips (alpha, m, pointers, y[col]) before the vector loads are issued; here all kernargs are fetched by two scalar loads issued together with one wait, and the y[col] load is in flight together with the x/A global_load_dwordx4 (its lgkmcnt wait and the res_y multiply moved after the vector loads, duplicated into the tail path). Bit-identical arithmetic, battery 77/77, 1.016x over the baseline (CI 1.0125-1.0182, 240 pairs). No source state was made.",
+ "tried": [
+  {
+   "what": "A/A control of the baseline; headroom 0.90 (memory floor)",
+   "state": "d93b3d2c37dcb0e6",
+   "outcome": "control",
+   "speedup": 1.0013
+  },
+  {
+   "what": "y[col] scalar load overlapped with the x/A vector loads: lgkmcnt wait + res_y multiply moved after the global loads (fast path) and into the tail path",
+   "state": "f8d1294bd126d8d0",
+   "outcome": "win",
+   "speedup": 1.0149
+  },
+  {
+   "what": "on top: all kernargs in s_load_dwordx4 + s_load_dwordx8 issued together, one wait instead of three sequential load+wait round trips",
+   "state": "119155ff4a28c113",
+   "outcome": "win (1.016, CI 1.0125-1.0182; only +0.1% over the previous state, within noise)",
+   "speedup": 1.016
+  },
+  {
+   "what": "coarsen factor 2 on the best state (compare against 119155ff4a28c113)",
+   "state": "5efd85720171a274",
+   "outcome": "loss vs best state: 0.985 (CI 0.980-0.989), i.e. about parity with the baseline",
+   "speedup": 0.9847
+  },
+  {
+   "what": "coarsen on the baseline (earlier session, not repeated)",
+   "state": "3a84c58948bd16b4 / 6ff5e8d3416bd4a4 / 81e08c8591d92ddd",
+   "outcome": "parity / loss / loss",
+   "speedup": 1.0064
+  }
+ ],
+ "friction": [
+  "The session opened with tag `best` pointing at f7bf704e9ce7c4a5, an older copy of the baseline source state (control 0.997), while `baseline` was a fresh unverified id d93b3d2c37dcb0e6: the earlier coarsen states hang off the old id, and list_states does not show their coarsen factors (action 'coarsen' with empty note), so I could not tell which factor gave 1.006 / 0.97 / 0.92.",
+  "No transform for 'merge the kernarg scalar loads into one round trip' or 'sink an lgkmcnt wait past independent vector loads across a branch': both were done by hand and required duplicating the multiply into the tail path because the fast path and tail path are split by exec masks.",
+  "The edit that sank the wait across a branch was not run through static_check explicitly by me (check accepted it, which implies it passed); a pending scalar load across a conditional branch was accepted without comment, which is right but worth stating in the skill."
+ ],
+ "lessons": [
+  "rb_ger (rank-1 update, 8192x8192 f32): the loop-free 16-bytes-per-lane, block-64 amdclang build runs at 5.7 TB/s, headroom 0.89-0.90 against the copy model: at the memory floor. Each A element is touched once (one read, one write); nothing to save in bytes.",
+  "In a loop-free one-wave-per-workgroup kernel (262144 waves of ~45 instructions), putting the last scalar load (y[col], whose address depends on a kernarg) in flight together with the vector loads instead of waiting for it first gave 1.015x (CI 1.012-1.017, 240 pairs), bit-identical. This is the only prologue change that measured.",
+  "Merging the three sequential kernarg s_load+wait round trips (alpha, m, pointers) into two loads issued together with one wait added only +0.1% (1.0149 -> 1.016): kernarg loads are cache hits and their round trips are cheap; not worth doing alone.",
+  "coarsen factor 2 on the improved loop-free state: 0.985 against it (CI 0.980-0.989). Consistent with the note that coarsen does not pay on loop-free 16-byte-per-lane kernels."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 0.9770004,
+  "turns": 19,
+  "final": "`rb_ger` is at the memory floor, so the 1.5x target is out of reach; the best verified state is `119155ff4a28c113` at 1.016x over the baseline (95% CI 1.0125\u20131.0182, 240 pairs, battery 77/77).\n\n- **Why 1.5x is out of reach:** the baseline already moves 268 MB read plus 268 MB written in 94 \u00b5s (5.7 TB/s), a headroom of 0.89\u20130.90 against the copy model. Every element of `A` is read and written exactly once, so there are no bytes to save.\n- **What the shipped state changes:** only the per-wave prologue.\n  - The `y[col]` scalar load is now in flight together with the `x`/`A` vector loads instead of being waited for first. This is the edit that measured: 1.015x on its own (`f8d1294bd126d8d0`).\n  - The kernel arguments come in through two scalar loads issued together with one wait, instead of three sequential round trips. This added only about 0.1%, which is within noise.\n- **What did not pay:** `coarsen` factor 2 on top of the best state was a loss, 0.985 against it (CI 0.980\u20130.989).\n\nThe margin is thin: the harness re-verifies with two fresh 240-pair timings and takes the lower, and the CI's lower bound sits just above the 1.01 noise floor. I stopped after about five minutes and four timed candidates.\n\nThe report is recorded at `.agc/sessions/rb_ger-65bf7e9921/report.json`.",
+  "seconds": 120,
+  "log": ".agc/sessions/rb_ger-65bf7e9921/agent/20261121-004011.jsonl"
+ },
+ "recorded": "2026-11-21"
+}

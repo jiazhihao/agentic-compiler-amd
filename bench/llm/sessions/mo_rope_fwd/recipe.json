@@ -1,0 +1,138 @@
+{
+ "kernel": "mo_rope_fwd",
+ "launch": {
+  "grid": [
+   "cdiv(B * 2 * K, 256)",
+   1,
+   1
+  ],
+  "block": [
+   64,
+   1,
+   1
+  ],
+  "lds": 0
+ },
+ "strict": false,
+ "attribution": {
+  "levels": [
+   "mir",
+   "source"
+  ],
+  "baseline": {
+   "source": "baselines/mo_rope_fwd.hip",
+   "flags": [
+    "-ffast-math"
+   ],
+   "launch": {
+    "grid": [
+     "cdiv(B * 2 * K, 1024)",
+     1,
+     1
+    ],
+    "block": [
+     256,
+     1,
+     1
+    ]
+   }
+  },
+  "over_strongest_amdclang": 1.0132,
+  "over_shipped_O3": 1.6884
+ },
+ "path": [
+  "source",
+  "relaunch"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 1.0132,
+  "speedup_ci95": [
+   1.0102,
+   1.0168
+  ],
+  "reference_ms": 0.11378,
+  "candidate_ms": 0.11198,
+  "cases": 77,
+  "protocol_version": "agc-timing-amd-2",
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 1.0141,
+    "ci95": [
+     1.0109,
+     1.0178
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 1.0132,
+    "ci95": [
+     1.0102,
+     1.0168
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "Machine-level gain: none (parity). The shipped state d5f5aa80fb92d7a5 is an amdclang build of a rewritten source plus a launch change, so its 1.68x over the shipped baseline (240 pairs, CI 1.679-1.688; 0.1116 ms vs 0.1880 ms) is credited to amdclang, not to machine-IR work. The rewrite handles two rotation pairs (16 bytes) per thread: x is read once with one global_load_dwordx4 instead of twice with dword loads (the baseline re-read x[gid+-1], so this was the 're-reads a tensor' case, reference headroom 1.79), cos/sin are dwordx4, the store is dwordx4, with a slow path for tails and the rotary wrap; block 64 instead of 256 adds 1.026x. The result sits at headroom 1.06 of the memory floor; on top of it, the hand-written machine IR (x load issued before the modulo, args loaded once, compact slow path) measured 1.0009 (CI 0.9993-1.0025, 240 pairs) and coarsen lost, so the kernel is at the memory floor and no machine-level win exists over the new amdclang build.",
+ "tried": [
+  {
+   "what": "source: two pairs (16 B) per thread, x read once with dwordx4, cos/sin dwordx4, x4 store, slow path for tail/wrap; grid cdiv(N,1024), block 256",
+   "state": "d989af8053f016f5",
+   "outcome": "win vs baseline (source level, credited to amdclang)",
+   "speedup": 1.6424
+  },
+  {
+   "what": "relaunch of the source state with block 64, grid cdiv(N,256)",
+   "state": "d5f5aa80fb92d7a5",
+   "outcome": "win vs baseline 1.6832 (240 pairs); 1.026x over block 256 (CI 1.021-1.032); launch level, credited to amdclang",
+   "speedup": 1.6832
+  },
+  {
+   "what": "relaunch of the source state with block 1024",
+   "state": "1a6a8df1e0ab643a",
+   "outcome": "loss vs source state (compare)",
+   "speedup": 0.9151
+  },
+  {
+   "what": "coarsen factor 2 on the source state",
+   "state": "9692218d9902bfac",
+   "outcome": "loss vs source state (compare)",
+   "speedup": 0.9517
+  },
+  {
+   "what": "coarsen factor 4 on the source state",
+   "state": "37fbe77bb540fb60",
+   "outcome": "loss vs source state (compare)",
+   "speedup": 0.8828
+  },
+  {
+   "what": "hand machine IR on the block-64 state: x dwordx4 load issued under the 'full' mask before the ~25-instruction modulo, all kernargs loaded at entry, slow path reusing the early x load and using the table base directly for the wrapped pair",
+   "state": "d9bc299e3374d36c",
+   "outcome": "parity vs block-64 source state (compare, 240 pairs, CI 0.9993-1.0025)",
+   "speedup": 1.0009
+  }
+ ],
+ "friction": [
+  "No scalar integer division: a wave-uniform modulo (freq index of lane 0, then +lane) cannot be hoisted to SGPRs, so the per-lane reciprocal modulo stays; here it is hidden behind the load anyway.",
+  "compare() results are not recorded as a bench verdict on the state: states ranked only through compare (coarsen, block 1024, hand IR) show bench=null in list_states, so a later session cannot see they were measured unless it reads the report.",
+  "The split between 'source credit' and 'machine credit' is ambiguous for relaunch: block 64 was made with relaunch on a source state (a machine-level tool) but is a launch knob amdclang's build could have; I reported it as amdclang's.",
+  "Could not tell from the tools whether a masked-off (exec=0 lanes) global_load still counts in vmcnt; I used full vmcnt(0) waits in the slow path to be safe."
+ ],
+ "lessons": [
+  "mo_rope_fwd (elementwise pair rotation, 4 B per lane, x read twice per element as x[gid] and x[gid+-1]): two pairs per thread with one dwordx4 load of x, dwordx4 cos/sin and a dwordx4 store gave 1.64x at the source level (0.187 -> 0.114 ms), taking headroom from 1.79 to 1.09. A neighbour read (x[gid+-1]) is a re-read: group the neighbours into one lane.",
+  "On that 16-B-per-lane loop-free state: block 64 is 1.026x over block 256 (240-pair-class CI 1.021-1.032), block 1024 is 0.915x, coarsen 2 is 0.952x, coarsen 4 is 0.883x. Confirms: many short one-wave workgroups each touching 1 KB contiguous are best; coarsen only pays on 4-B-per-lane kernels.",
+  "At headroom 1.06, issuing the main dwordx4 load ~25 VALU instructions earlier (before a reciprocal modulo) is exact parity (1.0009, CI +-0.16%): load latency overlap inside a straight-line wave does not matter once the kernel streams at ~4.8 TB/s.",
+  "amdclang compiles ext_vector_type(4)/aligned(4) float loads into global_load_dwordx4 and the pair rotation into v_pk_mul/v_pk_fma with op_sel swaps; no scratch, 22 VGPRs. A 32-bit unsigned modulo guarded by 'if (p >= k)' becomes an exec-masked reciprocal sequence (~25 instructions) and is not a bottleneck."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 1.6842827999999999,
+  "turns": 31,
+  "final": "No machine-level win on `mo_rope_fwd`: the kernel ends at the memory floor, and the only gain is a source rewrite that is credited to amdclang.\n\n- **Shipped state:** `d5f5aa80fb92d7a5`, 1.68x over the baseline (0.1116 ms against 0.1880 ms, 240 pairs, CI 1.679\u20131.688), full battery passed.\n- **What it does:** each thread handles two rotation pairs (16 bytes), so `x` is read once with a wide load instead of twice per element. This was the \"re-reads a tensor\" case: baseline headroom 1.79, now 1.06.\n- **Launch:** block 64 instead of 256 adds 1.026x on top of the rewrite; block 1024 was 0.915x.\n- **Machine IR on top:** a hand-written body that issues the `x` load before the modulo measured 1.0009 (CI 0.9993\u20131.0025, 240 pairs), which is parity.\n- **Coarsen:** factor 2 was 0.952x and factor 4 was 0.883x against the rewritten source.\n\nI stopped after those three different kinds of idea brought nothing over the block-64 state. The report is recorded with the tried list, friction and lessons.",
+  "seconds": 236,
+  "log": ".agc/sessions/mo_rope_fwd-46c76020b5/agent/20261121-012541.jsonl"
+ },
+ "recorded": "2026-11-21"
+}

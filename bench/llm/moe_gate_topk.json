@@ -88,6 +88,9 @@
   "moe"
  ],
  "baseline": {
-  "source": "baselines/moe_gate_topk.hip"
+  "source": "baselines/moe_gate_topk.hip",
+  "flags": [
+   "-ffast-math"
+  ]
  }
 }

@@ -1,0 +1,129 @@
+{
+ "kernel": "fi_merge_states",
+ "launch": {
+  "grid": [
+   "cdiv(P, 2)",
+   1,
+   1
+  ],
+  "block": [
+   32,
+   "H",
+   1
+  ],
+  "lds": 0,
+  "args": [
+   {
+    "dtype": "u32",
+    "value": "P"
+   }
+  ]
+ },
+ "strict": false,
+ "attribution": {
+  "levels": [
+   "import",
+   "mir"
+  ],
+  "baseline": "amdclang -O3 on the source as shipped",
+  "over_strongest_amdclang": 1.1047,
+  "over_shipped_O3": 1.0919
+ },
+ "path": [
+  "import",
+  "edit_ir",
+  "fix_waits",
+  "coarsen"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 1.1047,
+  "speedup_ci95": [
+   1.0998,
+   1.1085
+  ],
+  "reference_ms": 0.10392,
+  "candidate_ms": 0.09376,
+  "cases": 105,
+  "protocol_version": "agc-timing-amd-2",
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 1.1329,
+    "ci95": [
+     1.1275,
+     1.1379
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 1.1047,
+    "ci95": [
+     1.0998,
+     1.1085
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "Best state d8824aa510a8974b: 1.136x over the baseline (240 pairs, CI 1.130..1.142; 0.0957 ms vs 0.1084 ms), battery 105/105. It adds a fast path to amdclang's 2x-unrolled merge loop: when at least 4 index sets remain, all 4 S dword loads and all 4 V dwordx4 loads are issued before any arithmetic (8 loads in flight, weakened vmcnt(7/6/3/2/1/0) waits), with the four merges computed in the original order (bit-identical); amdclang's loop keeps 4 loads in flight and waits to zero each iteration. On top, coarsen factor 2 (one launched workgroup runs two positions). No source state was made. Memory case: every element is touched exactly once; baseline headroom was 1.24, the best state is at 1.11 (3.54 TB/s), so 1.5x is out of reach in principle (the floor allows about 1.25x) and the remainder is at the memory floor.",
+ "tried": [
+  {
+   "what": "unroll_loads factor 2 on baseline",
+   "state": "baseline",
+   "outcome": "refused: .LBB0_12 counter is not decremented by one before the test (amdclang's loop is already unrolled by 2, counter -2)",
+   "speedup": null
+  },
+  {
+   "what": "coarsen factor 2 on baseline (earlier session, re-timed at 120 pairs)",
+   "state": "33671e34d5cde3a9",
+   "outcome": "win",
+   "speedup": 1.046
+  },
+  {
+   "what": "hand-written quad fast path: 4 S + 4 V x4 loads in flight per wait when >=4 index sets remain, arithmetic in original order, fix_waits",
+   "state": "564af979e41ee781",
+   "outcome": "win (120 pairs, CI 1.096..1.115)",
+   "speedup": 1.106
+  },
+  {
+   "what": "quad fast path + coarsen factor 2",
+   "state": "d8824aa510a8974b",
+   "outcome": "win (240 pairs, CI 1.130..1.142)",
+   "speedup": 1.136
+  },
+  {
+   "what": "quad fast path + coarsen factor 4",
+   "state": "69d92aa0b78d84be",
+   "outcome": "loss against the factor-2 state (compare 0.971, CI 0.967..0.977); not timed against baseline",
+   "speedup": null
+  },
+  {
+   "what": "source-level block geometry (smaller workgroups) and cheaper normalize/exp arithmetic",
+   "state": null,
+   "outcome": "not tried: headroom 1.11 and coarsening (larger workgroups) was the direction that paid; stopped at the memory floor",
+   "speedup": null
+  }
+ ],
+ "friction": [
+  "edit(): insert text cannot contain a `label:` line (\"bad mnemonic '.LQ:'\"), so adding a new block (a fast-path loop before .LBB0_12) required resending the whole 400-line body through edit_ir. An op that inserts a new block, or labels allowed in insert text, would have made this a 130-line edit.",
+  "unroll_loads refuses loops that amdclang already unrolled by 2 (counter decremented by 2: 'the counter is not decremented by one before the test'). This is the common `#pragma unroll 2` shape in FlashInfer kernels; the pass could treat a step of -N with a matching entry guard (remaining >= factor*N) and a fall-through to the original loop, which is exactly what I wrote by hand.",
+  "No transform to duplicate a loop body with renamed load destinations (body copy + register rename map); I did the rename by hand (v15->v35, v10->v36, v[22:29]->v[38:45]), which is error-prone.",
+  "coarsen offers only factors 2/4/8/16; fine here (2 best), but 3 could not be tested."
+ ],
+ "lessons": [
+  "fi_merge_states (270 MB read once, 68 MB written, baseline headroom 1.24): putting all K=4 index sets' loads in flight (4 dword + 4 dwordx4 per wait instead of 2+2 with a full wait per 2-set iteration) gave 1.106x bit-identical, even though the kernel was already at 3.2 TB/s; loads-in-flight still pays when the amdclang loop makes only 2 trips, because the second trip's loads were waiting behind the first trip's ~50 ALU instructions (2 v_exp pairs).",
+  "Coarsen stacks with loads-in-flight: factor 2 added +2.7 % on top (1.106 -> 1.136); factor 4 was 2.9 % slower than factor 2 (compare 0.971), factor 8 on the baseline was parity. Blocks of 1024 threads (16 waves) on a 4096 grid want factor 2 only.",
+  "A guarded fast path (remaining >= 4 -> quad block, else fall into amdclang's original loop and odd tail) keeps every battery shape correct without touching the general code; write it without waits and let fix_waits place the weakened vmcnt(n) waits (it produced 7/6/3/2/1/0 correctly).",
+  "Final headroom 1.11 at 3.54 TB/s: consistent with the notes that 1.0 to 1.1 is the floor; a baseline headroom of 1.24 translated into a 1.14x achievable gain."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 2.1179520000000003,
+  "turns": 29,
+  "final": "The session is finished and the report is recorded: the best state is `d8824aa510a8974b`, at **1.136x** over the baseline (240 pairs, CI 1.130\u20131.142, 0.0957 ms against 0.1084 ms), battery 105/105.\n\nThe 1.5x target is out of reach in principle for this kernel. Every element is read exactly once and the baseline's headroom over the memory floor was only 1.24; the shipped state sits at headroom 1.11.\n\nWhat the winning state does differently from amdclang's code:\n- **Loads in flight:** when at least 4 index sets remain, a hand-written fast path issues all 4 `S` loads and all 4 `V` x4 loads before any arithmetic. amdclang's 2x-unrolled loop keeps 4 loads in flight and waits to zero each trip. The merges run in the original order, so the result is bit-identical. This alone measured 1.106x (`564af979e41ee781`).\n- **Coarsen factor 2** on top added the rest.\n\nOther things tried:\n- **Coarsen factor 4** on the fast-path state was 2.9% slower than factor 2 (compare 0.971).\n- **`unroll_loads`** refused the baseline loop, because amdclang had already unrolled it by 2 and the counter steps by -2.\n- **Source-level variants** were not made; a different block geometry and cheaper normalize/exp arithmetic were left untested once headroom reached 1.11.\n\nFriction logged for the compiler: `edit` does not accept a new label in insert text, so adding the fast-path block meant resending the whole body through `edit_ir`.",
+  "seconds": 252,
+  "log": ".agc/sessions/fi_merge_states-a8227420d2/agent/20261121-010950.jsonl"
+ },
+ "recorded": "2026-11-21"
+}

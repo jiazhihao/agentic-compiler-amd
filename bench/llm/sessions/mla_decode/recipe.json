@@ -14,119 +14,6 @@
   "lds": 0
  },
  "strict": false,
- "path": [
-  "source",
-  "edit",
-  "edit"
- ],
- "verified": {
-  "outcome": "win",
-  "speedup": 1.4858,
-  "speedup_ci95": [
-   1.4852,
-   1.487
-  ],
-  "reference_ms": 0.26486,
-  "candidate_ms": 0.17816,
-  "cases": 98,
-  "protocol_version": "agc-timing-amd-2",
-  "pairs": 240,
-  "runs": [
-   {
-    "speedup": 1.4863,
-    "ci95": [
-     1.4854,
-     1.487
-    ],
-    "valid": true
-   },
-   {
-    "speedup": 1.4858,
-    "ci95": [
-     1.4852,
-     1.487
-    ],
-    "valid": true
-   }
-  ]
- },
- "summary": "State af5aa1a6d0cb004b is 2.54x faster than amdclang's build (0.1799 ms vs 0.4578 ms, 240 pairs, CI 2.541 to 2.546; static check ok, battery 98/98). Reference headroom is 19.4, so the baseline is not bound by the memory system as a whole; it behaved as bound by vector-load throughput per compute unit (each head's workgroup re-reads the whole 4.7 MB KV cache twice, 4.8 GB of cache traffic in total). The winning state launches grid (cdiv(H,2), B) x block 1024: one workgroup computes TWO heads over a 1024-key tile, so every key and value load (global_load_dwordx4, 16 resp. 8 in flight) is shared by both heads; the query rows come in through s_load_dwordx16 into SGPRs and are used as scalar operands of v_fmac (hand-written score loop, no vector load for q), max/sum use a two-level LDS reduction, the partial output lives in LDS, and the value loop is hand-written with 4 v_pk_fma per key. Results meet the manifest tolerance but are not bit-identical (fused multiply-add, 1024-key tiles, grouped value summation).",
- "tried": [
-  {
-   "what": "source: 8 heads per workgroup (grid H/8 x B, block 1024), shared key/value x4 loads, out used as running storage",
-   "state": "eaba9bb7542bac6b",
-   "outcome": "loss: only 64 CUs busy, q vector-loaded per lane (8 q loads per key load), 351 VGPR spills",
-   "speedup": 0.186
-  },
-  {
-   "what": "source: 1 head per workgroup, block 1024, 1024-key tile, 16 x4 loads in flight, two-level LDS reductions (attn_decode recipe)",
-   "state": "44a132a3b2b02f37",
-   "outcome": "win",
-   "speedup": 1.125
-  },
-  {
-   "what": "source: 2 heads per workgroup, KB=16, restrict, o in LDS (q still vector-loaded, 105 spills)",
-   "state": "621179d647f96ef4",
-   "outcome": "loss",
-   "speedup": 0.706
-  },
-  {
-   "what": "source: 1 head per workgroup with o in LDS (no global store in the loop) to get scalar q loads",
-   "state": "e2ec649d62ecd821",
-   "outcome": "not timed: amdclang still emitted global_load_dwordx4 with a uniform SGPR base for q; used as base for the next edit",
-   "speedup": null
-  },
-  {
-   "what": "machine IR on e2ec: score loop rewritten, q through 4 s_load_dwordx16 + 64 v_fmac with scalar operand (16 instead of 32 vector loads per batch)",
-   "state": "f94240e75d6c6121",
-   "outcome": "win",
-   "speedup": 1.346
-  },
-  {
-   "what": "source HB=2/KB=4/VB=8 (ed88cc3c67eef89f, base only) + machine IR: 2-head score loop, 16 key loads shared, rotating s_load_dwordx16 sets, 128 v_fmac",
-   "state": "0927584b8b77c316",
-   "outcome": "win (2.476 at 60 pairs, 2.475 at 240)",
-   "speedup": 2.475
-  },
-  {
-   "what": "machine IR on 0927: hand value loop (running address, ds_read_b64 p pairs, 4 v_pk_fma per key; 77 instead of 183 instructions per iteration)",
-   "state": "af5aa1a6d0cb004b",
-   "outcome": "win; 1.027x over its parent (compare, 240 pairs)",
-   "speedup": 2.543
-  },
-  {
-   "what": "source: 4 heads per workgroup x 2 column-half workgroups (grid H/4 x B x 2)",
-   "state": "843a8e01e3ae06a2",
-   "outcome": "not timed: compiled with 43 scratch spill pairs and vector q loads; needed another hand score loop for 4 heads, out of budget",
-   "speedup": null
-  }
- ],
- "friction": [
-  "amdclang would not use scalar loads for the wave-uniform q rows in any of my sources (44a132a3, 621179d6, e2ec649d, ed88cc3c, 843a8e01: `global_load_dwordx4 v, v54(=0), s[36:37]`), although it did in the attn_decode recipe; neither __restrict nor removing all global stores from the loop changed it, and I could not see why (no access to the LLVM IR or to -debug output of the uniform/noclobber annotation). A source-level way to force `s_load_dwordxN` (builtin or attribute), or a machine-IR transform 'uniform vector load -> scalar load + scalar operands', would have replaced two hand-written 150-line loops.",
-  "amdclang caps at 128 VGPRs and spills (scratch) as soon as several heads share loads (eaba9bb7: 351 spills, 621179d6: 105, 843a8e01: 43 pairs); the spill code is legal now but is extra memory traffic on a load-bound kernel. No way from `source` to see which loop spills without reading the whole listing.",
-  "Reading a 1500-instruction listing through state() to find free registers and loop-carried values is the main cost of a hand edit; a liveness query (registers live-in/live-out of a block, free VGPR/SGPR ranges inside a loop) would make loop replacement cheap and safe.",
-  "Text generation for regular unrolled bodies (128 v_fmac lines with rotating SGPR sets) had to be typed out by hand in the edit; a small macro/repeat facility in edit text (e.g. a loop over n with register arithmetic) would remove the risk of typos.",
-  "`traffic`/`headroom` assume each tensor byte is touched once; this kernel reads kv_cache 2 x heads times (4.8 GB at bench shapes vs 20 MB assumed), so headroom 19 hides that the baseline is at about 10 TB/s of cache traffic and bound by per-CU load throughput.",
-  "No per-phase timing: whether the score phase, value phase or the barriers dominate had to be inferred from full verified variants.",
-  "Splitting the keys of a head over workgroups (the split that would use all 256 CUs with 4+ heads per workgroup) cannot be expressed: no scratch tensor / second pass to combine partial softmax results."
- ],
- "lessons": [
-  "mla_decode (reference headroom 19.4): time is set by vector-load work per CU, not by the memory system and not by ALU. One 1024-thread workgroup per CU moved its loads at a fixed pace: 1 head per workgroup with 144 key + 144 q + 128 value x4 wave-loads per tile took 406 us (512 workgroups = 2 rounds on 256 CUs); removing the 144 q vector loads (q via s_load_dwordx16 + scalar operands) gave 340 us (1.35x over ref).",
-  "Sharing loads between outputs is the big lever when every output re-reads the same data: 2 heads per workgroup (256 workgroups = one per CU, each key/value x4 load used for both heads) took 184 us = 2.48x over ref, 1.85x over the 1-head state; the second head's arithmetic cost only about 8 %. Pick heads-per-workgroup so that workgroups == CUs (256): 8 heads per workgroup (64 workgroups) was 0.19x.",
-  "A wave-uniform vector load (global_load with an SGPR base and zero index) costs like any other vector load on this machine; amdclang emitted it for q in all five sources here. Replacing it by s_load_dwordx16 into SGPRs and `v_fmac_f32_e64 acc, sN, vK` passes static_check (48 free SGPRs = 3 rotating x16 sets, s_waitcnt lgkmcnt(0) before each reuse) and was worth 1.20x by itself.",
-  "Cutting ALU instructions in a load-bound loop pays little: the hand value loop with 77 instead of 183 instructions per iteration (v_pk_fma with op_sel broadcast of the LDS p pair) gave 1.027x (compare, 240 pairs).",
-  "Stores to a global output inside the main loop and >128 live VGPRs both produce bad code from amdclang (vector reloads, scratch spills); keeping running outputs in LDS (float4 per thread, 160 KB LDS available per workgroup) and compiling the hot loop with a small batch (KB=4) as a placeholder, then replacing that loop at the machine level, gave a spill-free state (0927584b: 0 spills).",
-  "Battery shapes (H=3, S=300) with heads grouped per workgroup need a clamped head index for reads (min(h0+h, H-1)) and guarded stores; this passed 98/98 with fused multiply-adds and regrouped sums within rtol 1e-4."
- ],
- "session": {
-  "ok": true,
-  "cost_usd": 5.99372,
-  "turns": 51,
-  "final": "Shipped state `af5aa1a6d0cb004b`: **2.54x** over amdclang (0.180 ms vs 0.458 ms, 240 pairs, CI 2.541\u20132.546). It passes the static check and the full battery (98/98), and the report is recorded.\n\n**Which case this is:** reference headroom is 19.4, so the baseline is not bound by the memory system as a whole. It behaved as bound by how fast one compute unit can issue vector loads: every head's workgroup re-reads the whole KV cache twice (about 4.8 GB of cache traffic, where the traffic model assumes 20 MB).\n\n**What the winning state does differently:**\n- **Launch:** grid `(cdiv(H,2), B)` with 1024-thread blocks, so there are 256 workgroups, one per compute unit.\n- **Two heads per workgroup:** each key and value load is used for both heads, over 1024-key tiles.\n- **Query through scalar loads:** the score loop is hand-written so the query rows arrive in scalar registers instead of vector loads.\n- **Reductions and output:** max and sum use a two-level shared-memory reduction, and the partial output stays in shared memory until the end.\n- **Value loop:** hand-written with far fewer instructions per key.\n\nResults meet the manifest tolerance but are not bit-identical to the baseline (fused multiply-adds, larger tiles, regrouped sums).\n\n| Step | State | Speedup over amdclang |\n|---|---|---|\n| 8 heads per workgroup, compiler code | `eaba9bb7` | 0.19x (loss) |\n| 1 head per workgroup, block 1024, wide loads | `44a132a3` | 1.12x |\n| 2 heads per workgroup, compiler code | `621179d6` | 0.71x (loss) |\n| 1 head, query through scalar loads (hand score loop) | `f94240e7` | 1.35x |\n| 2 heads sharing loads (hand score loop) | `0927584b` | 2.48x |\n| Hand value loop on top | `af5aa1a6` | 2.54x |\n\n**Not finished:** a variant with 4 heads per workgroup and the output columns split over 2 workgroups (`843a8e01`) compiled with register spills and vector query loads. It needed another hand-written score loop and I ran out of budget, so it was never timed. That, not three sub-1% ideas, is why I",
-  "seconds": 665,
-  "log": ".agc/sessions/mla_decode-de1ad0bfaf/agent/20261120-163946.jsonl"
- },
- "recorded": "2026-11-20",
  "attribution": {
   "levels": [
    "mir",
@@ -151,7 +38,141 @@
     "lds": 0
    }
   },
-  "over_strongest_amdclang": 1.4858,
-  "over_shipped_O3": 2.5477
- }
+  "over_strongest_amdclang": 1.4892,
+  "over_shipped_O3": 2.5616
+ },
+ "path": [
+  "source",
+  "edit",
+  "edit",
+  "edit"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 1.4892,
+  "speedup_ci95": [
+   1.4877,
+   1.4902
+  ],
+  "reference_ms": 0.26624,
+  "candidate_ms": 0.17875,
+  "cases": 98,
+  "protocol_version": "agc-timing-amd-2",
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 1.4892,
+    "ci95": [
+     1.4877,
+     1.4902
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 1.4925,
+    "ci95": [
+     1.4917,
+     1.494
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "Best verified state 5553e312219ab670: 1.492x over the baseline (240 pairs, CI 1.491-1.493; 0.178 ms against 0.266 ms), just under the 1.5x target, entirely at machine level on the baseline's own code (no source state of mine is in its ancestry). Against amdclang's code it (1) reads the two wave-uniform query rows with s_load_dwordx16 into SGPRs and uses them as scalar operands of v_fmac, where amdclang issued 8 per-lane global_load_dwordx4 of identical addresses per iteration (2/3 of the key loop's vector loads); (2) keeps 16 key loads in flight per wait (9 iterations of 256 B per lane instead of 36 of 64 B); (3) in the value loop issues all 16 row loads up front into their final registers and selects the probability with op_sel on v_pk_fma, where amdclang waited after every pair of loads and shuffled with ~60 v_mov per iteration. Which case this is: not at the memory floor in the model's sense (headroom 7.3) because the kernel re-reads the KV cache once per workgroup - about 1.2 GB of key reads and 1.07 GB of value reads against 20 MB of tensors; the key phase (about 103 us of 178 us, estimated from probes) now moves that at roughly 11.7 TB/s, so further gain needs fewer re-reads, not a faster loop. Caveat: the per-phase split comes from probes of other states (key loop cut to one iteration), not from a direct measurement of this state.",
+ "tried": [
+  {
+   "what": "HB=2 key loop: query rows via 2x s_load_dwordx16 + 32 scalar-operand v_fmac instead of 8 per-lane global_load_dwordx4 and v_pk_fma with v_mov shuffles (4 key loads per wait kept)",
+   "state": "3f02231e49857562",
+   "outcome": "win, battery 98/98",
+   "speedup": 1.268
+  },
+  {
+   "what": "On top: value loop with all 16 row loads issued up front (running address), (x,y)/(z,w) accumulator pairs with op_sel-selected p, LDS p reads pipelined 3 deep from one base; exit sums rewritten to match",
+   "state": "89b2fb3c055eb3b9",
+   "outcome": "win, battery 98/98 (only +4% over the previous state)",
+   "speedup": 1.323
+  },
+  {
+   "what": "On top: 16 key loads in flight per iteration (9 iterations), scalar q reloaded per 64 B chunk",
+   "state": "5553e312219ab670",
+   "outcome": "win, battery 98/98; 60 pairs 1.489, 240 pairs 1.492",
+   "speedup": 1.492
+  },
+  {
+   "what": "On top: 24 key loads in flight per iteration (6 iterations), using v66-69, v86-101, v114-125 as extra load registers",
+   "state": "456f50a21daa83a5",
+   "outcome": "FAILS battery on the first case (out 2884/3072 mismatches, lse off 6e-3); not diagnosed, never timed",
+   "speedup": null
+  },
+  {
+   "what": "Source: baseline text with HB=4 heads per workgroup, grid cdiv(H,4), -ffast-math (amdclang as is; 14 scratch spills outside loops)",
+   "state": "c400c01c4cf49d68",
+   "outcome": "loss, battery 98/98",
+   "speedup": 0.806
+  },
+  {
+   "what": "HB=4 source + machine edit: scalar q for 4 heads in two phases per chunk (x16 + 2 x8, constants s60-s67 clobbered and rematerialized after the loop), 4 key loads per wait",
+   "state": "3da5999365ad4de3",
+   "outcome": "win vs baseline, battery 98/98; 1.53x over its own source state",
+   "speedup": 1.23
+  },
+  {
+   "what": "HB=4 + 16 key loads in flight per iteration",
+   "state": "320413cb1361d3bd",
+   "outcome": "win vs baseline, battery 98/98; 1.69x over its own source state, but slower than the HB=2 line",
+   "speedup": 1.358
+  },
+  {
+   "what": "PROBE HB=2 (state 89b2): key loop cut to 1 of 36 iterations",
+   "state": "68c95f6963b8d35f",
+   "outcome": "diagnostic only: 0.075 ms against 0.202 ms, so the key loop was about 127 us (63%) there",
+   "speedup": null
+  },
+  {
+   "what": "PROBE HB=2: unrolled value loop disabled by forcing its entry mask false",
+   "state": "3c97954d0bacb386",
+   "outcome": "invalid as a phase probe: the tail loop did the work (output correct), 0.209 ms against 0.202 ms - shows the value phase is nearly insensitive to loads in flight",
+   "speedup": null
+  },
+  {
+   "what": "PROBE HB=4 (state 3204): key loop cut to 1 of 9 iterations",
+   "state": "f57debcd37d11a71",
+   "outcome": "diagnostic only: 0.116 ms against 0.196 ms, so key about 90 us and the rest about 106 us with 4 heads",
+   "speedup": null
+  },
+  {
+   "what": "Not tried: coarsen / unroll_loads passes (grid already 256 workgroups of 16 long waves; loops are masked or hand-batched), MFMA for the two GEMM-shaped phases, HB=4 value-loop rewrite, pipelined scalar loads with a second SGPR set",
+   "state": "",
+   "outcome": "not attempted (budget)",
+   "speedup": null
+  }
+ ],
+ "friction": [
+  "liveness(id, block) reports every VGPR/SGPR as live in and live out of every block (e.g. .LBB0_7 of baseline lists v0-v124 and s0-s67), so it cannot answer 'which registers are dead across this loop'. I had to infer free registers from what amdclang's own loop overwrote, and that inference was wrong once: state 456f50a21daa83a5 (24 loads into v66-69, v86-101, v114-125) fails the battery, most likely a clobbered live register. A real per-block liveness, or a static_check finding 'this edit writes a register that is read later without redefinition', would have caught it before a GPU run.",
+  "edit() ops address the parent's listing, so replacing a whole block means delete(index 1, count N-1) + replace(index 0) with the exact block length; an off-by-one (count 95 vs 94 in state 3da5999365ad4de3 .LBB0_7) refused the edit and forced resending a 320-line text. A 'replace_block' op, or a count that may run to the end of the block, would avoid it.",
+  "The edit result echoes the full ops text back; with 300-line loop bodies that doubles the size of every exchange.",
+  "No way to generate repetitive IR: the 16- and 24-load key loops are 32 near-identical v_fmac lines per chunk written out by hand (up to 240 lines). A repeat/template facility in edit text (loop over a register list) would make batching sweeps (8/16/24 loads) cheap and less error-prone.",
+  "SGPRs are the binding resource for the scalar-query lever: 32 scalars per 64 B chunk for 2 heads, only s68-s101 free, x16 loads must start on a multiple of 4 and s102+ is unusable, so 4 heads needed x16 + 2 x8 into clobbered constants (s60-s67) with rematerialization in .Lft3. A tool listing SGPRs that are dead across a given loop (constants only used elsewhere) would have saved the manual find() passes.",
+  "find() with \\b around bracketed tuples silently misses them (pattern '\\bs\\[30:31\\]\\b' matched nothing); I had to search tuples separately to confirm s[30:31] and s[14:15] were constant.",
+  "probe() cannot remove a phase safely when a fallback loop exists: masking off the unrolled value loop (state 3c97954d0bacb386) just routed the work to the tail loop. A per-block time attribution would give the phase split directly; the split I report for the best state is extrapolated from probes of other states.",
+  "bench's traffic/headroom model (20 MB, headroom 7-11) is far from this kernel's real traffic (about 2.3 GB re-read from cache across 256 workgroups); I had to work the real numbers out by hand to decide the lever."
+ ],
+ "lessons": [
+  "Wave-uniform rows loaded per lane are a large machine-level win when amdclang does it: in mla_decode 8 of 12 vector loads per key-loop iteration were the two query rows at identical addresses for all 64 lanes. Replacing them by 2x s_load_dwordx16 and v_fmac_f32_e64 acc, sN, vK gave 1.27x alone (0.266 -> 0.210 ms), bit-order kept.",
+  "After that, loads in flight in the key loop paid again: 4 -> 16 global_load_dwordx4 per wait gave 0.202 -> 0.178 ms on the 2-head build (1.32x -> 1.49x) and 0.217 -> 0.196 ms on the 4-head build, with one serial scalar reload (lgkmcnt(0)) per 64 B chunk in between. Per-iteration time before batching was about 1.8 us for 4 loads regardless of wave count (4096 or 2048 waves), i.e. latency-like, not bandwidth.",
+  "amdclang's interleaved (vectorize-by-2) value loop issues loads two at a time with a full wait after each pair and ~60 v_mov shuffles; issuing all 16 up front with op_sel-selected operands (no moves) gave only +4% (1.27 -> 1.32x), and the row-at-a-time tail loop ran the same phase within 4%: that phase reads 1 KB contiguous per wave from cache and is not latency-bound.",
+  "v_pk_fma_f32 with op_sel:[0,1,0] / op_sel_hi:[1,0,1] broadcasts one half of a ds_read2_b64 pair to both lanes of the packed op, so (p_h0, p_h1) read as one 64-bit LDS value serves two heads with no v_mov; ds_read2_b64 offsets (8-bit, units of 8 B) reach 2 KB from one base register.",
+  "More heads per workgroup did not beat 2 heads here even with scalar queries: HB=4 (128 workgroups) reached 1.36x against 1.49x for HB=2 (256 workgroups). Key time dropped only 103 -> 90 us for half the key bytes while the rest grew 75 -> 106 us (estimates from probes). Consistent with the note 'pick the count so workgroups about equal the 256 CUs'. amdclang's own HB=4 build is 0.81x of its HB=2 build.",
+  "SGPR budget for scalar operands: s68-s101 are typically free (34), x16 loads need a start on a multiple of 4, so two x16 sets fit (s[68:83], s[84:99]); beyond that, loop-external constants can be clobbered inside a loop and rematerialized with s_mov in the loop's exit block (done for s60-s67, passes the battery).",
+  "Do not assume a register is dead across a loop because another loop of the kernel overwrites it: using v66-69, v86-101, v114-125 as extra load targets in the key loop broke the battery (state 456f50a21daa83a5), while the subset the original loop itself wrote plus v70-v85 was fine. liveness() does not distinguish these today."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 7.105339200000001,
+  "turns": 54,
+  "final": "The best verified state is `5553e312219ab670` at **1.492x** over the baseline (0.178 ms against 0.266 ms; 240 pairs, CI 1.491\u20131.493), just short of the 1.5x target. It passes the static check and the full battery (98/98), and it is a pure machine-level gain on the baseline's own code.\n\nWhat it does differently from amdclang:\n\n1. **Scalar query rows.** amdclang loaded the two query rows per lane, at the same address for all 64 lanes; that was 8 of the 12 vector loads in each key-loop iteration. They are now two `s_load_dwordx16` into SGPRs, used as scalar operands of `v_fmac`. This alone gave 1.27x.\n2. **16 key loads in flight per wait.** The key loop runs 9 iterations of 256 B per lane instead of 36 of 64 B. This took it from 1.32x to 1.49x.\n3. **Value loop without per-pair waits.** All 16 row loads are issued up front into their final registers, and the probability is selected with `op_sel` on `v_pk_fma`, removing about 60 `v_mov` per iteration. This added only about 4%.\n\n| State | Change | Result |\n|---|---|---|\n| `3f02231e49857562` | scalar query rows | 1.27x |\n| `89b2fb3c055eb3b9` | + value loop rewrite | 1.32x |\n| `5553e312219ab670` | + 16 key loads in flight | **1.49x** |\n| `456f50a21daa83a5` | + 24 key loads in flight | fails the battery, never timed |\n| `c400c01c4cf49d68` | source with 4 heads per workgroup, as amdclang builds it | 0.81x |\n| `320413cb1361d3bd` | 4 heads + scalar queries + 16 in flight | 1.36x |\n\n- **The failed state:** the 24-in-flight variant produced wrong `out` and `lse` on the first battery case. I did not diagnose it; the likely cause is that one of the extra registers I used as load targets is live across the key loop.\n- **Which case this is:** not the memory floor in the model's sense (headroom 7.3). The kernel re-reads the KV cache once per workgroup, about 2.3 GB of cached reads against 20 MB of tensors. The key phase is roughly 103 of the 178 \u00b5s, extrapolated from probes of other states rather than measured on this one. Further gai",
+  "seconds": 768,
+  "log": ".agc/sessions/mla_decode-0e1773b6b5/agent/20261120-231036.jsonl"
+ },
+ "recorded": "2026-11-20"
 }

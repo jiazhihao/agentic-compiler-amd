@@ -1,0 +1,179 @@
+{
+ "kernel": "fa_attention",
+ "launch": {
+  "grid": [
+   "cdiv(NQ, 4)",
+   1,
+   1
+  ],
+  "block": [
+   256,
+   1,
+   1
+  ],
+  "lds": 0
+ },
+ "strict": false,
+ "attribution": {
+  "levels": [
+   "mir",
+   "source"
+  ],
+  "baseline": {
+   "source": "baselines/fa_attention.hip",
+   "flags": [
+    "-ffast-math"
+   ],
+   "launch": {
+    "grid": [
+     "cdiv(NQ, 4)",
+     1,
+     1
+    ],
+    "block": [
+     256,
+     1,
+     1
+    ],
+    "lds": 0
+   }
+  },
+  "over_strongest_amdclang": 1.2617,
+  "over_shipped_O3": 4.9945
+ },
+ "path": [
+  "source",
+  "edit",
+  "fix_hazards"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 1.2617,
+  "speedup_ci95": [
+   1.2594,
+   1.2641
+  ],
+  "reference_ms": 0.05386,
+  "candidate_ms": 0.04272,
+  "cases": 77,
+  "protocol_version": "agc-timing-amd-2",
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 1.2642,
+    "ci95": [
+     1.263,
+     1.2663
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 1.2617,
+    "ci95": [
+     1.2594,
+     1.2641
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "State 57176d733a082a50 is 1.266x over the strongest amdclang build (42.4 us against 53.8 us, 240 pairs, CI 1.265 to 1.268; full battery 77/77). The 1.5x target was not reached. It rewrites only the score phase of the baseline at machine level: K is loaded row-contiguously across lanes (16 lanes cover one 256-byte key row, so the 64 lanes of one global_load_dwordx4 touch 16 cache lines instead of 64 different rows), the 4 query rows sit per lane in VGPRs (pre-multiplied by scale once per workgroup, no per-query s_load), the per-lane products use v_pk_mul/v_pk_fma, and the 16-lane dot products are reduced with DPP (two quad_perm steps per query, then the 4 queries are packed into one register with 3 v_cndmask and finished with row_half_mirror + row_mirror), and the scores are written to the same LDS slots from lanes 12..15 of each row under an exec mask. Everything downstream (max, reductions, value phase, output) is amdclang's code unchanged. Case: not at the memory floor (headroom 2.1 now, 2.6 before); the kernel re-reads K and V once per workgroup (512 x 1 MB against the 1.6 MB the model counts), and what paid was the number of distinct cache lines per load instruction, not the bytes. My source variants (8 queries per workgroup) did not beat the baseline, so no source state is involved.",
+ "tried": [
+  {
+   "what": "probe: value phase removed (branch over it)",
+   "state": "70336dfa9c9a1835",
+   "outcome": "diagnostic: 41.2 us against 54.3 us, value phase about 13 us",
+   "speedup": null
+  },
+  {
+   "what": "probe: score phase and max loop removed",
+   "state": "827961030fb574d0",
+   "outcome": "diagnostic: 25.2 us, score phase about 29 us",
+   "speedup": null
+  },
+  {
+   "what": "probe: K loads replaced by v_mov (no K traffic)",
+   "state": "17c742f4f206c1a8",
+   "outcome": "diagnostic: 37.4 us, K loads cost about 17 us",
+   "speedup": null
+  },
+  {
+   "what": "probe: query s_load_dwordx16 once per key batch instead of per query",
+   "state": "17e91fe4747cd6cf",
+   "outcome": "diagnostic: 57.5 us, the per-query scalar loads cost nothing",
+   "speedup": null
+  },
+  {
+   "what": "probe: every lane loads the same K row",
+   "state": "0520de30748f51e2",
+   "outcome": "diagnostic: 39.6 us, almost the no-load time: cost follows distinct lines per load instruction",
+   "speedup": null
+  },
+  {
+   "what": "first touch of each K cache line (4 loads), wait, then the other 12 loads of the same lines (fix_waits applied)",
+   "state": "5ea65d464ab15dad",
+   "outcome": "probe only, output correct: 55.8 us against 54.3 us, no gain; not benched",
+   "speedup": null
+  },
+  {
+   "what": "source: 8 queries per workgroup, block 256, ST 2048 (256 workgroups, half the K/V bytes)",
+   "state": "84f0dc463e37d0ad",
+   "outcome": "loss (battery ok, 2 scratch spills, LDS 79 KB, 1 wave per SIMD doing twice the work)",
+   "speedup": 0.808
+  },
+  {
+   "what": "source: 8 queries per workgroup, block 512, ST 2048",
+   "state": "65b347a2a62a042a",
+   "outcome": "parity (CI 1.006 to 1.014; 3 scratch spills, LDS 92 KB)",
+   "speedup": 1.011
+  },
+  {
+   "what": "score loop: 32 v_pk_fma with Q as SGPR pairs instead of 64 v_fmac per query (two interleaved partial sums)",
+   "state": "0186e5469e3902be",
+   "outcome": "parity: the score loop was not arithmetic-bound",
+   "speedup": 1.001
+  },
+  {
+   "what": "row-contiguous K loads + per-lane Q in VGPRs + DPP reduction, first version",
+   "state": "2b297a35eb110c2e",
+   "outcome": "battery failed (my bug: v161 used both as the per-lane key limit and as a reduction temporary)",
+   "speedup": null
+  },
+  {
+   "what": "same with the key limit in v164, fix_hazards applied",
+   "state": "57176d733a082a50",
+   "outcome": "win, battery 77/77, 60 pairs 1.2656 and 240 pairs 1.2661",
+   "speedup": 1.266
+  }
+ ],
+ "friction": [
+  "No way to see why a phase is slow other than probes: a per-phase or per-block timing (or counters for load latency against ALU time) would have saved the five probes it took to learn that the K loads, not the arithmetic or the scalar loads, bound the score loop.",
+  "probe() medians are unpaired and two of them contradicted each other by a few percent (17e91fe4747cd6cf at 57.5 us against a 54.3 us baseline for a change that removes work); a paired probe against the baseline would make small diagnostic differences readable.",
+  "Register conflicts in hand-written %rep code are not caught: in 2b297a35eb110c2e the temporaries v[154+2r:155+2r] overlapped v161 that I had set as a loop-invariant in .Lft1; static_check passed and only the battery showed it. liveness() run on the edited block would have shown it, but a warning 'register written in a loop body is live-in from the preheader and read before the write in the next iteration' was what I needed. A named-temporary facility in edit text (allocate N dead registers) would avoid it altogether.",
+  "arch('hazards') or isa() does not state the DPP lane semantics (direction of row_shl/row_shr, what happens to lanes whose source lane is disabled in EXEC or out of the row, bound_ctrl syntax). I avoided row shifts and exec-masked DPP and used the symmetric mirrors instead, which cost a more complicated lane-to-query packing.",
+  "isa() does not say whether v_lshl_add_u64 accepts shift amounts above 4; I used a separate 32-bit shift per load address (16 extra instructions per key batch).",
+  "The dpp_reads_vgpr_after_write hazard (2 wait states) is not in the skill's list of hazards; fix_hazards repaired it, but the instruction order could have been written without nops had the rule been known.",
+  "source(): the baseline text hard-codes R, NT, ST with #define, so a sweep needs the whole text resent once with the defines turned into -D knobs; baseline sources written with #ifndef guards would let like='baseline' sweep them directly.",
+  "Not done for lack of time: the value loop (.LBB0_25) still has 36 v_mov of 178 instructions per iteration (amdclang pairs accumulators by query and shuffles the LDS probabilities into pairs; an interleaved s_p layout in LDS would give the pairs straight from ds_read_b128), and per-row 64-bit address arithmetic that load offsets up to 1792 would replace when no clamping is needed. A transform that renames registers consistently over a block would make that edit safe."
+ ],
+ "lessons": [
+  "The cost of a vector load on gfx950 follows the number of distinct cache lines its 64 lanes touch, not the bytes or the number of load instructions. fa_attention: 16 global_load_dwordx4 with one 256-byte row per lane (64 lines per instruction, each line hit by 4 separate instructions) cost about 17 us of a 54 us kernel; the same bytes with 16 lanes per row (16 lines per instruction, 4 lanes per line) gave 1.266x overall. A probe where all lanes read the same row ran at the no-load time (39.6 us against 37.4 us).",
+  "So for a per-lane dot product over a row that every workgroup re-reads: lay the row across lanes (lane = 16-byte chunk), keep the other operand per lane in VGPRs, and reduce with DPP, even though this costs more ALU instructions (about 34 per 4 keys x 4 queries against 26 + 4 x 103 per 64 keys before, i.e. 544 against 438 per 256-key batch per wave).",
+  "Loading the first 16 bytes of each cache line, waiting, and then loading the rest of the lines did not help (55.8 us against 54.3 us): the repeated accesses to a line are not repeated fetches, the per-lane-per-line lookups are the cost.",
+  "Halving the FMA count of the load-bound score loop with v_pk_fma on SGPR pairs (s[2n:2n+1] as a packed operand works, Q row from s_load_dwordx16) measured 1.001: do not cut arithmetic before the loads are fixed.",
+  "Per-query s_load_dwordx16 of a wave-uniform row (4 loads + lgkmcnt(0) wait, 32 times per wave) cost nothing measurable.",
+  "Halving the K/V bytes by 8 queries per workgroup did not pay at the source level: block 256 (1 wave per SIMD doing twice the serial work) 0.81x, block 512 1.01x. The serial chain per wave, not the total bytes, sets the time of this kernel.",
+  "Packing 4 reductions into one DPP tail: after two quad_perm steps per register, select query e into lane e of even quads and lane 3-e of odd quads (masks 0x4242, 0x2424, 0x1818 per 16 lanes, v_cndmask_b32_e64 with an SGPR pair); row_half_mirror and row_mirror then keep each query in its own lanes and every lane ends with a full 16-lane sum: 13 instructions for 4 reductions instead of 16.",
+  "DPP needs 2 wait states between a VALU write of a VGPR and a DPP read of it (static_check rule dpp_reads_vgpr_after_write); interleave the steps of several reductions and no nop is needed.",
+  "Probes that sum to more than the kernel (base 12 us + score 29 us + value 13 us here) are still a good ranking of phases; the first two probes took one edit each (retarget one branch)."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 5.5624601999999985,
+  "turns": 50,
+  "final": "The session ends with a verified win of **1.266x** over the strongest amdclang build (42.4 us against 53.8 us, 240 pairs, CI 1.265\u20131.268, battery 77/77). The 1.5x target was not reached. The shipped state is `57176d733a082a50`, and the report is recorded.\n\n**What bounds the kernel.** It is not at the memory floor (headroom 2.6 before, 2.1 now). Probes put the score phase at about 29 us of 54 us, of which the K loads were about 17 us. The cost followed the number of distinct cache lines each load instruction touches, not the bytes:\n- amdclang gives each lane its own 256-byte key row, so one `global_load_dwordx4` touches 64 different rows.\n- A probe where all lanes read the same row ran at almost the no-load time (39.6 us against 37.4 us).\n\n**What the winning state does.** Only the score phase is rewritten; everything downstream is amdclang's code unchanged.\n- **K loads:** 16 lanes cover one key row, so each load touches 16 cache lines with 4 lanes per line.\n- **Queries:** the 4 query rows sit per lane in VGPRs, pre-multiplied by `scale` once per workgroup.\n- **Dot products:** per-lane products use `v_pk_mul`/`v_pk_fma`, then a DPP reduction with the 4 queries packed into one register for the last two steps.\n- **Scores:** written to the same LDS slots under an exec mask.\n\n**What did not pay.**\n\n| Idea | State | Result |\n|---|---|---|\n| 32 `v_pk_fma` instead of 64 `v_fmac` in the original score loop | `0186e5469e3902be` | 1.001, parity |\n| First touch of each K line, wait, then the other loads | `5ea65d464ab15dad` | probe only, 55.8 us against 54.3 us |\n| Query scalar loads once per key batch | `17e91fe4747cd6cf` | probe only, no gain |\n| Source: 8 queries per workgroup, block 256 | `84f0dc463e37d0ad` | 0.81, loss |\n| Source: 8 queries per workgroup, block 512 | `65b347a2a62a042a` | 1.011, parity |\n\nNeither source variant beat the baseline, so the whole gain is machine-level.\n\n**Left on the table.** I stopped on budget, not after three flat ideas. The value loop still ",
+  "seconds": 708,
+  "log": ".agc/sessions/fa_attention-836f2d3063/agent/20261120-233632.jsonl"
+ },
+ "recorded": "2026-11-20"
+}

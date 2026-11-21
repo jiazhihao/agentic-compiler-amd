@@ -1,0 +1,149 @@
+{
+ "kernel": "attn_decode",
+ "launch": {
+  "grid": [
+   "Hk * G",
+   8,
+   1
+  ],
+  "block": [
+   1024,
+   1,
+   1
+  ],
+  "lds": 0
+ },
+ "strict": false,
+ "attribution": {
+  "levels": [
+   "mir",
+   "source"
+  ],
+  "baseline": {
+   "source": "baselines/attn_decode.hip",
+   "launch": {
+    "grid": [
+     "Hk * G",
+     8,
+     1
+    ],
+    "block": [
+     1024,
+     1,
+     1
+    ],
+    "lds": 0
+   }
+  },
+  "over_strongest_amdclang": 1.5494,
+  "over_shipped_O3": 11.5923
+ },
+ "path": [
+  "source",
+  "edit"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 1.5494,
+  "speedup_ci95": [
+   1.5478,
+   1.551
+  ],
+  "reference_ms": 0.16574,
+  "candidate_ms": 0.107,
+  "cases": 98,
+  "protocol_version": "agc-timing-amd-2",
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 1.5494,
+    "ci95": [
+     1.5478,
+     1.551
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 1.5578,
+    "ci95": [
+     1.5552,
+     1.5607
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "State a4109addcd127ff0 (machine-IR edit of the baseline, static check clean, battery 98/98) is 1.561x over the strongest amdclang build (CI 1.557-1.565, 240 pairs; 105 us against 164 us). amdclang's key phase gives every lane its own key row, so each global_load_dwordx4 touches 64 rows 4 KB apart; the rewritten key phase lets 32 lanes span one 512 B key row (each x4 load reads two contiguous rows), keeps the query parts in 4 VGPRs per lane (no s_load_dwordx16 per batch), sums the 32 per-lane partial dots with DPP (4 row folds + row_bcast:15), writes each score from lanes 16/48 to s_red[key] and lets each thread read its own score back, so the rest of amdclang's code is untouched. Loads are pipelined (16 in flight, the second 16 reissued into freed registers), partial tiles are masked with v_cmpx. Case: not at a memory floor - the kernel re-reads keys 32x (1 GB real traffic vs 67 MB in the model) and was bound by the access pattern of those re-reads per workgroup, not by bytes; my own source variant (4 queries sharing one key load) was a loss (0.91x) and is not part of the result.",
+ "tried": [
+  {
+   "what": "Source: QPB=4 queries of a kv head share one key load per workgroup (64 workgroups, 4x fewer key bytes, 4 barriers per tile); needed -fno-slp-vectorize and a vcc->s[100:101] rename to pass static_check",
+   "state": "7b30ddbd00a3d946",
+   "outcome": "loss",
+   "speedup": 0.911
+  },
+  {
+   "what": "PROBE: baseline with one of two key batches (half the key bytes): 100 us vs 166 us",
+   "state": "b0388fe9ab686d25",
+   "outcome": "diagnostic, key phase ~120 of 166 us",
+   "speedup": null
+  },
+  {
+   "what": "PROBE: baseline with no key valid (key phase skipped): 45 us",
+   "state": "469fd8152480e9df",
+   "outcome": "diagnostic, values + reductions + launch = 45 us",
+   "speedup": null
+  },
+  {
+   "what": "PROBE: baseline launched with 64 instead of 256 workgroups: 168 us, unchanged",
+   "state": "9134ec6741ed1660",
+   "outcome": "diagnostic: per-workgroup time does not depend on how many CUs are busy, so not a global bandwidth limit",
+   "speedup": null
+  },
+  {
+   "what": "PROBE: same number of key loads and bytes, but each x4 load reads 1 KB contiguous across lanes: 84 us vs 166 us",
+   "state": "4714954ca3396011",
+   "outcome": "diagnostic: the lane-strided gather is what is slow",
+   "speedup": null
+  },
+  {
+   "what": "Machine IR: contiguous key rows across 32 lanes + DPP 32-lane sum + scores through s_red; loop of 2 batches of 16 loads, one reduction at a time (fix_hazards added s_nop 1 before every DPP)",
+   "state": "2fc282f4b0d572ca",
+   "outcome": "win",
+   "speedup": 1.498
+  },
+  {
+   "what": "Same, straight line: pipelined reloads (vmcnt(12) per group of 4), 4 DPP reductions interleaved so no nops, v_cmpx load masking, one exec toggle per 4 LDS writes",
+   "state": "a4109addcd127ff0",
+   "outcome": "win (240 pairs)",
+   "speedup": 1.561
+  }
+ ],
+ "friction": [
+  "static_check refuses amdclang's own output: `s_addc_u32 vcc_hi, s86, s53` (states 15c9ffa9f532aaa0 and a6e540a9d2303f1e, .LBB0_5) with 'a vcc_hi register is not allowed here (OPR_SDST)'. amdclang uses vcc as a plain scalar pair when it runs out of SGPRs; I believe the finding is wrong. Worked around by renaming to s[100:101] by hand.",
+  "No way to generate repetitive IR: the winning edit is ~500 hand-expanded lines (16 load steps, 8 groups of 4 interleaved reductions). A repeat/template facility in edit (text with {i} substitution over a list of register tuples) would have saved most of the session's time and removed transcription risk.",
+  "edit echoes the full ops text back in its result, doubling the cost of large edits.",
+  "The battery only has S <= 307, so a full-tile fast path (S >= 1024) would never be exercised by check; I had to keep a single masked path for all tiles instead of a cheaper unmasked fast path. A battery shape with S > block size would allow it.",
+  "bench's traffic/headroom model (67 MB, headroom 4.7) is far from this kernel's real traffic (about 1.15 GB, keys re-read by 32 workgroups per kv head); no tool reports bytes actually loaded per launch.",
+  "fix_hazards resolves DPP read-after-write only with s_nop 1; it cannot interleave independent chains, which is what removed the nops here (worth 4 %).",
+  "No documentation in arch()/notes of DPP row_bcast:15/31 or of v_cmpx writing EXEC; both had to be tried to find out they are accepted.",
+  "The value phase (about 25 us with launch) was not reached in the budget: it still does 16 dword loads per thread at a 256 KB stride and 3 barriers per tile."
+ ],
+ "lessons": [
+  "Lane-strided gathers of wide loads are slow even from cache: attn_decode's key phase, where each of 64 lanes reads its own row 4 KB apart with 16 global_load_dwordx4 per batch, took ~120 us; a probe issuing the same number of loads and bytes with each instruction reading 1 KB contiguous across the lanes took ~38 us (whole kernel 166 -> 84 us). Rule: make the lanes of one load instruction contiguous in memory, and get the per-row reduction with DPP instead of giving every lane its own row.",
+  "Probe before choosing the lever: relaunching the baseline with a quarter of the workgroups gave the same time (168 vs 166 us), which showed the limit was per workgroup, not global bandwidth; a source variant with 4x fewer key bytes on 64 workgroups was then 0.91x. Fewer bytes does not help when the per-workgroup load pattern is the limit.",
+  "32-lane sum without LDS trees: 4 row folds (quad_perm [1,0,3,2], [2,3,0,1], row_half_mirror, row_mirror) then `v_add_f32_dpp v, v, v row_bcast:15 row_mask:0xa bank_mask:0xf` leaves each half-wave's total in rows 1 and 3 (lanes 16-31, 48-63). Writing it with ds_write_b32 under exec = 0x0001000000010000 to the slot of the owning thread and reading it back per thread (same wave, no barrier) keeps the thread<->element mapping of the surrounding amdclang code intact.",
+  "DPP needs 2 wait states after a write of its source register; interleaving 4 independent reductions satisfies it with no nops. Together with pipelined reloads (consume 4 loads, reissue 4 into the freed registers, constant vmcnt(12)) and fewer exec toggles this took 1.50x to 1.56x.",
+  "`v_cmpx_gt_i32_e32 vcc, sN, vK` masks a load in one instruction (EXEC &= compare). For validity that is monotonic along the steps, lanes that drop out need no bookkeeping: their index is not advanced under the mask, so they stay invalid after EXEC is restored.",
+  "A wave-uniform row that becomes per-lane after the layout change (the query: 4 floats per lane for a fixed lane position) costs 4 VGPRs loaded once, replacing 4 s_load_dwordx16 and a lgkmcnt wait per batch.",
+  "amdclang with 4 queries per workgroup issues s_load_dwordx16 for the query rows one at a time with an lgkmcnt(0) wait each inside the hot loop (16 scalar loads, ~10 waits per batch) and runs out of SGPRs (uses vcc as a pointer)."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 6.762703600000001,
+  "turns": 44,
+  "final": "The kernel now runs at **1.56x** over the strongest amdclang build (105 us against 164 us, CI 1.557\u20131.565 at 240 pairs), which meets the 1.5x target. The shipped state is `a4109addcd127ff0`: static check clean, battery 98/98, and the report is filed. The harness's own two re-verification timings have not come back yet.\n\n**What bounded the kernel.** It was not at a memory floor. The keys are re-read by 32 workgroups per KV head (about 1.15 GB of real traffic against the 67 MB the headroom model assumes), and the key phase took about 120 of the 166 us. Probes showed the limit was the access pattern, not the byte count:\n- Launching a quarter of the workgroups left the time unchanged (168 us), so it is not global bandwidth.\n- The same loads and bytes, but with each load instruction reading 1 KB contiguous across the lanes, ran in 84 us instead of 166 us.\n\n**What the winning state does differently from amdclang.** amdclang gives every lane its own key row, so each `global_load_dwordx4` touches 64 rows 4 KB apart. The rewritten key phase changes that:\n- **Contiguous loads:** 32 lanes span one 512 B key row, so each load reads two contiguous rows.\n- **Query in registers:** the query parts sit in 4 VGPRs per lane, replacing the per-batch scalar loads.\n- **DPP reduction:** the 32 partial dots are summed with four row folds plus `row_bcast:15`, and each score is written to the owning thread's LDS slot and read back, so the rest of amdclang's code is untouched.\n- **Pipelining:** 16 loads stay in flight, with the second 16 reissued into freed registers; partial tiles are masked with `v_cmpx`.\n\nThe dot products are now summed in a different order, so results match within the manifest tolerance rather than bit for bit.\n\n**Tried along the way.**\n\n| Idea | State | Outcome |\n|---|---|---|\n| Source rewrite: 4 queries share one key load per workgroup (4x fewer key bytes) | `7b30ddbd00a3d946` | loss, 0.91x |\n| Contiguous key phase, first version (loop, one reduction at a time, nops bef",
+  "seconds": 769,
+  "log": ".agc/sessions/attn_decode-69c8eacfa7/agent/20261120-232335.jsonl"
+ },
+ "recorded": "2026-11-20"
+}

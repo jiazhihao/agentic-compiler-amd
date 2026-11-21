@@ -117,17 +117,17 @@ Kernels from FlashInfer, vLLM, rocBLAS and MIOpen, and ports of attention, MLA, 
 | `fi_rmsnorm` | flashinfer | 0.1229 | 0.1177 | **1.04** (1.04 to 1.05) | `coarsen(factor=2)` | yes |
 | `fi_rope` | flashinfer | 0.0475 | | fallback (no verified win) | | |
 | `fi_silu_and_mul` | flashinfer | 0.0969 | | fallback (no verified win) | | |
-| `kda_step` | port | 0.1187 | | fallback (no verified win) | | |
+| `kda_step` | port | 0.1094 | | fallback (no verified win) | | |
 | `mla_decode` | port | 0.2652 | | fallback (no verified win) | | |
-| `mo_active_fwd` | miopen | 0.1112 | | fallback (no verified win) | | |
+| `mo_active_fwd` | miopen | 0.1087 | | fallback (no verified win) | | |
 | `mo_adam` | miopen | 0.3365 | | fallback (no verified win) | | |
 | `mo_bn_infer` | miopen | 0.0881 | | fallback (no verified win) | | |
 | `mo_glu_fwd` | miopen | 0.1777 | 0.1673 | **1.06** (1.06 to 1.07) | `coarsen(factor=4)` | yes |
 | `mo_prelu_bwd` | miopen | 0.1937 | | fallback (no verified win) | | |
 | `mo_reduce_sum` | miopen | 0.0841 | | fallback (no verified win) | | |
-| `mo_rope_fwd` | miopen | 0.1872 | 0.1741 | **1.08** (1.07 to 1.08) | `coarsen(factor=2)` | yes |
+| `mo_rope_fwd` | miopen | 0.1135 | | fallback (no verified win) | | |
 | `mo_t5_layernorm` | miopen | 0.0653 | | fallback (no verified win) | | |
-| `moe_gate_topk` | port | 0.0362 | | fallback (no verified win) | | |
+| `moe_gate_topk` | port | 0.0312 | | fallback (no verified win) | | |
 | `rb_axpy` | rocblas | 0.1551 | | fallback (no verified win) | | |
 | `rb_copy` | rocblas | 0.1092 | | fallback (no verified win) | | |
 | `rb_dot` | rocblas | 0.1384 | | fallback (no verified win) | | |
@@ -143,7 +143,7 @@ Kernels from FlashInfer, vLLM, rocBLAS and MIOpen, and ports of attention, MLA, 
 | `vl_rms_norm` | vllm | 0.1133 | | fallback (no verified win) | | |
 | `vl_rotary_embedding` | vllm | 0.1184 | | fallback (no verified win) | | |
 
-7 wins and 29 fallbacks over 36 kernels; geomean 1.01 with fallbacks counted as 1.0. Protocol `agc-timing-amd-2`, recorded 2026-11-20.
+6 wins and 30 fallbacks over 36 kernels; geomean 1.008 with fallbacks counted as 1.0. Protocol `agc-timing-amd-2`, recorded 2026-11-21.
 
 ## LLM-kernel benchmark (agent sessions)
 
@@ -151,37 +151,37 @@ One agent session per kernel through the harness (`agc agent`); each number is t
 
 | kernel | library | amdclang -O3, shipped source (ms) | strongest amdclang build | its speedup over -O3 shipped | baseline ms | default policy over the baseline | agent session over the baseline (95% CI) | how | total over -O3 shipped |
 |---|---|---|---|---|---|---|---|---|---|
-| `attn_decode` | port | 1.2532 | restructured source + own launch | 7.39 | 0.1666 | fallback |  |  | 7.39 |
-| `fa_attention` | port | 0.2205 | restructured source + -ffast-math + own launch | 3.94 | 0.0545 | fallback |  |  | 3.94 |
-| `fa_attention_causal` | port | 0.2000 | restructured source + -ffast-math + own launch | 2.23 | 0.0883 | fallback |  |  | 2.23 |
+| `attn_decode` | port | 1.2532 | restructured source + own launch | 7.39 | 0.1666 | fallback | **1.549** (1.548 to 1.551) | source + edit | 11.59 |
+| `fa_attention` | port | 0.2205 | restructured source + -ffast-math + own launch | 3.94 | 0.0545 | fallback | **1.262** (1.259 to 1.264) | source + edit + fix_hazards | 4.99 |
+| `fa_attention_causal` | port | 0.2000 | restructured source + -ffast-math + own launch | 2.23 | 0.0883 | fallback | **1.992** (1.987 to 1.995) | source + edit + edit + fix_waits + fix_hazards + edit + edit + fix_waits + fix_hazards | 4.46 |
 | `fi_fused_add_rmsnorm` | flashinfer | 0.0968 | -O3, source as shipped |  | 0.1008 | fallback |  |  | 1.00 |
 | `fi_gelu_tanh_and_mul` | flashinfer | 0.1073 | restructured source + own launch | 1.09 | 0.0943 | fallback |  |  | 1.09 |
 | `fi_merge_state` | flashinfer | 0.1024 | restructured source + -ffast-math + own launch | 1.05 | 0.1001 | fallback |  |  | 1.05 |
 | `fi_merge_state_in_place` | flashinfer | 0.1009 | -O3, source as shipped |  | 0.0945 | fallback |  |  | 1.00 |
-| `fi_merge_states` | flashinfer | 0.1082 | -O3, source as shipped |  | 0.1021 | 1.054 `coarsen(factor=2)` |  |  | 1.05 |
-| `fi_rmsnorm` | flashinfer | 0.1305 | -ffast-math | 1.04 | 0.1229 | 1.043 `coarsen(factor=2)` |  |  | 1.08 |
-| `fi_rope` | flashinfer | 0.1070 | restructured source + -ffast-math + own launch | 2.23 | 0.0475 | fallback |  |  | 2.23 |
+| `fi_merge_states` | flashinfer | 0.1082 | -O3, source as shipped |  | 0.1021 | 1.054 `coarsen(factor=2)` | **1.105** (1.100 to 1.109) | import + edit_ir + fix_waits + coarsen | 1.09 |
+| `fi_rmsnorm` | flashinfer | 0.1305 | -ffast-math | 1.04 | 0.1229 | 1.043 `coarsen(factor=2)` | **1.081** (1.077 to 1.084) | source + relaunch + edit_ir + fix_hazards | 1.11 |
+| `fi_rope` | flashinfer | 0.1070 | restructured source + -ffast-math + own launch | 2.23 | 0.0475 | fallback | **1.037** (1.030 to 1.041) | source + edit + edit + fix_hazards + edit | 2.30 |
 | `fi_silu_and_mul` | flashinfer | 0.1030 | restructured source + own launch | 1.06 | 0.0969 | fallback |  |  | 1.06 |
-| `kda_step` | port | 0.2056 | restructured source + -fno-slp-vectorize -fno-vectorize + own launch | 1.69 | 0.1187 | fallback |  |  | 1.69 |
-| `mla_decode` | port | 0.4593 | restructured source + -ffast-math + own launch | 1.71 | 0.2652 | fallback | **1.486** (1.485 to 1.487) | source + edit + edit | 2.55 |
-| `mo_active_fwd` | miopen | 0.1123 | -O3, source as shipped |  | 0.1112 | fallback |  |  | 1.00 |
+| `kda_step` | port | 0.2055 | restructured source + -fno-slp-vectorize -fno-vectorize -ffast-math + own launch | 1.90 | 0.1094 | fallback |  |  | 1.90 |
+| `mla_decode` | port | 0.4593 | restructured source + -ffast-math + own launch | 1.71 | 0.2652 | fallback | **1.489** (1.488 to 1.490) | source + edit + edit + edit | 2.56 |
+| `mo_active_fwd` | miopen | 0.1111 | restructured source + -ffast-math + own launch | 1.03 | 0.1087 | fallback |  |  | 1.03 |
 | `mo_adam` | miopen | 0.3818 | restructured source + -ffast-math + own launch | 1.10 | 0.3365 | fallback |  |  | 1.10 |
 | `mo_bn_infer` | miopen | 0.1037 | restructured source + own launch | 1.22 | 0.0881 | fallback |  |  | 1.22 |
-| `mo_glu_fwd` | miopen | 0.1903 | -ffast-math | 1.09 | 0.1777 | 1.060 `coarsen(factor=4)` |  |  | 1.15 |
+| `mo_glu_fwd` | miopen | 0.1903 | -ffast-math | 1.09 | 0.1777 | 1.060 `coarsen(factor=4)` | **1.038** (1.035 to 1.042) | source + coarsen | 1.15 |
 | `mo_prelu_bwd` | miopen | 0.2189 | restructured source + own launch | 1.15 | 0.1937 | fallback |  |  | 1.15 |
 | `mo_reduce_sum` | miopen | 0.1594 | restructured source + -ffast-math + own launch | 1.89 | 0.0841 | fallback |  |  | 1.89 |
-| `mo_rope_fwd` | miopen | 0.1878 | -O3, source as shipped |  | 0.1872 | 1.078 `coarsen(factor=2)` |  |  | 1.08 |
+| `mo_rope_fwd` | miopen | 0.1870 | restructured source + -ffast-math + own launch | 1.64 | 0.1135 | fallback | **1.013** (1.010 to 1.017) | source + relaunch | 1.69 |
 | `mo_t5_layernorm` | miopen | 0.1131 | restructured source + -ffast-math + own launch | 1.76 | 0.0653 | fallback |  |  | 1.76 |
-| `moe_gate_topk` | port | 0.6575 | restructured source | 18.28 | 0.0362 | fallback |  |  | 18.28 |
+| `moe_gate_topk` | port | 0.6573 | restructured source + -ffast-math | 20.55 | 0.0312 | fallback | **1.015** (1.012 to 1.021) | source + edit | 21.35 |
 | `rb_axpy` | rocblas | 0.1621 | -O3, source as shipped |  | 0.1551 | fallback |  |  | 1.00 |
-| `rb_copy` | rocblas | 0.1112 | -O3, source as shipped |  | 0.1092 | fallback |  |  | 1.00 |
+| `rb_copy` | rocblas | 0.1112 | -O3, source as shipped |  | 0.1092 | fallback | **1.019** (1.017 to 1.023) | import + coarsen | 1.02 |
 | `rb_dot` | rocblas | 0.1394 | restructured source | 1.07 | 0.1384 | fallback |  |  | 1.07 |
 | `rb_gemvn` | rocblas | 0.2217 | restructured source + -ffast-math + own launch | 2.30 | 0.0950 | fallback |  |  | 2.30 |
-| `rb_gemvt` | rocblas | 0.1104 | restructured source + -ffast-math + own launch | 1.24 | 0.0888 | fallback |  |  | 1.24 |
-| `rb_ger` | rocblas | 0.1049 | restructured source + -ffast-math + own launch | 1.11 | 0.0938 | fallback |  |  | 1.11 |
+| `rb_gemvt` | rocblas | 0.1104 | restructured source + -ffast-math + own launch | 1.24 | 0.0888 | fallback | **1.024** (1.021 to 1.029) | source + edit + edit + fix_hazards | 1.22 |
+| `rb_ger` | rocblas | 0.1049 | restructured source + -ffast-math + own launch | 1.11 | 0.0938 | fallback | **1.015** (1.012 to 1.018) | source + edit + edit | 1.10 |
 | `rb_nrm2` | rocblas | 0.1219 | restructured source + own launch | 1.40 | 0.0858 | fallback |  |  | 1.40 |
 | `rb_rot` | rocblas | 0.1826 | -O3, source as shipped |  | 0.2050 | 1.040 `coarsen(factor=8)` |  |  | 1.04 |
-| `rb_scal` | rocblas | 0.1043 | -O3, source as shipped |  | 0.1047 | 1.066 `coarsen(factor=2)` |  |  | 1.07 |
+| `rb_scal` | rocblas | 0.1043 | -O3, source as shipped |  | 0.1047 | 1.066 `coarsen(factor=2)` | **1.124** (1.119 to 1.128) | import + edit_ir | 1.13 |
 | `rb_swap` | rocblas | 0.1826 | -O3, source as shipped |  | 0.1939 | 1.044 `coarsen(factor=2)` |  |  | 1.04 |
 | `vl_fused_add_rms_norm` | vllm | 0.1457 | restructured source + own launch | 1.44 | 0.1000 | fallback |  |  | 1.44 |
 | `vl_moe_align` | vllm | 0.2711 | restructured source + own launch | 5.77 | 0.0466 | fallback |  |  | 5.77 |
@@ -190,7 +190,7 @@ One agent session per kernel through the harness (`agc agent`); each number is t
 
 The baseline is the strongest amdclang build found per kernel (`scripts/strong_baseline.py`): the source as shipped or a restructured source, with or without `-ffast-math`, with its own launch where that is faster; all of it is amdclang's code. The policy and session columns are what agc adds on top of that build (machine IR passes and edits), verified by the full battery and paired timings. The last column is for orientation: the best verified agc state, or else the baseline, over amdclang -O3 on the source as shipped.
 
-8 of 36 kernels have a verified agc gain over the strongest amdclang build; 28 fallbacks; geomean of the agc gain 1.022 with fallbacks at 1.0; geomean over -O3 on the shipped source 1.539.
+16 of 36 kernels have a verified agc gain over the strongest amdclang build; 20 fallbacks; geomean of the agc gain 1.066 with fallbacks at 1.0; geomean over -O3 on the shipped source 1.640.
 
 ## Reproduce
 

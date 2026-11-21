@@ -1,0 +1,148 @@
+{
+ "kernel": "rb_gemvt",
+ "launch": {
+  "grid": [
+   "cdiv(N, 4)",
+   1,
+   1
+  ],
+  "block": [
+   1024,
+   1,
+   1
+  ],
+  "lds": 0
+ },
+ "strict": false,
+ "attribution": {
+  "levels": [
+   "mir",
+   "source"
+  ],
+  "baseline": {
+   "source": "baselines/rb_gemvt.hip",
+   "flags": [
+    "-ffast-math"
+   ],
+   "defines": {
+    "NBX": "1024",
+    "UNR": "2",
+    "NC": "4"
+   },
+   "launch": {
+    "grid": [
+     "cdiv(N, 4)",
+     1,
+     1
+    ],
+    "block": [
+     1024,
+     1,
+     1
+    ],
+    "lds": 0
+   }
+  },
+  "over_strongest_amdclang": 1.0245,
+  "over_shipped_O3": 1.2242
+ },
+ "path": [
+  "source",
+  "edit",
+  "edit",
+  "fix_hazards"
+ ],
+ "verified": {
+  "outcome": "win",
+  "speedup": 1.0245,
+  "speedup_ci95": [
+   1.0208,
+   1.0286
+  ],
+  "reference_ms": 0.08908,
+  "candidate_ms": 0.0867,
+  "cases": 77,
+  "protocol_version": "agc-timing-amd-2",
+  "pairs": 240,
+  "runs": [
+   {
+    "speedup": 1.0245,
+    "ci95": [
+     1.0212,
+     1.0294
+    ],
+    "valid": true
+   },
+   {
+    "speedup": 1.0245,
+    "ci95": [
+     1.0208,
+     1.0286
+    ],
+    "valid": true
+   }
+  ]
+ },
+ "summary": "State 03d805fc8464654e: 1.0245x over the strongest amdclang build (95% CI 1.022-1.028, 240 pairs, 87.3 us vs 89.5 us; battery 77/77). Two machine-level changes on the baseline: (1) the cross-thread reduction is done per wave with DPP adds + v_readlane, lane 0 of each wave writes its 4 column totals straight into sdata2[c][wave], which removes amdclang's 526-instruction 16-lane LDS stage (128 ds_read2) and one of the two barriers; (2) all 10 global_load_dwordx4 of the unrolled iteration are issued before the first wait (amdclang placed s_waitcnt vmcnt(3) + an FMA between the two batches of 5). The summation order of the reduction changes (within the manifest tolerance; the baseline is -ffast-math already). The 1.5x target is out of reach: this kernel is at the memory floor (headroom 1.12 -> 1.10; every element of A is read exactly once, contiguous columns, 268 MB at ~4.0 TB/s after the 20 us launch against the 4.5 TB/s cold-read rate). No source state of mine beat the baseline.",
+ "tried": [
+  {
+   "what": "per-wave DPP reduction + v_readlane, lane 0 of each wave writes 4 wave totals to sdata2; drops the 16-lane LDS stage (Lft22, 128 ds_read2) and the second barrier",
+   "state": "69c89c8d50e6b138",
+   "outcome": "parity (CI 1.0087-1.0157, 240 pairs)",
+   "speedup": 1.0119
+  },
+  {
+   "what": "on top: all 10 x4 loads in flight before the first wait (moved the vmcnt(3)+FMA after the second batch, wait becomes vmcnt(8)); fix_hazards",
+   "state": "03d805fc8464654e",
+   "outcome": "win (CI 1.022-1.028, 240 pairs)",
+   "speedup": 1.0245
+  },
+  {
+   "what": "coarsen factor 2 on the winning state",
+   "state": "03d805fc8464654e",
+   "outcome": "refused: 'a path reaches the end of the program without passing every s_barrier'",
+   "speedup": null
+  },
+  {
+   "what": "source geometry probe NBX=512, UNR=4, NC=4 (8 waves per workgroup, 4 strides in flight)",
+   "state": "1933d292c9f19dc3",
+   "outcome": "parity/slightly slower (CI 0.986-0.998, 60 pairs)",
+   "speedup": 0.992
+  },
+  {
+   "what": "source geometry probe NBX=1024, UNR=2, NC=8 (8 columns per workgroup, 1024 workgroups)",
+   "state": "23d2c25bc869b9cf",
+   "outcome": "loss",
+   "speedup": 0.8664
+  },
+  {
+   "what": "scalar base + 32-bit vector offset loads to remove the 64-bit address arithmetic in the hot loop",
+   "state": null,
+   "outcome": "not built: it narrows the offset to 32 bits (unclear zero/sign extension, breaks for M >= 2^29) for a gain the notes put under 1% on a load-bound loop",
+   "speedup": null
+  }
+ ],
+ "friction": [
+  "coarsen refuses any kernel with an early-exit path that skips the barriers (state 03d805fc8464654e: 'a path reaches the end of the program without passing every s_barrier'); the early exits here are wave-uniform argument tests (alpha == 0), so every wave of a workgroup takes the same path. A wave-uniform-branch exemption would let coarsen be tried.",
+  "No documentation of whether the 32-bit vector offset of `global_load vdst, v_off, s[base]` is zero- or sign-extended; isa()/arch() should say, it decides whether the form is safe for large tensors.",
+  "edit: deleting a whole block (Lft22, count 'end') worked and left an empty block, but there is no 'delete block' op or a statement that an empty block is fine; I had to guess.",
+  "The list_states 'best' tag pointed at a second copy of the baseline (fabfd5e5fef417d4, control 1.006), which reads like an earlier win until inspected.",
+  "probe() cannot easily attribute time to the reduction stage vs. the load loop when both are needed for a statically clean kernel; a 'time with block X skipped' helper would have told me up front that the 526-instruction LDS stage was only ~1% of the time."
+ ],
+ "lessons": [
+  "rb_gemvt (column-contiguous A, 268 MB read once, 2048 workgroups x 16 waves): headroom 1.12 is the floor; two machine-level changes together gave 1.0245x, nothing near 1.5x.",
+  "A 526-instruction serial LDS reduction stage run by 16 lanes of one wave (128 ds_read2) plus a second s_barrier costs only ~1.2% of an 89 us memory-bound kernel: replacing it with per-wave DPP + v_readlane and a single barrier measured 1.012x (CI 1.009-1.016). Reduction tails are not where the time is when each workgroup streams 128 KB.",
+  "amdclang splits a source-level batch of 10 x4 loads into 5 + 5 with an s_waitcnt vmcnt(3) and an FMA in between; moving that wait after the second batch (vmcnt(8)) gave another 1.2% (1.012 -> 1.0245). Check for a wait between load batches even in 'unrolled' amdclang loops.",
+  "Launch geometry around the baseline is a sharp optimum: 4 columns x 1024 threads x 2 strides (2048 workgroups). 512 threads x 4 strides: 0.99x; 8 columns per workgroup (1024 workgroups, 256 KB per workgroup): 0.87x.",
+  "Pattern for a wave total in lane 0 without LDS: 4 v_add_f32_dpp steps (quad_perm [1,0,3,2], [2,3,0,1], row_half_mirror, row_mirror), 3 v_readlane_b32 (lanes 16, 32, 48) into SGPRs, 3 v_add_f32 with the scalar; then `s_mov_b64 exec, 1` and ds_write2_b32 at address (tx >> 4) + base puts wave w's total in slot w. static_check accepted it with no extra nops when the readlanes and adds of 4 columns are interleaved."
+ ],
+ "session": {
+  "ok": true,
+  "cost_usd": 1.5767676000000002,
+  "turns": 29,
+  "final": "The session is finished and the report is filed: the best state is `03d805fc8464654e`, a 1.0245x win over the strongest amdclang build (95% CI 1.022\u20131.028, 240 pairs, 87.3 \u00b5s vs 89.5 \u00b5s, battery 77/77). The 1.5x target is out of reach because the kernel is at the memory floor.\n\n**Why 1.5x is not available:** every element of A is read exactly once, as contiguous columns (268 MB). After the 20 \u00b5s launch that is about 4.0 TB/s against the 4.5 TB/s cold-read rate, so headroom was 1.12 and is now 1.10.\n\n**What the winning state changes from amdclang's code:**\n- **Reduction:** each wave sums its four column partials with DPP adds and `v_readlane`, and lane 0 writes the wave totals straight into the second-level LDS array. This removes amdclang's 526-instruction LDS stage and one of the two barriers. On its own it measured 1.012x (CI 1.009\u20131.016), which is parity. The summation order changes, within the manifest tolerance.\n- **Loads in flight:** all ten `global_load_dwordx4` of the unrolled iteration are issued before the first wait. amdclang had a `vmcnt(3)` wait and an FMA between the two batches of five. This brought the total to 1.0245x.\n\n**What did not pay:**\n\n| Idea | State | Result |\n|---|---|---|\n| `coarsen` factor 2 on the winning state | \u2014 | refused: early-exit paths skip the barriers |\n| Source: 512 threads, 4 strides, 4 columns | `1933d292c9f19dc3` | 0.992x (parity) |\n| Source: 1024 threads, 2 strides, 8 columns | `23d2c25bc869b9cf` | 0.866x (loss) |\n| Scalar base + 32-bit vector offset loads | not built | would narrow offsets to 32 bits for an expected gain under 1% |\n\nThe baseline's launch geometry (4 columns \u00d7 1024 threads \u00d7 2 strides) is a sharp local optimum, so no source variant of mine replaced it.\n\nI stopped after 6 timed candidates, well under the budget of 30. The harness will re-verify the state with its own 240-pair timings.",
+  "seconds": 160,
+  "log": ".agc/sessions/rb_gemvt-486acebec2/agent/20261121-002859.jsonl"
+ },
+ "recorded": "2026-11-21"
+}

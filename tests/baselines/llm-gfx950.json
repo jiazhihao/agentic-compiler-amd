@@ -614,7 +614,7 @@
   },
   "kda_step": {
    "library": "port",
-   "amdclang_ms": 0.1187,
+   "amdclang_ms": 0.10942,
    "fallback": true,
    "chosen": {
     "path": "amdclang",
@@ -630,7 +630,7 @@
      "bit_identical": true,
      "verified": false,
      "outcome": "rejected",
-     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_4: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_17: the exit test is not `s_cmp_eq_u32 counter, 0`; .LBB0_21: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_25: the exit test is not `s_cmp_eq_u32 counter,"
+     "reason": "parameter: unroll_loads: no loop can be unrolled: .LBB0_4: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_14: the exit test is not `s_cmp_eq_u32 counter, 0`; .LBB0_18: the back edge is not `s_cbranch_scc0` on a counter compare; .LBB0_22: the exit test is not `s_cmp_eq_u32 counter,"
     },
     {
      "path": "import+pass",
@@ -674,7 +674,7 @@
   },
   "mo_active_fwd": {
    "library": "miopen",
-   "amdclang_ms": 0.11124,
+   "amdclang_ms": 0.10874,
    "fallback": true,
    "chosen": {
     "path": "amdclang",
@@ -698,13 +698,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9484,
+     "speedup": 0.9664,
      "ci95": [
-      0.9363,
-      0.9567
+      0.954,
+      0.9757
      ],
-     "ms": 0.1179,
-     "amdclang_ms": 0.11124
+     "ms": 0.11288,
+     "amdclang_ms": 0.10874
     },
     {
      "path": "import+pass",
@@ -712,13 +712,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9128,
+     "speedup": 0.9312,
      "ci95": [
-      0.9086,
-      0.921
+      0.921,
+      0.9354
      ],
-     "ms": 0.12038,
-     "amdclang_ms": 0.11022
+     "ms": 0.11706,
+     "amdclang_ms": 0.10834
     },
     {
      "path": "import+pass",
@@ -726,13 +726,13 @@
      "bit_identical": true,
      "verified": true,
      "outcome": "loss",
-     "speedup": 0.9286,
+     "speedup": 0.8695,
      "ci95": [
-      0.922,
-      0.9382
+      0.8611,
+      0.8789
      ],
-     "ms": 0.11886,
-     "amdclang_ms": 0.11018
+     "ms": 0.12492,
+     "amdclang_ms": 0.1084
     }
    ]
   },
@@ -1063,19 +1063,14 @@
   },
   "mo_rope_fwd": {
    "library": "miopen",
-   "amdclang_ms": 0.18724,
-   "fallback": false,
+   "amdclang_ms": 0.11354,
+   "fallback": true,
    "chosen": {
-    "path": "import+pass",
-    "how": "coarsen(factor=2)",
+    "path": "amdclang",
+    "how": "the amdclang build (no verified win)",
     "bit_identical": true,
-    "speedup": 1.0781,
-    "ci95": [
-     1.0689,
-     1.0826
-    ],
-    "ms": 0.1741,
-    "amdclang_ms": 0.18724
+    "speedup": 1.0,
+    "ci95": null
    },
    "candidates": [
     {
@@ -1091,42 +1086,42 @@
      "how": "coarsen(factor=2)",
      "bit_identical": true,
      "verified": true,
-     "outcome": "win",
-     "speedup": 1.0781,
+     "outcome": "loss",
+     "speedup": 0.951,
      "ci95": [
-      1.0689,
-      1.0826
+      0.9449,
+      0.9566
      ],
-     "ms": 0.1741,
-     "amdclang_ms": 0.18724
+     "ms": 0.11886,
+     "amdclang_ms": 0.11354
     },
     {
      "path": "import+pass",
      "how": "coarsen(factor=4)",
      "bit_identical": true,
      "verified": true,
-     "outcome": "win",
-     "speedup": 1.0372,
+     "outcome": "loss",
+     "speedup": 0.8802,
      "ci95": [
-      1.0311,
-      1.046
+      0.8745,
+      0.8868
      ],
-     "ms": 0.18044,
-     "amdclang_ms": 0.18722
+     "ms": 0.12772,
+     "amdclang_ms": 0.113
     },
     {
      "path": "import+pass",
      "how": "coarsen(factor=8)",
      "bit_identical": true,
      "verified": true,
-     "outcome": "win",
-     "speedup": 1.0136,
+     "outcome": "loss",
+     "speedup": 0.866,
      "ci95": [
-      1.0115,
-      1.0175
+      0.8623,
+      0.8716
      ],
-     "ms": 0.18338,
-     "amdclang_ms": 0.18578
+     "ms": 0.13058,
+     "amdclang_ms": 0.11334
     }
    ]
   },
@@ -1196,7 +1191,7 @@
   },
   "moe_gate_topk": {
    "library": "port",
-   "amdclang_ms": 0.03624,
+   "amdclang_ms": 0.03118,
    "fallback": true,
    "chosen": {
     "path": "amdclang",
@@ -2006,11 +2001,11 @@
   "rocm": "7.14.60850"
  },
  "baseline": "the strongest amdclang build per kernel (tests/baselines/llm-strong-gfx950.json)",
- "recorded": "2026-11-20",
+ "recorded": "2026-11-21",
  "summary": {
   "kernels": 36,
-  "wins": 7,
-  "fallbacks": 29,
-  "geomean": 1.01
+  "wins": 6,
+  "fallbacks": 30,
+  "geomean": 1.008
  }
 }
