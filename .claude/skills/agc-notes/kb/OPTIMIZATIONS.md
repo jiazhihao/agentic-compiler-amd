@@ -163,10 +163,10 @@ over the strongest amdclang build (LLM benchmark) or over `amdclang -O3` (corpus
 
 ### D2. MFMA attention (template `attention_mfma`)
 - **Verdict:** pays, 2.0x to 2.1x
-- **Applies when:** `softmax(scale Q K^T) V` per head, f32, where each query (or each few queries) re-reads K and V.
-- **How:** `v_mfma_f32_16x16x4_f32`: 16 queries x 16 keys per tile, 16 MFMAs for the scores (A = K, B = Q premultiplied by scale * log2 e) and 16 for the value update (A = the exponentiated scores in place, B = V), so K and V are read once per 16 queries. Online softmax with a lazily updated reference (rescale only when a score exceeds it by 2^64). Layout: lane l of A is `A[l % 16][l // 16]`, of B `B[l // 16][l % 16]`, result register r is `D[4 (l // 16) + r][l % 16]`.
-- **Measured:** `fa_attention` 2.105 (2.101 to 2.108), 26 us against 55 us; `fa_attention_causal` 1.981 (1.977 to 1.985).
-- **Recipe:** `bench/llm/sessions/fa_attention/best.s`, `fa_attention_causal/best.s`; template `attention_mfma` (in progress).
+- **Applies when:** `softmax(scale Q K^T) V` per head, f32, row width 64 or 128, where each query (or each few queries) re-reads K and V. As a tensor program: two `einsum`s around a max / exp / sum / divide (see `bench/llm/fa_attention.tair`).
+- **How:** `generate("attention_mfma", {"waves": 1 | 2 | 4 | 8, "ahead": 0 | 1})`. `v_mfma_f32_16x16x4_f32`: 16 queries x 16 keys per tile, 16 MFMAs for the scores (A = K, B = Q premultiplied by scale * log2 e) and 16 for the value update (A = the exponentiated scores in place, B = V), so K and V are read once per 16 queries. All operand loads are `dwordx4` straight into operand layout (K: lane l reads columns `16 (l // 16) + 4 x ..`; V: columns `4 (l % 16) ..`). Online softmax with a lazily updated reference (rescale only when a score exceeds it by 2^64; the exact maximum crosses lane groups with `ds_bpermute_b32` on that slow path only). `waves`: the waves of a workgroup take the key tiles in turn and merge once through LDS. `ahead`: the next tile's loads are issued before the current tile's MFMAs. Layout: lane l of A is `A[l % 16][l // 16]`, of B `B[l // 16][l % 16]`, result register r is `D[4 (l // 16) + r][l % 16]`.
+- **Measured:** hand-written session recipes: `fa_attention` 2.105 (2.101 to 2.108), 26 us against 55 us; `fa_attention_causal` 1.981 (1.977 to 1.985). The template on `fa_attention` (60 pairs over 6 allocations, battery 77/77): waves 4, ahead 1: 1.959 (1.954 to 1.964), 29.0 us; waves 8: 1.65 with or without ahead; waves 4, ahead 0: 1.47; waves 2, ahead 1: 1.22; waves 1: 0.44. V as 16 single-dword loads per tile instead of 4 wide ones: 1.79. Row width 128 passes the battery.
+- **Recipe:** template `attention_mfma` (`agc/gen/attention.py`); `bench/llm/sessions/fa_attention/best.s`, `fa_attention_causal/best.s`.
 
 ### D3. More outputs per read of a shared input
 - **Verdict:** pays 1.5x to 2x at the machine level, more at the source level

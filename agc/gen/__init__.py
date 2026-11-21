@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from ..manifest import Manifest, ManifestError
 from ..tair.reference import load_text
-from . import elementwise, gemm, rowwise
+from . import attention, elementwise, gemm, rowwise
 from .binding import Compiled
 from .builder import GenError
 
@@ -17,6 +17,9 @@ TEMPLATES = {
                 "params": {"unroll": [1, 2, 4]}, "default": {"unroll": 4}},
     "gemm_mfma": {"module": gemm, "doc": "C = A @ B^T on MFMA (bf16 in, f32 out); tiles x tiles 32x32 output tiles per wave",
                   "params": {"tiles": [1, 2, 4], "unroll": [1, 2]}, "default": {"tiles": 4, "unroll": 1}},
+    "attention_mfma": {"module": attention, "doc": "out = softmax(scale Q K^T) V per head on MFMA (f32): 16 queries x 16 keys per tile, "
+                                                    "online softmax; `waves` waves per workgroup share the key tiles",
+                       "params": {"waves": [1, 2, 4, 8], "ahead": [0, 1]}, "default": {"waves": 8, "ahead": 1}},
 }
 
 

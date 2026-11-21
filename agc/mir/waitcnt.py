@@ -94,7 +94,7 @@ def step(state: State, info: Info, limits: dict, report=None) -> None:
     for c in COUNTERS:
         hit = [u for u in state.pending[c] if u in touched]
         for u in sorted(hit):
-            n = state.pending[c].pop(u)
+            n = min(state.pending[c].pop(u), limits[c] - 1)      # the counter's field cannot name more; fewer is stronger
             # a vector load into a register an earlier vector load still writes is fine: results arrive in
             # order, the later one lands last (amdclang does this when the first value is dead on this path)
             if c == "vmcnt" and ev0 and ev0[0] == "vmcnt" and u in info.defs and u not in info.uses:

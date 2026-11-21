@@ -138,5 +138,8 @@
    ],
    "lds": 0
   }
+ },
+ "program": {
+  "file": "fa_attention.tair"
  }
 }
