@@ -49,6 +49,15 @@ def candidates(s: Session) -> list[dict]:
     return out
 
 
+def warm_control(s: Session, state: str) -> dict:
+    """The same paired timing with the caches as the previous launch left them."""
+    try:
+        w = s.bench_warm(state)
+        return {k: w.get(k) for k in ("outcome", "speedup", "speedup_ci95", "reference_ms", "candidate_ms")}
+    except SessionError as e:
+        return {"outcome": "rejected", "reason": f"{e.kind}: {e.message}"[:200]}
+
+
 def optimize(s: Session, log=None) -> dict:
     rows = []
     skipped = set()
@@ -92,6 +101,8 @@ def optimize(s: Session, log=None) -> dict:
         best = max(wins, key=lambda r: r["ci95"][0])
         s.store.tag("best", best["state"])
         report.update(fallback=False, chosen={k: best[k] for k in ("state", "path", "how", "bit_identical", "speedup", "ci95", "ms", "amdclang_ms")})
+        if "stream_loads" in best["how"]:                    # what non-temporal loads gain depends on what the caches hold
+            report["chosen"]["warm"] = warm_control(s, best["state"])
     elif s.ref_id is not None:
         s.store.tag("best", s.base_id)
         report.update(fallback=True, chosen={"state": s.base_id, "path": "amdclang", "how": "the amdclang build (no verified win)",

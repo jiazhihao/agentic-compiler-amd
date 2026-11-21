@@ -123,6 +123,8 @@ class Reference:
     file: str | None = None         # python / torch: path relative to the manifest; tair: a .tair file
     function: str | None = None     # python / torch: fn(**inputs_and_scalars) -> array or {name: array}
     text: str | None = None         # tair: the module text inline
+    magnitude: str | None = None    # tair: a program (inline) evaluated on |inputs| as the `cond` scale, when the
+                                    # reference on |inputs| is not a bound for the error (a fused kernel: the first stage)
 
     def to_dict(self) -> dict:
         return {k: v for k, v in self.__dict__.items() if v not in (None, [])}
@@ -192,7 +194,7 @@ class Manifest:
                 raise ManifestError(f"launch.{key} needs 1 to 3 dims")
             return v + [1] * (3 - len(v))
         ref = d.get("reference") or {"kind": "none"}
-        unknown = set(ref) - {"kind", "expr", "inputs", "output", "file", "function", "text"}
+        unknown = set(ref) - {"kind", "expr", "inputs", "output", "file", "function", "text", "magnitude"}
         if unknown:
             raise ManifestError(f"reference: unknown field(s) {sorted(unknown)}")
         reference = Reference(**{**ref, "kind": ref.get("kind", "none"), "inputs": list(ref.get("inputs", []))})

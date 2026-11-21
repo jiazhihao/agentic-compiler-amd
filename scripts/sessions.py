@@ -32,13 +32,18 @@ def how_baseline(b: dict | None) -> str:
                                   "own launch" if b.get("launch") else "") if x)
 
 
+def warm_note(c: dict) -> str:
+    w = c.get("warm") or {}
+    return f" (warm caches: {w['speedup']:.3f})" if w.get("speedup") else ""
+
+
 def table() -> str:
     pol, rec = json.loads(POLICY.read_text())["kernels"], recipes()
     strong = json.loads(STRONG.read_text())["kernels"] if STRONG.exists() else {}
     rows = ["| kernel | library | amdclang -O3, shipped source (ms) | strongest amdclang build | its speedup over -O3 shipped | baseline ms "
             "| default policy over the baseline | agent session over the baseline (95% CI) | how | total over -O3 shipped |",
             "|---|---|---|---|---|---|---|---|---|---|"]
-    gain, total = [], []
+    gain, total, warm_gain = [], [], []
     for n, k in pol.items():
         st = strong.get(n, {})
         base = st.get("over_shipped_O3", 1.0)
@@ -46,11 +51,14 @@ def table() -> str:
         r = rec.get(n)
         g = max(p, r["verified"]["speedup"] if r else 1.0)
         gain.append(g)
+        w = (k["chosen"].get("warm") or {}) if not k["fallback"] else {}
+        pw = p if not w else (w["speedup"] if w.get("outcome") == "win" else 1.0)     # with warm caches, where that was measured
+        warm_gain.append(max(pw, r["verified"]["speedup"] if r else 1.0))
         tot = r.get("attribution", {}).get("over_shipped_O3") if r and r["verified"]["speedup"] >= p else None
         total.append(tot or base * g)
         cells = [f"`{n}`", k["library"], f"{st.get('amdclang_O3_ms', k['amdclang_ms']):.4f}", how_baseline(st.get("baseline")),
                  f"{base:.2f}" if st.get("baseline") else "", f"{k['amdclang_ms']:.4f}",
-                 "fallback" if k["fallback"] else f"{p:.3f} `{k['chosen']['how']}`"]
+                 "fallback" if k["fallback"] else f"{p:.3f} `{k['chosen']['how']}`" + warm_note(k["chosen"])]
         if r:
             v = r["verified"]
             cells += [f"**{v['speedup']:.3f}** ({v['speedup_ci95'][0]:.3f} to {v['speedup_ci95'][1]:.3f})",
@@ -67,7 +75,10 @@ def table() -> str:
                  "the full battery and paired timings. The last column is for orientation: the best verified agc state, or else the "
                  "baseline, over amdclang -O3 on the source as shipped.",
              "", f"{wins} of {len(gain)} kernels have a verified agc gain over the strongest amdclang build; {len(gain) - wins} fallbacks; "
-                 f"geomean of the agc gain {gm(gain):.3f} with fallbacks at 1.0; geomean over -O3 on the shipped source {gm(total):.3f}."]
+                 f"geomean of the agc gain {gm(gain):.3f} with fallbacks at 1.0; geomean over -O3 on the shipped source {gm(total):.3f}.",
+             "", "Timings flush the caches before every launch. Results of `stream_loads` (non-temporal loads) depend on that: with the "
+                 "caches as the previous launch left them (`warm caches`) they are mostly parity. Counting those results at their "
+                 f"warm-cache value, {sum(g > 1 for g in warm_gain)} of {len(gain)} kernels have a gain and the geomean is {gm(warm_gain):.3f}."]
     return "\n".join(rows)
 
 

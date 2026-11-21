@@ -1,0 +1,534 @@
+{
+ "pairs": {
+  "rmsnorm:gelu": {
+   "program": "tair rmsnorm_gelu(x: f32[R, C], w: f32[C], eps: f32) -> (gelu_y: f32[R, C]) {\n  ms = reduce mean(x * x)\n  y = x * rsqrt(ms + eps) * w\n  gelu_y = 0.5 * y * (1.0 + tanh(0.7978845608 * (y + 0.044715 * y * y * y)))\n}\n",
+   "elements": 134217728,
+   "first": [
+    {
+     "how": "amdclang -O3",
+     "ms": 0.37094,
+     "range_ms": [
+      0.36048,
+      0.37446
+     ],
+     "warm_ms": 0.34289,
+     "range_warm_ms": [
+      0.3426,
+      0.34294
+     ]
+    },
+    {
+     "how": "rowwise(unroll=1)",
+     "ms": 0.28602,
+     "range_ms": [
+      0.2821,
+      0.29562
+     ],
+     "warm_ms": 0.26858,
+     "range_warm_ms": [
+      0.26768,
+      0.27256
+     ]
+    },
+    {
+     "how": "rowwise(unroll=2)",
+     "ms": 0.25336,
+     "range_ms": [
+      0.25214,
+      0.25638
+     ],
+     "warm_ms": 0.24092,
+     "range_warm_ms": [
+      0.23814,
+      0.24228
+     ]
+    },
+    {
+     "how": "rowwise(unroll=4)",
+     "ms": 0.24814,
+     "range_ms": [
+      0.24724,
+      0.2487
+     ],
+     "warm_ms": 0.2323,
+     "range_warm_ms": [
+      0.23086,
+      0.23388
+     ]
+    }
+   ],
+   "second": [
+    {
+     "how": "amdclang -O3",
+     "ms": 0.34884,
+     "range_ms": [
+      0.34819,
+      0.3494
+     ],
+     "warm_ms": 0.34224,
+     "range_warm_ms": [
+      0.34178,
+      0.34262
+     ]
+    },
+    {
+     "how": "elementwise(elements_per_lane=1)",
+     "ms": 0.3066,
+     "range_ms": [
+      0.3059,
+      0.31228
+     ],
+     "warm_ms": 0.2931,
+     "range_warm_ms": [
+      0.29106,
+      0.296
+     ]
+    },
+    {
+     "how": "elementwise(elements_per_lane=2)",
+     "ms": 0.20184,
+     "range_ms": [
+      0.20144,
+      0.20204
+     ],
+     "warm_ms": 0.19022,
+     "range_warm_ms": [
+      0.19018,
+      0.19064
+     ]
+    },
+    {
+     "how": "elementwise(elements_per_lane=4)",
+     "ms": 0.1939,
+     "range_ms": [
+      0.1929,
+      0.19504
+     ],
+     "warm_ms": 0.174,
+     "range_warm_ms": [
+      0.17054,
+      0.17404
+     ]
+    }
+   ],
+   "fused": [
+    {
+     "how": "rowwise(unroll=1)",
+     "ms": 0.28467,
+     "range_ms": [
+      0.28166,
+      0.28886
+     ],
+     "warm_ms": 0.27184,
+     "range_warm_ms": [
+      0.26662,
+      0.27192
+     ],
+     "battery": "77/77"
+    },
+    {
+     "how": "rowwise(unroll=2)",
+     "ms": 0.2631,
+     "range_ms": [
+      0.26104,
+      0.26762
+     ],
+     "warm_ms": 0.24784,
+     "range_warm_ms": [
+      0.24488,
+      0.24854
+     ],
+     "battery": "77/77"
+    },
+    {
+     "how": "rowwise(unroll=4)",
+     "ms": 0.24796,
+     "range_ms": [
+      0.24608,
+      0.24902
+     ],
+     "warm_ms": 0.23358,
+     "range_warm_ms": [
+      0.23348,
+      0.23504
+     ],
+     "battery": "77/77"
+    }
+   ],
+   "sequential_ms": 0.44204,
+   "fused_ms": 0.24796,
+   "speedup": 1.783,
+   "warm_speedup": 1.739,
+   "warm_ms": {
+    "first": 0.2323,
+    "second": 0.174,
+    "fused": 0.23358
+   },
+   "speedup_range": [
+    1.767,
+    1.803
+   ],
+   "best": {
+    "first": "rowwise(unroll=4)",
+    "second": "elementwise(elements_per_lane=4)",
+    "fused": "rowwise(unroll=4)"
+   }
+  },
+  "layernorm:gelu": {
+   "program": "tair layernorm_gelu(x: f32[R, C], g: f32[C], b: f32[C], eps: f32) -> (gelu_y: f32[R, C]) {\n  mean = reduce mean(x)\n  var = reduce mean((x - mean) * (x - mean))\n  y = (x - mean) * rsqrt(var + eps) * g + b\n  gelu_y = 0.5 * y * (1.0 + tanh(0.7978845608 * (y + 0.044715 * y * y * y)))\n}\n",
+   "elements": 134217728,
+   "first": [
+    {
+     "how": "amdclang -O3",
+     "ms": 0.46164,
+     "range_ms": [
+      0.46095,
+      0.46293
+     ],
+     "warm_ms": 0.44556,
+     "range_warm_ms": [
+      0.44459,
+      0.4456
+     ]
+    },
+    {
+     "how": "rowwise(unroll=1)",
+     "ms": 0.35294,
+     "range_ms": [
+      0.34742,
+      0.35378
+     ],
+     "warm_ms": 0.3281,
+     "range_warm_ms": [
+      0.32798,
+      0.32872
+     ]
+    },
+    {
+     "how": "rowwise(unroll=2)",
+     "ms": 0.31946,
+     "range_ms": [
+      0.31894,
+      0.32099
+     ],
+     "warm_ms": 0.30808,
+     "range_warm_ms": [
+      0.30776,
+      0.30864
+     ]
+    },
+    {
+     "how": "rowwise(unroll=4)",
+     "ms": 0.30668,
+     "range_ms": [
+      0.30286,
+      0.30692
+     ],
+     "warm_ms": 0.29351,
+     "range_warm_ms": [
+      0.29344,
+      0.2938
+     ]
+    }
+   ],
+   "second": [
+    {
+     "how": "amdclang -O3",
+     "ms": 0.3464,
+     "range_ms": [
+      0.34346,
+      0.36276
+     ],
+     "warm_ms": 0.33734,
+     "range_warm_ms": [
+      0.33354,
+      0.3397
+     ]
+    },
+    {
+     "how": "elementwise(elements_per_lane=1)",
+     "ms": 0.30866,
+     "range_ms": [
+      0.30777,
+      0.3092
+     ],
+     "warm_ms": 0.29678,
+     "range_warm_ms": [
+      0.296,
+      0.29682
+     ]
+    },
+    {
+     "how": "elementwise(elements_per_lane=2)",
+     "ms": 0.20418,
+     "range_ms": [
+      0.20212,
+      0.205
+     ],
+     "warm_ms": 0.19194,
+     "range_warm_ms": [
+      0.1915,
+      0.19406
+     ]
+    },
+    {
+     "how": "elementwise(elements_per_lane=4)",
+     "ms": 0.19536,
+     "range_ms": [
+      0.18942,
+      0.19586
+     ],
+     "warm_ms": 0.17524,
+     "range_warm_ms": [
+      0.17358,
+      0.17562
+     ]
+    }
+   ],
+   "fused": [
+    {
+     "how": "rowwise(unroll=1)",
+     "ms": 0.34557,
+     "range_ms": [
+      0.34485,
+      0.3506
+     ],
+     "warm_ms": 0.32202,
+     "range_warm_ms": [
+      0.32122,
+      0.32666
+     ],
+     "battery": "77/77"
+    },
+    {
+     "how": "rowwise(unroll=2)",
+     "ms": 0.32364,
+     "range_ms": [
+      0.32054,
+      0.32482
+     ],
+     "warm_ms": 0.30784,
+     "range_warm_ms": [
+      0.3065,
+      0.31036
+     ],
+     "battery": "77/77"
+    },
+    {
+     "how": "rowwise(unroll=4)",
+     "ms": 0.30807,
+     "range_ms": [
+      0.30746,
+      0.3081
+     ],
+     "warm_ms": 0.29608,
+     "range_warm_ms": [
+      0.29594,
+      0.29624
+     ],
+     "battery": "77/77"
+    }
+   ],
+   "sequential_ms": 0.50204,
+   "fused_ms": 0.30807,
+   "speedup": 1.63,
+   "warm_speedup": 1.583,
+   "warm_ms": {
+    "first": 0.29351,
+    "second": 0.17524,
+    "fused": 0.29608
+   },
+   "speedup_range": [
+    1.598,
+    1.635
+   ],
+   "best": {
+    "first": "rowwise(unroll=4)",
+    "second": "elementwise(elements_per_lane=4)",
+    "fused": "rowwise(unroll=4)"
+   }
+  },
+  "gelu:cast_bf16": {
+   "program": "tair gelu_cast_bf16(x: f32[N]) -> (cast_bf16_y: bf16[N]) {\n  y = 0.5 * x * (1.0 + tanh(0.7978845608 * (x + 0.044715 * x * x * x)))\n  cast_bf16_y = cast_bf16(y)\n}\n",
+   "elements": 67108864,
+   "first": [
+    {
+     "how": "amdclang -O3",
+     "ms": 0.18786,
+     "range_ms": [
+      0.18528,
+      0.18916
+     ],
+     "warm_ms": 0.1742,
+     "range_warm_ms": [
+      0.17172,
+      0.17564
+     ]
+    },
+    {
+     "how": "elementwise(elements_per_lane=1)",
+     "ms": 0.1644,
+     "range_ms": [
+      0.16284,
+      0.16658
+     ],
+     "warm_ms": 0.149,
+     "range_warm_ms": [
+      0.14868,
+      0.15104
+     ]
+    },
+    {
+     "how": "elementwise(elements_per_lane=2)",
+     "ms": 0.1107,
+     "range_ms": [
+      0.10982,
+      0.1108
+     ],
+     "warm_ms": 0.09892,
+     "range_warm_ms": [
+      0.09786,
+      0.09908
+     ]
+    },
+    {
+     "how": "elementwise(elements_per_lane=4)",
+     "ms": 0.10822,
+     "range_ms": [
+      0.10734,
+      0.10878
+     ],
+     "warm_ms": 0.08872,
+     "range_warm_ms": [
+      0.08834,
+      0.08912
+     ]
+    }
+   ],
+   "second": [
+    {
+     "how": "amdclang -O3",
+     "ms": 0.15316,
+     "range_ms": [
+      0.1509,
+      0.1553
+     ],
+     "warm_ms": 0.14172,
+     "range_warm_ms": [
+      0.14053,
+      0.14175
+     ]
+    },
+    {
+     "how": "elementwise(elements_per_lane=1)",
+     "ms": 0.15384,
+     "range_ms": [
+      0.15382,
+      0.15391
+     ],
+     "warm_ms": 0.14038,
+     "range_warm_ms": [
+      0.13992,
+      0.14092
+     ]
+    },
+    {
+     "how": "elementwise(elements_per_lane=2)",
+     "ms": 0.0966,
+     "range_ms": [
+      0.09598,
+      0.09748
+     ],
+     "warm_ms": 0.08444,
+     "range_warm_ms": [
+      0.08386,
+      0.08446
+     ]
+    },
+    {
+     "how": "elementwise(elements_per_lane=4)",
+     "ms": 0.0952,
+     "range_ms": [
+      0.0952,
+      0.0954
+     ],
+     "warm_ms": 0.07202,
+     "range_warm_ms": [
+      0.07196,
+      0.0723
+     ]
+    }
+   ],
+   "fused": [
+    {
+     "how": "elementwise(elements_per_lane=1)",
+     "ms": 0.15936,
+     "range_ms": [
+      0.15644,
+      0.15962
+     ],
+     "warm_ms": 0.14548,
+     "range_warm_ms": [
+      0.14547,
+      0.14568
+     ],
+     "battery": "49/49"
+    },
+    {
+     "how": "elementwise(elements_per_lane=2)",
+     "ms": 0.10288,
+     "range_ms": [
+      0.10268,
+      0.10312
+     ],
+     "warm_ms": 0.08796,
+     "range_warm_ms": [
+      0.08772,
+      0.08822
+     ],
+     "battery": "49/49"
+    },
+    {
+     "how": "elementwise(elements_per_lane=4)",
+     "ms": 0.09516,
+     "range_ms": [
+      0.09484,
+      0.0954
+     ],
+     "warm_ms": 0.07146,
+     "range_warm_ms": [
+      0.07142,
+      0.0716
+     ],
+     "battery": "49/49"
+    }
+   ],
+   "sequential_ms": 0.20342,
+   "fused_ms": 0.09516,
+   "speedup": 2.138,
+   "warm_speedup": 2.249,
+   "warm_ms": {
+    "first": 0.08872,
+    "second": 0.07202,
+    "fused": 0.07146
+   },
+   "speedup_range": [
+    2.123,
+    2.153
+   ],
+   "best": {
+    "first": "elementwise(elements_per_lane=4)",
+    "second": "elementwise(elements_per_lane=4)",
+    "fused": "elementwise(elements_per_lane=4)"
+   }
+  }
+ },
+ "what": "two kernels in a row (the fastest verified build of each, timed alone, added up) against the kernel generated from their fused tensor program; ratios of medians over several allocations, not paired timings; `speedup` with caches flushed before every launch, `warm_speedup` with the caches as the previous launch left them",
+ "protocol": "agc-timing-amd-2",
+ "toolchain": {
+  "clang": "AMD clang version 23.0.0git (https://github.com/ROCm/llvm-project.git 46fcb339fb61119b337f973c7ca9e710a319fdd0+PATCHED:440716f8b87be9d8e20ed910e10e5b6d14d57cf6)",
+  "rocm": "7.14.60850"
+ },
+ "recorded": "2026-11-21",
+ "runs": 3
+}

@@ -41,23 +41,62 @@ def summarize(kernels: dict) -> dict:
             "geomean": round(math.exp(sum(map(math.log, sp)) / len(sp)), 3) if sp else None}
 
 
+def warm_cell(c: dict) -> str:
+    w = c.get("warm")
+    if not w or not w.get("speedup"):
+        return ""
+    return f"{w['speedup']:.2f} ({w['speedup_ci95'][0]:.2f} to {w['speedup_ci95'][1]:.2f})"
+
+
 def table(out: dict) -> str:
-    rows = ["| kernel | library | baseline ms | agc ms | speedup (95% CI) | how | bit-identical |", "|---|---|---|---|---|---|---|"]
+    rows = ["| kernel | library | baseline ms | agc ms | speedup (95% CI) | with warm caches | how | bit-identical |", "|---|---|---|---|---|---|---|---|"]
     for n, k in out["kernels"].items():
         c = k["chosen"]
         if k["fallback"]:
-            rows.append(f"| `{n}` | {k['library']} | {k['amdclang_ms']:.4f} | | fallback (no verified win) | | |")
+            rows.append(f"| `{n}` | {k['library']} | {k['amdclang_ms']:.4f} | | fallback (no verified win) | | | |")
         else:
             rows.append(f"| `{n}` | {k['library']} | {c['amdclang_ms']:.4f} | {c['ms']:.4f} | **{c['speedup']:.2f}** "
-                        f"({c['ci95'][0]:.2f} to {c['ci95'][1]:.2f}) | `{c['how']}` | {'yes' if c['bit_identical'] else 'no'} |")
+                        f"({c['ci95'][0]:.2f} to {c['ci95'][1]:.2f}) | {warm_cell(c)} | `{c['how']}` | {'yes' if c['bit_identical'] else 'no'} |")
     s = out["summary"]
+    rows.append("")
+    rows.append("Speedups are measured with the caches flushed before every launch (the protocol's default). Results that use "
+                "non-temporal loads (`stream_loads`) depend on that: the `with warm caches` column is the same paired timing with "
+                "the caches as the previous launch left them.")
     rows.append("")
     rows.append(f"{s['wins']} wins and {s['fallbacks']} fallbacks over {s['kernels']} kernels; geomean {s['geomean']} "
                 f"with fallbacks counted as 1.0. Protocol `{out['protocol']}`, recorded {out['recorded']}.")
     return "\n".join(rows)
 
 
+def warm(only: list[str]) -> None:
+    """The warm-cache control for every chosen result that uses non-temporal loads and has none yet."""
+    import re
+    from agc.session.policy import warm_control
+    out = json.loads(OUT.read_text())
+    root = tempfile.mkdtemp(prefix="agc-llm-warm-")
+    for n, k in out["kernels"].items():
+        c = k["chosen"]
+        if k["fallback"] or "stream_loads" not in c["how"] or c["path"] != "import+pass" or (only and n not in only) or (c.get("warm") and not only):
+            continue
+        s = Session.open(BENCH / f"{n}.json", root)
+        sid = "baseline"
+        for step in c["how"].split(" + "):
+            name, args = re.fullmatch(r"(\w+)\((.*)\)", step).groups()
+            params = {}
+            for kv in filter(None, (x.strip() for x in args.split(","))):
+                key, v = kv.split("=")
+                params[key] = int(v) if v.lstrip("-").isdigit() else v
+            sid = s.apply(sid, name, params)["id"]
+        s.check(sid)
+        c["warm"] = warm_control(s, sid)
+        OUT.write_text(json.dumps(out, indent=1) + "\n")
+        print(f"{n:22s} {c['how']:44s} flush {c['speedup']:.3f}  warm {c['warm'].get('speedup')} {c['warm'].get('speedup_ci95')}", flush=True)
+
+
 def main(argv) -> int:
+    if argv[:1] == ["--warm"]:
+        warm(argv[1:])
+        return 0
     if argv == ["--table"]:
         print(table(json.loads(OUT.read_text())))
         return 0

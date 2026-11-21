@@ -956,6 +956,31 @@ class Session:
             self.store.put_result(sid, "check", cached)
         return {"id": sid, **{k: v for k, v in cached.items() if k != "t"}}
 
+    def bench_warm(self, ref: str, pairs: int | None = None) -> dict:
+        """The paired timing of `bench` with the caches as the previous launch left them, instead of flushed
+        before every launch: a control for results that depend on what the caches hold (non-temporal loads).
+        Not stored as the state's bench result."""
+        sid, base = self.resolve(ref), self.base_id
+        ck = self.store.get_result(sid, "check")
+        if not (ck and ck.get("ok")):
+            raise SessionError("unverified", f"state {sid} has no passing battery", suggestion="check it first")
+        if base is None:
+            raise SessionError("parameter", "no baseline to time against")
+        proto = self._protocol(pairs)
+        proto.cache = "warm"
+        try:
+            r = harness.paired(self.manifest, self._hsaco(base), self._hsaco(sid), root=self.root, protocol=proto,
+                               reference_launch=self.launch_of(base), candidate_launch=self.launch_of(sid))
+        except ExecutorError as e:
+            raise SessionError("gpu", str(e)[:1500]) from None
+        if not r.get("ok"):
+            return {"ok": False, "error": r.get("error"), "failed": r.get("failed")}
+        out = {"ok": True, "cache": "warm", "outcome": r["outcome"], "speedup": round(r["speedup"], 4),
+               "speedup_ci95": [round(x, 4) for x in r["speedup_ci95"]], "reference_ms": round(r["reference"]["median_ms"], 5),
+               "candidate_ms": round(r["candidate"]["median_ms"], 5), "pairs": r["pairs"]}
+        self.store.put_result(sid, "bench_warm", out)
+        return {"id": sid, **out}
+
     @staticmethod
     def _protocol(pairs: int | None) -> TimingProtocol:
         """Paired timings are spread over several allocations of the tensors (10 pairs each): the time of a

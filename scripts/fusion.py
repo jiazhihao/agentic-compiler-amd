@@ -25,22 +25,28 @@ from agc import corpus, gen
 from agc.manifest import Manifest, eval_expr
 from agc.mir import check
 from agc.runtime import harness, toolchain
-from agc.runtime.timing import PROTOCOL_VERSION
+from agc.runtime.timing import PROTOCOL_VERSION, TimingProtocol
 from agc.tair.fuse import fuse_manifests
 
-OUT = corpus.BASELINES / "fusion-gfx950.json"
+OUT = corpus.BASELINES.with_name("fusion-gfx950.json")
 PAIRS = [("rmsnorm", "gelu"), ("layernorm", "gelu"), ("gelu", "cast_bf16")]
 RUNS = 3
 
 
 def timed(m: Manifest, hsaco: bytes, launch, symbols) -> dict | None:
-    ms = []
-    for _ in range(RUNS):
-        r = harness.bench(m, hsaco, launch=launch, symbols=symbols, priority="batch")
-        if not r.get("ok"):
-            return None
-        ms.append(r["timing"]["median_ms"])
-    return {"ms": round(float(np.median(ms)), 5), "range_ms": [round(min(ms), 5), round(max(ms), 5)]}
+    """Median over RUNS processes with flushed caches (`ms`), and with the caches as the previous launch of the
+    same kernel left them (`warm_ms`): under `flush` every launch also evicts what the harness wrote."""
+    out = {}
+    for key, cache in (("ms", "flush"), ("warm_ms", "warm")):
+        ms = []
+        for _ in range(RUNS):
+            r = harness.bench(m, hsaco, launch=launch, symbols=symbols, priority="batch", protocol=TimingProtocol(cache=cache))
+            if not r.get("ok"):
+                return None
+            ms.append(r["timing"]["median_ms"])
+        out[key] = round(float(np.median(ms)), 5)
+        out["range_" + key] = [round(min(ms), 5), round(max(ms), 5)]
+    return out
 
 
 def variants(m: Manifest, symbols, battery: bool) -> list[dict]:
@@ -79,16 +85,23 @@ def run(a: str, b: str) -> dict:
     if len(mb.timing_symbols()) != 1 and mb.timing_symbols() != sym:
         raise SystemExit(f"{b}: cannot size the second stage for {elements} elements")
     first, second, fused = variants(ma, sym, False), variants(mb, bsym if len(bsym) == 1 else sym, False), variants(mf, sym, True)
-    best = lambda rows: min((r for r in rows if "ms" in r), key=lambda r: r["ms"])
+    best = lambda rows: min((r for r in rows if "ms" in r), key=lambda r: r["ms"], default=None)
     f1, f2, ff = best(first), best(second), best(fused)
+    if ff is None:
+        print(f"{a} -> {b}: no fused variant passed the battery", flush=True)
+        return {"program": mf.program.text, "elements": elements, "first": first, "second": second, "fused": fused, "speedup": None}
     seq = f1["ms"] + f2["ms"]
+    w = lambda rows: min(r["warm_ms"] for r in rows if "warm_ms" in r)
+    warm = (w(first) + w(second)) / w(fused)
     out = {"program": mf.program.text, "elements": elements, "first": first, "second": second, "fused": fused,
-           "sequential_ms": round(seq, 5), "fused_ms": ff["ms"], "speedup": round(seq / ff["ms"], 3),
+           "sequential_ms": round(seq, 5), "fused_ms": ff["ms"], "speedup": round(seq / ff["ms"], 3), "warm_speedup": round(warm, 3),
+           "warm_ms": {"first": w(first), "second": w(second), "fused": w(fused)},
            "speedup_range": [round((f1["range_ms"][0] + f2["range_ms"][0]) / ff["range_ms"][1], 3),
                              round((f1["range_ms"][1] + f2["range_ms"][1]) / ff["range_ms"][0], 3)],
            "best": {"first": f1["how"], "second": f2["how"], "fused": ff["how"]}}
     print(f"{a} -> {b}: sequential {seq:.4f} ms ({f1['how']} {f1['ms']:.4f} + {f2['how']} {f2['ms']:.4f}), "
-          f"fused {ff['ms']:.4f} ms ({ff['how']}): {out['speedup']:.3f}x {out['speedup_range']}", flush=True)
+          f"fused {ff['ms']:.4f} ms ({ff['how']}): {out['speedup']:.3f}x {out['speedup_range']}; warm caches {warm:.3f}x "
+          f"({w(first):.4f} + {w(second):.4f} against {w(fused):.4f} ms)", flush=True)
     return out
 
 
@@ -96,7 +109,8 @@ def main(argv) -> int:
     pairs = [tuple(x.split(":")) for x in argv] or PAIRS
     rec = json.loads(OUT.read_text()) if OUT.exists() else {"pairs": {}}
     rec.update(what="two kernels in a row (the fastest verified build of each, timed alone, added up) against the kernel generated "
-                    "from their fused tensor program; ratios of medians over several allocations, not paired timings",
+                    "from their fused tensor program; ratios of medians over several allocations, not paired timings; `speedup` with caches flushed before every launch, "
+                    "`warm_speedup` with the caches as the previous launch left them",
                protocol=PROTOCOL_VERSION, toolchain=toolchain.identity(), recorded=time.strftime("%Y-%m-%d"), runs=RUNS)
     for a, b in pairs:
         rec["pairs"][f"{a}:{b}"] = run(a, b)

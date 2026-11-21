@@ -324,6 +324,15 @@ def bench(ref: str, pairs: int | None = None) -> dict:
 
 
 @tool
+def bench_warm(ref: str, pairs: int | None = None) -> dict:
+    """`bench` with the caches as the previous launch left them, instead of flushed before every launch. Under the
+    default (flush) part of every time is the eviction of what the harness wrote; a state whose gain comes from
+    non-temporal loads (`stream_loads`, `nt`) wins there and can be parity here. Run it on every such state and
+    report both numbers."""
+    return _s().bench_warm(ref, pairs)
+
+
+@tool
 def compare(a: str, b: str, pairs: int | None = None) -> dict:
     """Paired timing of state b against state a (both verified): ranks two candidates that are too close to tell
     apart through their separate timings against ref."""

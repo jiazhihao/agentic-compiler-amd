@@ -72,11 +72,11 @@ over the strongest amdclang build (LLM benchmark) or over `amdclang -O3` (corpus
 - **Recipe:** none (fallback); `docs/kernels/rb_gemvn.md`.
 
 ### A9. Non-temporal loads (pass `stream_loads`)
-- **Verdict:** pays, 1.09x to 1.14x on a plain copy: the memory floor moves
-- **Applies when:** a kernel reads each element once (touch-once: elementwise, copies, single-pass reductions). Not when the same data is read again by the kernel (attention, GEMM operands).
-- **How:** `apply(id, "stream_loads", {"scope": "all"})`: every `global_load_*` gets `sc0 sc1 nt`. Bit-identical. The default policy tries it on every kernel. Do not put `nt` on stores.
-- **Measured:** `rb_copy`, 120 pairs over 12 allocations, on amdclang's code: loads `nt` 1.089 (1.082 to 1.096); `sc0 nt` 1.134; `sc1 nt` 1.130; `sc0 sc1 nt` 1.139 (1.132 to 1.145). `sc0`, `sc1`, `sc0 sc1` without `nt`: parity. Stores with `nt`: 0.89 to 0.92 (loss); stores `sc0 sc1`: 1.018 (1.006 to 1.031), parity by the rule. The sweep over all 36 kernels is in the default-policy record (`RECIPES.md`).
-- **Recipe:** pass; default policy.
+- **Verdict:** pays 1.2x to 1.7x when the caches hold other data (the cold-cache protocol); parity when they do not. Not a change of the memory floor
+- **Applies when:** a kernel reads each element once (elementwise, copies, single-pass reductions, row merges) and runs right after something else wrote a lot of memory. Not when the kernel reads the same data again (attention, GEMM operands).
+- **How:** `apply(id, "stream_loads", {"scope": "all"})`: every `global_load_*` gets `sc0 sc1 nt`. Bit-identical. The default policy tries it alone and on top of the best other win. Do not put `nt` on stores.
+- **Measured:** under the timing protocol's default (`flush`: a buffer larger than the caches is written before every launch): `rb_copy` 1.139 (1.132 to 1.145); default policy `fi_merge_states` 1.69 with `coarsen(2)`, `fi_silu_and_mul` 1.44, `fi_gelu_tanh_and_mul` 1.36, `fi_merge_state` 1.33, `fi_rope` 1.31, `fi_merge_state_in_place` 1.20, `kda_step` 1.07. Control on `fi_silu_and_mul` (120 pairs, 12 allocations): flush 1.448 (1.437 to 1.460); caches as the previous launch left them (`warm`) 0.996 (0.986 to 1.006); small shapes 1.001 and 0.997. The baseline itself is 96.8 us after a flush and 60.8 us warm: a normal load has to evict what the flush left in the caches and a non-temporal one does not. So the gain is real for a kernel that follows a large write by another kernel, and absent when the caches are clean. `nt` alone on loads 1.09; `sc0` / `sc1` without `nt` parity; `nt` on stores 0.89 to 0.92.
+- **Recipe:** pass; default policy. Report the warm control with the result.
 
 ## B. Launch geometry
 
@@ -279,6 +279,15 @@ over the strongest amdclang build (LLM benchmark) or over `amdclang -O3` (corpus
 - **Measured:** block (32, 16) 1.06 on `rb_gemvn`.
 - **Recipe:** none.
 
+## I. Across kernels
+
+### I1. Fusion: two kernels in a row as one generated kernel
+- **Verdict:** pays, 1.6x to 2.2x over the two fastest separate kernels, with flushed and with warm caches
+- **Applies when:** a kernel that touches every element once consumes the output of another one (a norm followed by an activation, an activation followed by a cast). The intermediate tensor is written by the first and read by the second: at the memory floor that is the whole cost of the second kernel's read and the first one's write.
+- **How:** `agc.tair.fuse.fuse(a, b, {input of b: output of a})` composes the two tensor programs; `fuse_manifests` makes the fused manifest (the fused program is also its float64 reference; the first stage's `cond` allowance is kept, scaled by the first stage's magnitude). The existing templates compile it: `rowwise` when the first stage reduces over rows, `elementwise` otherwise. `scripts/fusion.py` measures.
+- **Measured:** full battery passed for every fused variant. Fused against the sum of the fastest verified build of each stage (medians over 3 allocations, not paired): `rmsnorm` then `gelu` 1.78 (warm caches 1.74); `layernorm` then `gelu` 1.63 (1.58); `gelu` then `cast_bf16` 2.14 (2.25).
+- **Recipe:** `tests/baselines/fusion-gfx950.json`; `scripts/fusion.py`.
+
 ## H. Measuring (get these wrong and every number above is wrong)
 
 ### H1. Placements: time depends on where the tensors were allocated
@@ -308,6 +317,13 @@ over the strongest amdclang build (LLM benchmark) or over `amdclang -O3` (corpus
 - **How:** `equivalent(id)`: the original binary and the state's on the same inputs, outputs compared with each other.
 - **Measured:** all shipped states within tolerance; bit-identical where the baseline is not a `-ffast-math` build.
 - **Recipe:** `scripts/equivalence.py`.
+
+### H0. The cold-cache protocol charges the kernel for evicting the flush
+- **Verdict:** essential
+- **Applies when:** reading any time or "memory floor" measured with the default `flush` cache policy.
+- **How:** compare with `TimingProtocol(cache="warm")`. Part of every time under `flush` is the eviction of the buffer the harness wrote before the launch.
+- **Measured:** `fi_silu_and_mul` baseline 96.8 us flush, 60.8 us warm at the same shapes. The floor model (H5) was fitted under `flush`.
+- **Recipe:** `agc/runtime/timing.py`.
 
 ### H5. The memory floor model
 - **Verdict:** a model, not a proof

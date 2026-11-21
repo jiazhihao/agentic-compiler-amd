@@ -13,7 +13,7 @@ The complete catalog is `OPTIMIZATIONS.md`; every verified result with its recip
 |---|---|---|---|
 | re-reading | a tensor is read once per head, query or pass; traffic is above the touch-once model | read it once: wave-uniform rows through scalar loads, MFMA tiles, values kept in registers | `fa_attention` 2.09, `fa_attention_causal` 1.99, `mla_decode` 1.57, `attn_decode` 1.55 |
 | serialized on one resource | one workgroup does the work, the others idle; probes show two bounds of equal size | remove both bounds (cold reads, LDS atomics on shared addresses) | `vl_moe_align` 1.55 |
-| touch-once, memory floor | every element read once and written once; `reference_headroom` 0.9 to 1.1 | non-temporal loads (`stream_loads`) move the floor itself: 1.09 to 1.14 on a copy. Body rewrites do not: best 1.12 (`rb_scal`), most at parity | all `rb_*` level 1, `mo_*`, `fi_*` elementwise, row norms |
+| touch-once, memory floor | every element read once and written once; `reference_headroom` 0.9 to 1.1 | body rewrites do not help: best 1.12 (`rb_scal`), most at parity. Non-temporal loads (`stream_loads`) give 1.2 to 1.7 under the cold-cache protocol and parity with warm caches: report both | all `rb_*` level 1, `mo_*`, `fi_*` elementwise, row norms |
 
 On a touch-once kernel the instruction count of the body is free: hand-written bodies with 25 % to
 60 % fewer instructions measured 0.99 to 1.00 on `rb_axpy`, `rb_dot`, `fi_gelu_tanh_and_mul`,

@@ -60,9 +60,14 @@ def fuse(a: Program, b: Program, link: dict[str, str], name: str | None = None) 
     return p
 
 
-def fuse_manifests(ma, mb, link: dict[str, str], name: str | None = None) -> dict:
+def fuse_manifests(ma, mb, link: dict[str, str], name: str | None = None, gain: float = 1.25) -> dict:
     """The manifest (as a dict) of the fused kernel of two manifests that carry tair programs. Sizes come
-    from the first manifest; integer scalars of the second that carry its own sizes are dropped."""
+    from the first manifest; integer scalars of the second that carry its own sizes are dropped.
+
+    Tolerance: relative tolerances add. When the first manifest has a `cond` allowance (a reduction that can
+    cancel), the fused kernel keeps it, scaled by the first stage's magnitude: the fused program on |inputs|
+    is no bound for an error made before the second stage. `gain` is how much the second stage may amplify
+    an absolute error (1.13 for gelu, 1 for a cast); the caller asserts it for the second program."""
     from .reference import load_text
     pa, pb = load_text(ma, ma.program), load_text(mb, mb.program)
     f = fuse(pa, pb, link, name)
@@ -92,18 +97,21 @@ def fuse_manifests(ma, mb, link: dict[str, str], name: str | None = None) -> dic
     text = print_program(f)
     out_names = [d["name"] for d in params if d.get("role") in ("out", "inout")]
     # errors of the first stage pass through the second: relative tolerances add; rounding the result to bf16
-    # can move it by one unit in the last place (2^-8 relative) when the first stage is not exact
+    # can move it by one unit in the last place (up to 2^-7 relative) when the first stage is not exact
     ta = [ma.tolerance.get(a_outs[ao].name) or ma.tolerance.get("*") or {} for ao in link.values()]
     ra, aa = max((x.get("rtol", 0) for x in ta), default=0), max((x.get("atol", 0) for x in ta), default=0)
     tol = {}
     for n, mo in zip(out_names, mb.outputs()):
         tb = mb.tolerance.get(mo.name) or mb.tolerance.get("*") or {}
-        tol[n] = {"rtol": ra + tb.get("rtol", 0) + (2 ** -8 if str(mo.dtype) == "bf16" and (ra or aa) else 0),
+        tol[n] = {"rtol": ra + tb.get("rtol", 0) + (2 ** -7 if str(mo.dtype) == "bf16" and (ra or aa) else 0),
                   "atol": max(aa, tb.get("atol", 0))}
         cond = max([x.get("cond", 0) for x in ta] + [tb.get("cond", 0)])
         if cond:
-            tol[n]["cond"] = cond
+            tol[n]["cond"] = cond * gain
+    reference = {"kind": "tair", "text": text}
+    if any("cond" in v for v in tol.values()) and len(link) == len(out_names) == len(pa.outputs):
+        reference["magnitude"] = print_program(pa)
     return {"name": f.name, "entry": f.name, "shapes": dict(ma.shapes), "bench_shapes": dict(ma.timing_symbols()),
             "dynamic": list(ma.dynamic), "launch": {"grid": list(ma.grid), "block": list(ma.block)},
-            "params": params, "reference": {"kind": "tair", "text": text}, "program": {"text": text},
+            "params": params, "reference": reference, "program": {"text": text},
             "tolerance": tol, "tags": ["fused"]}
