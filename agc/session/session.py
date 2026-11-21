@@ -48,6 +48,7 @@ class SessionError(Exception):
         return d
 
 
+PAIRS_PER_PLACEMENT = 10               # paired timings: pairs per allocation of the tensors
 TRANSFORMS: dict[str, dict] = {}       # name -> {"fn": fn(module, kernel_name, **params) -> Module, "doc", "params"}
 
 
@@ -411,7 +412,7 @@ class Session:
                 raise SessionError("unverified", f"state {sid} has no passing battery", suggestion="check it first")
         try:
             r = harness.paired(self.manifest, self._hsaco(ia), self._hsaco(ib), root=self.root,
-                               protocol=TimingProtocol(pairs=pairs) if pairs else None, reference_launch=self.launch_of(ia), candidate_launch=self.launch_of(ib))
+                               protocol=self._protocol(pairs), reference_launch=self.launch_of(ia), candidate_launch=self.launch_of(ib))
         except ExecutorError as e:
             raise SessionError("gpu", str(e)[:1500]) from None
         if not r.get("ok"):
@@ -955,6 +956,13 @@ class Session:
             self.store.put_result(sid, "check", cached)
         return {"id": sid, **{k: v for k, v in cached.items() if k != "t"}}
 
+    @staticmethod
+    def _protocol(pairs: int | None) -> TimingProtocol:
+        """Paired timings are spread over several allocations of the tensors (10 pairs each): the time of a
+        memory-bound kernel depends on where its tensors are, differently for each code object."""
+        n = pairs or TimingProtocol().pairs
+        return TimingProtocol(pairs=n, placements=max(1, n // PAIRS_PER_PLACEMENT))
+
     def bench(self, ref: str, pairs: int | None = None) -> dict:
         """Paired timing against `baseline` (the strongest amdclang build; `ref` when the manifest names
         none) at the manifest's bench shapes. Needs a passing battery. For the baseline itself this is
@@ -962,7 +970,7 @@ class Session:
         the protocol's default, for effects of a few percent (the CI narrows with the square root)."""
         if pairs is not None and (type(pairs) is not int or not 60 <= pairs <= 1000):
             raise SessionError("parameter", "pairs must be an integer from 60 to 1000")
-        proto = TimingProtocol(pairs=pairs) if pairs else None
+        proto = self._protocol(pairs)
         sid = self.resolve(ref)
         hsaco = self._hsaco(sid)
         ck = self.store.get_result(sid, "check")
@@ -1005,9 +1013,13 @@ class Session:
                     "traffic": self.traffic(r["candidate"]["median_ms"]),
                     "reference_headroom": self.traffic(r["reference"]["median_ms"]).get("headroom")}
             width = (r["speedup_ci95"][1] - r["speedup_ci95"][0]) / r["speedup"]
+            if r.get("placements"):
+                ps = r["placement_speedups"]
+                data.update(placements=r["placements"], placement_speedups=[round(min(ps), 4), round(max(ps), 4)])
             if width > 0.04:
-                data["disturbed"] = (f"the CI is {width:.0%} of the speedup: something else ran on the device; "
-                                     "time this state again before using the number")
+                data["disturbed"] = (f"the CI is {width:.0%} of the speedup: the speedup differs between allocations of the "
+                                     "tensors (see placement_speedups: lowest and highest) or something else ran on the "
+                                     "device; pass pairs=240 for more allocations before using the number")
         self.store.put_result(sid, "bench", data)
         return {"id": sid, **data}
 

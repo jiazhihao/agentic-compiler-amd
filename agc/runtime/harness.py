@@ -52,12 +52,12 @@ def bench(m: Manifest, hsaco: bytes, *, protocol: TimingProtocol | None = None, 
 
 def paired(m: Manifest, reference: bytes, candidate: bytes, *, protocol: TimingProtocol | None = None,
            symbols: dict | None = None, root: Path | None = None, reference_launch: dict | None = None,
-           candidate_launch: dict | None = None, **run) -> dict:
+           candidate_launch: dict | None = None, series: bool = False, **run) -> dict:
     """Speedup of `candidate` over `reference`, launched alternately in one process. `outcome` is
     `win` or `loss` only when the 95 % CI of the speedup excludes 1."""
     return run_job(_job(m, "paired", reference_hsaco=_b64(reference), candidate_hsaco=_b64(candidate),
                         protocol=(protocol or TimingProtocol()).to_dict(), symbols=symbols,
-                        reference_launch=reference_launch, candidate_launch=candidate_launch),
+                        reference_launch=reference_launch, candidate_launch=candidate_launch, series=series),
                    root=root or default_root(), **run)
 
 

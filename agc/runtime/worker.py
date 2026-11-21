@@ -343,28 +343,43 @@ def job_bench(job) -> dict:
 
 
 def job_paired(job) -> dict:
+    """Both code objects in one process, launched alternately. With `placements` > 1 the tensors are freed and
+    allocated again between rounds (with a spacer of another size in between, so the allocator hands out other
+    memory): the time of a memory-bound kernel depends on where its tensors are, differently for each code
+    object, so one allocation measures one placement, not the code."""
     m, proto, dev, case, resolved, inputs, bound, timer = _bench_setup(job)
     ks = {"reference": Loaded(dev, _image(job, "reference_hsaco"), m.entry, job.get("reference_launch")),
           "candidate": Loaded(dev, _image(job, "candidate_hsaco"), m.entry, job.get("candidate_launch"))}
     expected, scale = _expected(m, resolved, inputs, bound, ks["reference"])
     out = {"protocol": proto.to_dict(), "case": case.label, "resources": {w: k.resources() for w, k in ks.items()}}
-    for i in range(proto.warmup):
-        for which in ks:
-            timer.time(bound, ks[which])
-            if i == 0:                  # both code objects are verified before anything is timed
-                rep = _verify(m, case, bound, expected, scale)
-                if not rep["ok"]:
-                    return {**out, "ok": False, "failed": which, "verification": rep}
+    rounds = max(1, int(proto.placements))
+    per = max(1, -(-proto.pairs // rounds))
     samples = {"reference": [], "candidate": []}
-    for cand_first in paired_orders(proto.pairs, proto.case_seed):
-        for which in (("candidate", "reference") if cand_first else ("reference", "candidate")):
-            samples[which].append(timer.time(bound, ks[which]))
+    spacers, placed = [], []
+    for rnd in range(rounds):
+        if rnd:
+            bound.free()
+            spacers.append(dev.alloc(((rnd % 16) * 2 + 1) << 21))          # kept: the next tensors land elsewhere
+            bound = Bound(dev, m, resolved, inputs)
+        for i in range(proto.warmup if rnd == 0 else 2):
+            for which in ks:
+                timer.time(bound, ks[which])
+                if i == 0:                  # both code objects are verified before anything is timed
+                    rep = _verify(m, case, bound, expected, scale)
+                    if not rep["ok"]:
+                        return {**out, "ok": False, "failed": which, "verification": rep}
+        placed.append({n: hex(p) for n, p in bound.pointers.items()})
+        for cand_first in paired_orders(per, proto.case_seed + rnd):
+            for which in (("candidate", "reference") if cand_first else ("reference", "candidate")):
+                samples[which].append(timer.time(bound, ks[which]))
     for which in ks:                    # the timed state is verified again after the measurement
         timer.time(bound, ks[which])
         rep = _verify(m, case, bound, expected, scale)
         if not rep["ok"]:
             return {**out, "ok": False, "failed": which, "verification": rep}
-    return {**out, "ok": True, **paired_summary(samples["reference"], samples["candidate"], proto.noise_floor)}
+    if job.get("series"):               # the raw samples in launch order (a diagnosis)
+        out["series"], out["pointers"] = samples, placed
+    return {**out, "ok": True, **paired_summary(samples["reference"], samples["candidate"], proto.noise_floor, per if rounds > 1 else None)}
 
 
 JOBS = {"info": job_info, "check": job_check, "bench": job_bench, "paired": job_paired, "run": job_run, "diff": job_diff,

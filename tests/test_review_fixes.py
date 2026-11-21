@@ -308,3 +308,21 @@ def test_a_vector_load_may_overwrite_a_register_an_earlier_load_still_writes():
     assert [f["counter"] for f in waitcnt.check(k)] == ["vmcnt"]            # the read still needs the wait
     k = abi.make_kernel("k", mir.parse_body(body.replace("global_load_dword v4, v[0:1], off", "v_mov_b32_e32 v4, 0"), "k"), [abi.Arg("global_buffer")])
     assert waitcnt.check(k)                                                  # an ALU write would be overwritten by the load
+
+
+def test_paired_summary_over_placements_covers_what_differs_between_allocations():
+    """Issue #66: a speedup that is 1.04 in some allocations of the tensors and 0.98 in others is not a win,
+    however tight each allocation's own samples are."""
+    import numpy as np
+    from agc.runtime.timing import paired_summary
+    rng = np.random.default_rng(0)
+    ratios = np.repeat([1.04, 0.98, 1.05, 0.97, 1.03, 0.99, 1.04, 0.98], 10) * (1 + 0.002 * rng.standard_normal(80))
+    ref = np.full(80, 1.0)
+    flat = paired_summary(list(ref * ratios), list(ref), 0.01)
+    placed = paired_summary(list(ref * ratios), list(ref), 0.01, per_placement=10)
+    assert placed["outcome"] == "parity" and placed["placements"] == 8
+    assert placed["speedup_ci95"][0] < 1.0 < placed["speedup_ci95"][1]
+    assert min(placed["placement_speedups"]) < 0.98 and max(placed["placement_speedups"]) > 1.04
+    steady = paired_summary(list(ref * 1.05 * (1 + 0.002 * rng.standard_normal(80))), list(ref), 0.01, per_placement=10)
+    assert steady["outcome"] == "win" and steady["speedup_ci95"][0] > 1.04
+    assert "placements" not in flat
