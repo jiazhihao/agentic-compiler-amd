@@ -5,16 +5,26 @@
 the dump to the declarations named NAME (a whole HIP translation unit with its headers is hundreds
 of megabytes); functions the entry calls are fetched by name in further runs. Results are cached
 under the same identity as a HIP build.
+
+Clang names AST nodes by their address. With address-space randomization off (`setarch -R`) the
+same translation unit gets the same addresses in every run, so a call in one dump can be matched to
+its callee in another by id (`STABLE_IDS`); without `setarch` the frontend matches by name and
+signature and refuses a call when that is ambiguous.
 """
 from __future__ import annotations
 
 import json
 import os
+import platform
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
 
 from ..runtime import toolchain
+
+
+STABLE_IDS = shutil.which("setarch") is not None
 
 
 class FrontendError(ValueError):
@@ -31,13 +41,15 @@ def dump(source: str | Path, name: str, flags: list[str] | None = None, mcpu: st
     """The top-level declarations whose name matches `name`, as Clang's JSON AST nodes."""
     path = Path(source)
     flags = [f for f in (flags or []) if not f.startswith("-O")]
-    key = toolchain._key("ast", toolchain.hip_key(path, flags, mcpu, include_dirs), name)
+    key = toolchain._key("ast", toolchain.hip_key(path, flags, mcpu, include_dirs), name, "stable-ids" if STABLE_IDS else "")
     cached = toolchain.cache_dir() / f"ast-{key}.json"
     if cached.exists():
         return json.loads(cached.read_text())
     incs = [f"-I{Path(d).resolve()}" for d in (path.resolve().parent, *include_dirs)]
     cmd = [toolchain.tool("clang"), "-x", "hip", f"--offload-arch={mcpu}", "--cuda-device-only", "-fsyntax-only",
            *incs, *flags, "-Xclang", "-ast-dump=json", "-Xclang", "-ast-dump-filter", "-Xclang", name, str(path)]
+    if STABLE_IDS:
+        cmd = ["setarch", platform.machine(), "-R", *cmd]
     p = subprocess.run(cmd, capture_output=True, text=True)
     if p.returncode != 0:
         raise FrontendError(f"clang rejected {path.name}: {p.stderr.strip()[-1500:]}")

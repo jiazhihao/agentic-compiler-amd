@@ -44,6 +44,8 @@ def normalize(f: Func, plan: Plan) -> Func:
     unroll_constant_loops(f)
     if plan.choose("kernel", "fp.contract", ["on", "off"]) == "on":
         contract(f)
+    from ..kir import mathlib
+    mathlib.expand(f, plan)                                # after contraction: the expansions are not refused
     reduce_strength(f)
     expand_division(f)
     widen_indices(f)

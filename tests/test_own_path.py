@@ -23,8 +23,9 @@ from conftest import gpu, needs_toolchain
 KIR = Path(__file__).parent / "kir"
 LLM = Path(__file__).parent.parent / "bench" / "llm"
 OWN = Path(__file__).parent / "own"                    # control-flow kernels written for the lowering
-LOWERED = ["axpy", "cast_bf16", "gemm_bf16", "gemm_naive", "gemm_tiled", "matvec", "mo_rope_fwd", "rb_axpy", "rb_copy", "rb_ger",
-           "rb_rot", "rb_scal", "rb_swap", "row_sum", "transpose"]     # pass the battery through the own path (own-gfx950.json)
+LOWERED = ["axpy", "cast_bf16", "gelu", "gemm_bf16", "gemm_naive", "gemm_tiled", "layernorm", "matvec", "mo_rope_fwd", "rb_axpy",
+           "rb_copy", "rb_ger", "rb_rot", "rb_scal", "rb_swap", "rmsnorm", "row_sum", "softmax",
+           "transpose"]                                # pass the battery through the own path (own-gfx950.json)
 CONTROL = ["divmod", "first_below", "halvings", "last_above", "sum_positive"]
 
 
@@ -311,6 +312,56 @@ def test_safety_gates_catch_missing_barriers():
         wir_ok(bad)
 
 
+def test_math_lowerings_and_their_decisions():
+    g = lowered("gelu")
+    assert [(e["site"], e["chosen"], e["alternatives"]) for e in g.plan if e["decision"] == "math.tanh"] == [("tanh0", "exact", ["exact"])]
+    b = body(g)
+    assert all(x in b for x in ("v_rndne_f32", "v_exp_f32", "v_ldexp_f32", "v_rcp_f32", "v_bfi_b32"))     # as amdclang's gelu
+    s = lowered("softmax")
+    assert [e["site"] for e in s.plan if e["decision"] == "math.exp"] == ["exp0", "exp1"]
+    assert body(s).count("v_ldexp_f32") == 2 and body(s).count("v_div_fixup_f32") == 1
+    fast = lowered("softmax", {"exp1.math.exp": "hw", "fp.div": "rcp"})
+    assert body(fast).count("v_ldexp_f32") == 1 and "v_div_scale_f32" not in body(fast)
+    assert cpu_check(manifest("softmax"), fast)["ok"]        # within the manifest's tolerance
+    r = lowered("rmsnorm")
+    rb = body(r)
+    assert rb.count("v_div_scale_f32") == 4 and rb.count("v_div_fmas_f32") == 2 and rb.count("v_sqrt_f32") == 1 \
+        and "v_cmp_class_f32" in rb                         # two exact divisions and an exact square root
+    hw = lowered("rmsnorm", {"math.sqrt": "hw", "fp.div": "rcp"})
+    assert "v_cmp_class_f32" not in body(hw) and "v_div_scale_f32" not in body(hw) and len(body(hw).splitlines()) < len(rb.splitlines()) - 30
+
+
+def test_math_operations_in_the_interpreter():
+    f = parse_func("""kir func f(%y: ptr<f32>, %x: ptr<f32>) {
+  %t: u32 = tid.x
+  %i: i64 = cast %t
+  %p: ptr<f32> = gep %x, %i
+  %v: f32 = load %p
+  %r: f32 = rndne %v
+  %n: i32 = cast %r
+  %l: f32 = ldexp 1.5:f32, %n
+  %c: f32 = copysign %l, %v
+  %q: ptr<f32> = gep %y, %i
+  store %q, %c
+}
+""")
+    assert verify(f) == []
+    x = np.array([0.5, 1.5, 2.5, -0.5, -1.5, -2.5, 3.2, -3.7], dtype=np.float32)
+    y = np.zeros(8, dtype=np.float32)
+    run_kir(f, {"y": y, "x": x}, (1,), (8,))
+    assert y.tolist() == [1.5, 6.0, 6.0, -1.5, -0.375, -0.375, 12.0, -0.09375]      # ties to even; the sign of x
+
+
+def test_math_error_record():
+    rec = json.loads(corpus.BASELINES.with_name("math-gfx950.json").read_text())["functions"]
+    assert rec["sqrt/exact"]["not_correctly_rounded"] == 0 and rec["sqrt/exact"]["inputs"] > 1 << 20
+    assert rec["exp/exact"]["max_ulp"] < 1.0 and rec["tanh/exact"]["max_ulp"] < 1.5 and rec["rcp"]["max_ulp"] < 1.0
+    assert rec["exp/hw"]["max_ulp"] > 10                     # the short form is not a substitute for large |x|
+    assert rec["sqrt/hw"]["max_ulp_operands_above_2^-96"] < 1.0 < rec["sqrt/hw"]["max_ulp"]
+    from agc.lower import DECISIONS
+    assert DECISIONS["math.exp"]["ulp"]["exact"] >= rec["exp/exact"]["max_ulp"]
+
+
 def test_plan_refuses_unknown_decisions_and_alternatives():
     with pytest.raises(PlanError, match="no such decision"):
         lowered("axpy", {"if7.branch.skip_empty": "none"})
@@ -436,7 +487,7 @@ def test_reduction_and_loop_decisions_on_row_sum(marks, agc_root):
     assert b["outcome"] == "win" and b["speedup_ci95"][0] > 1.15, b
 
 
-@pytest.mark.parametrize("name", ["axpy", "rb_scal", "gemm_naive", "gemm_tiled"])
+@pytest.mark.parametrize("name", ["axpy", "rb_scal", "gemm_naive", "gemm_tiled", "gelu", "rmsnorm"])
 @pytest.mark.parametrize("marks", [pytest.param(None, marks=gpu)])
 def test_own_path_passes_the_battery_and_equals_amdclang(name, marks, agc_root):
     from agc.session import Session

@@ -21,9 +21,59 @@ Newest entries first. Each entry: what was built or fixed, measured numbers, wha
 | Phase 2 roadmap: agc's own lowering | #77 | PR #78 open |
 | M11 Tracer bullet: HIP to the GPU, own path | #79 | PR #80 open |
 | M12 Control flow, loops, loop decisions | #81 | PR #82 open |
-| M13 Shared memory, barriers, division, reductions | #83 | PR open |
+| M13 Shared memory, barriers, division, reductions | #83 | PR #84 open |
+| M14 Math and numerics | #85 | PR open |
 
 ## Log
+
+### 2026-11-21 — M14: math and numerics (#85)
+- **What.** Math calls are single `kir` operations after the frontend (`exp`, `tanh`, `sqrt`, `abs`, `max`,
+  `min`, `floor`, `trunc`, `rndne`, `copysign`). `agc/kir/mathlib.py` expands the library functions by the
+  decision `math.<fn>`: the `exact` expansions are the sequences amdclang emits, transcribed from its assembly
+  for `gelu` and `softmax` (LLVM's f32 `exp`; the device library's `tanh`). Division and square root stay
+  exact operations in `kir`; selection emits LLVM's correctly rounded sequences (`v_div_scale_f32`, three
+  `fma` refinements, `v_div_fmas_f32`, `v_div_fixup_f32`; `v_sqrt_f32` with the one-step correction) or, by
+  decision, the machine's short forms.
+- **Decisions.** `math.exp` (`exact` / `hw`), `math.tanh` (`exact`), `math.sqrt` (`exact` / `hw`), `fp.div`
+  (`exact` / `rcp`), per call or operation, next to `fp.contract`. `plan` shows each alternative's measured
+  error and whether the manifest's tolerance admits it.
+- **Errors on the device** (`scripts/math_error.py` → `tests/baselines/math-gfx950.json`; 4 launches of 2^20
+  inputs per lowering, across all float32 bit patterns at a stride of 4096; a sample, not the exhaustive run
+  the roadmap asked for: the harness returns at most 4 MiB per launch):
+
+| Lowering | Largest error (units in the last place) | Not correctly rounded |
+|---|---|---|
+| `exp` exact | 0.81 | 0.8 % of the inputs |
+| `exp` hw (`exp2(x log2 e)`) | 60.8 | 2.7 % |
+| `tanh` exact | 1.26 | 0.2 % |
+| `sqrt` exact | 0 | none of 2.1 M |
+| `sqrt` hw (`v_sqrt_f32`) | 0.85 for operands above 2^-96; wrong below | 15 % |
+| `rcp` (`v_rcp_f32`) | 0.81 | 10 % |
+
+- **Measured** (`tests/baselines/own-gfx950.json`, paired against amdclang -O3, full battery on every row):
+
+| Kernel | Default plan (95 % CI) | Bit-identical | Instructions (own / amdclang) | Best decisions | With them (95 % CI) |
+|---|---|---|---|---|---|
+| `gelu` | 0.987 (0.983 to 0.991) | yes | 73 / 69 | none offered that helps | |
+| `softmax` | 0.805 (0.802 to 0.808) | yes | 333 / 383 | `loop.unroll` 16 | **1.720** (1.705 to 1.735), bit-identical |
+| `rmsnorm` | 0.942 (0.939 to 0.945) | yes | 219 / 195 | `loop.unroll` 16 | **1.593** (1.586 to 1.599), bit-identical |
+| `rmsnorm` | | | | `reduce.form` dpp, `loop.unroll` 4 | **1.600** (1.593 to 1.606), within tolerance |
+| `layernorm` | 0.915 (0.912 to 0.917) | yes | 356 / 312 | `loop.unroll` 16 | **1.707** (1.679 to 1.736), bit-identical |
+| `kda_step` | 0.906 (0.901 to 0.911) | yes | 146 / 294 | `loop.unroll` 4, 8, 16 | 0.98, 1.00, 1.00: no win |
+
+  20 of 50 kernels pass through the own path, 19 bit-identical to amdclang with the default plan; geomean of
+  the default plan 0.933. For comparison, the phase-1 generators (not bit-identical, from a tensor program)
+  reached 1.35 on `softmax`, 1.45 on `rmsnorm` and 1.51 on `layernorm`; the pass on imported assembly 1.25 and
+  1.17 on the last two.
+- **Against the exit.** The four corpus kernels pass and the exact lowerings are bit-identical to amdclang:
+  met. The comparison with amdclang's `-ffast-math` builds was not made: none of the kernels it paid on
+  passes the frontend yet.
+- **Open.** `softmax`'s default plan is at 0.80 (not analysed; its loops call `exp` per element). `log`,
+  `sin`, `cos`, `pow`, `rsqrt`, `exp2`, `log2`: no lowering yet. `f64` math, `f16` / `bf16` arithmetic. The
+  error tables are samples. `math.sqrt: hw` is wrong for operands below 2^-96 and is still offered (its
+  description says so). The GPU suite was run for the own-path tests only. This PR also carries two frontend
+  changes made while the record ran: Clang is run with address randomization off so that a call is matched to
+  its callee by node id, and a template's value parameter is replaced by its argument.
 
 ### 2026-11-21 — M13: shared memory, barriers, division, the reduction decision (#83)
 - **What.** Frontend: `__shared__` arrays, `__syncthreads`, captureless lambdas passed to inlined templates

@@ -1,0 +1,32 @@
+kir func mo_glu_fwd(%input: ptr<f32>, %output: ptr<f32>, %N: u64) {
+  %t: i64 = cast %N
+  %p: ptr<f32> = gep %input, %t
+  %bid_x: u32 = bid.x
+  %bdim_x: u32 = bdim.x
+  %t0: u32 = mul %bid_x, %bdim_x
+  %tid_x: u32 = tid.x
+  %t1: u32 = add %t0, %tid_x
+  %gid: u64 = cast %t1
+  %t3: i1 = ge %gid, %N
+  if %t3 @if0 {
+  }
+  merge %t4: i1 = true:i1, false:i1
+  %t5: i1 = not %t4
+  if %t5 @if1 {
+    %t6: i64 = cast %gid
+    %p7: ptr<f32> = gep %input, %t6
+    %v: f32 = load %p7 @load0
+    %t8: i64 = cast %gid
+    %p9: ptr<f32> = gep %p, %t8
+    %v10: f32 = load %p9 @load1
+    %t11: f32 = neg %v10
+    %exp: f32 = exp %t11
+    %t12: f32 = add 1.0:f32, %exp
+    %val2_14: f32 = div 1.0:f32, %t12 @div0
+    %val: f32 = mul %v, %val2_14
+    %t16: i64 = cast %gid
+    %p17: ptr<f32> = gep %output, %t16
+    store %p17, %val @store0
+  }
+  merge %t18: i1 = false:i1, %t4
+}

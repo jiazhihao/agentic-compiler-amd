@@ -942,8 +942,22 @@ class Session:
         (what amdclang does) and the other alternatives, with what each decision means."""
         from ..lower import DECISIONS
         sid, data = self._lowering(ref)
+        # an alternative that changes the numerics: its measured error against the tightest output tolerance
+        outs = [self.manifest.tolerance_for(p.name)[0] for p in self.manifest.outputs() if p.dtype.is_float]
+        rtol = min(outs) if outs else None
+
+        def numerics(e: dict) -> dict:
+            ulp = DECISIONS[e["decision"]].get("ulp")
+            if not ulp:
+                return {}
+            out = {"error_ulp": {a: ulp.get(a) for a in e["alternatives"]}}
+            if rtol is not None:                           # one unit in the last place of a float32 is about 1.2e-7 relative
+                out["within_tolerance"] = {a: bool(ulp.get(a, 0) * 1.2e-7 <= rtol) for a in e["alternatives"]}
+            return out
+
         return {"id": sid, "overrides": data["overrides"],
-                "decisions": [{**e, "doc": DECISIONS[e["decision"]]["doc"], "kb": DECISIONS[e["decision"]].get("kb")} for e in data["plan"]],
+                "decisions": [{**e, "doc": DECISIONS[e["decision"]]["doc"], "kb": DECISIONS[e["decision"]].get("kb"), **numerics(e)}
+                              for e in data["plan"]],
                 "how": 'replan(ref, {"site.decision": alternative}) lowers again with one or more decisions changed'}
 
     def explain(self, ref: str, site: str) -> dict:

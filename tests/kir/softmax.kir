@@ -1,0 +1,131 @@
+kir func softmax(%x: ptr<f32>, %y: ptr<f32>, %rows: i32, %cols: i32) {
+  %red: lds<f32> = shared[name=red2, bytes=1024]
+  %bid_x: u32 = bid.x
+  %t: u64 = cast %bid_x
+  %t0: u64 = cast %cols
+  %t1: u64 = mul %t, %t0
+  %t2: i64 = cast %t1
+  %p: ptr<f32> = gep %x, %t2
+  %bid_x3: u32 = bid.x
+  %t4: u64 = cast %bid_x3
+  %t5: u64 = cast %cols
+  %t6: u64 = mul %t4, %t5
+  %t7: i64 = cast %t6
+  %p8: ptr<f32> = gep %y, %t7
+  %tid_x: u32 = tid.x
+  %j: i32 = cast %tid_x
+  loop @loop0 {
+    carry %j10: i32 = %j, %t14 -> %j10_15
+    carry %m: f32 = -inf:f32, %max -> %m16
+    %t11: i1 = lt %j10, %cols
+    while %t11
+    %t12: i64 = cast %j10
+    %p13: ptr<f32> = gep %p, %t12
+    %v: f32 = load %p13 @load0
+    %max: f32 = max %m, %v
+    %t14: i32 = add[nsw=true] %j10, 256:i32
+  }
+  %tid_x17: u32 = tid.x
+  %t18: i64 = cast %tid_x17
+  %p19: lds<f32> = gep %red, %t18
+  store %p19, %m16 @store0
+  barrier
+  loop @loop1 {
+    carry %s: i32 = 128:i32, %t38 -> %s39
+    %t20: i1 = gt %s, 0:i32
+    while %t20
+    %tid_x21: u32 = tid.x
+    %t22: u32 = cast %s
+    %t23: i1 = lt %tid_x21, %t22
+    if %t23 @if0 {
+      %tid_x24: u32 = tid.x
+      %t25: i64 = cast %tid_x24
+      %p26: lds<f32> = gep %red, %t25
+      %tid_x27: u32 = tid.x
+      %t28: i64 = cast %tid_x27
+      %p29: lds<f32> = gep %red, %t28
+      %v30: f32 = load %p29 @load1
+      %tid_x31: u32 = tid.x
+      %t32: u32 = cast %s
+      %t33: u32 = add %tid_x31, %t32
+      %t34: i64 = cast %t33
+      %p35: lds<f32> = gep %red, %t34
+      %v36: f32 = load %p35 @load2
+      %max37: f32 = max %v30, %v36
+      store %p26, %max37 @store1
+    }
+    barrier
+    %t38: i32 = shr %s, 1:i32
+  }
+  %p40: lds<f32> = gep %red, 0:i64
+  %v41: f32 = load %p40 @load3
+  barrier
+  %tid_x42: u32 = tid.x
+  %j44: i32 = cast %tid_x42
+  loop @loop2 {
+    carry %j45: i32 = %j44, %t53 -> %j45_54
+    carry %s46: f32 = 0.0:f32, %t52 -> %s46_55
+    %t47: i1 = lt %j45, %cols
+    while %t47
+    %t48: i64 = cast %j45
+    %p49: ptr<f32> = gep %p, %t48
+    %v50: f32 = load %p49 @load4
+    %t51: f32 = sub %v50, %v41
+    %exp: f32 = exp %t51
+    %t52: f32 = add %s46, %exp
+    %t53: i32 = add[nsw=true] %j45, 256:i32
+  }
+  %tid_x56: u32 = tid.x
+  %t57: i64 = cast %tid_x56
+  %p58: lds<f32> = gep %red, %t57
+  store %p58, %s46_55 @store2
+  barrier
+  loop @loop3 {
+    carry %s59: i32 = 128:i32, %t78 -> %s59_79
+    %t60: i1 = gt %s59, 0:i32
+    while %t60
+    %tid_x61: u32 = tid.x
+    %t62: u32 = cast %s59
+    %t63: i1 = lt %tid_x61, %t62
+    if %t63 @if1 {
+      %tid_x64: u32 = tid.x
+      %t65: i64 = cast %tid_x64
+      %p66: lds<f32> = gep %red, %t65
+      %tid_x67: u32 = tid.x
+      %t68: i64 = cast %tid_x67
+      %p69: lds<f32> = gep %red, %t68
+      %v70: f32 = load %p69 @load5
+      %tid_x71: u32 = tid.x
+      %t72: u32 = cast %s59
+      %t73: u32 = add %tid_x71, %t72
+      %t74: i64 = cast %t73
+      %p75: lds<f32> = gep %red, %t74
+      %v76: f32 = load %p75 @load6
+      %t77: f32 = add %v70, %v76
+      store %p66, %t77 @store3
+    }
+    barrier
+    %t78: i32 = shr %s59, 1:i32
+  }
+  %p80: lds<f32> = gep %red, 0:i64
+  %v81: f32 = load %p80 @load7
+  barrier
+  %inv: f32 = div 1.0:f32, %v81 @div0
+  %tid_x83: u32 = tid.x
+  %j85: i32 = cast %tid_x83
+  loop @loop4 {
+    carry %j86: i32 = %j85, %t96 -> %j86_97
+    %t87: i1 = lt %j86, %cols
+    while %t87
+    %t88: i64 = cast %j86
+    %p89: ptr<f32> = gep %p8, %t88
+    %t90: i64 = cast %j86
+    %p91: ptr<f32> = gep %p, %t90
+    %v92: f32 = load %p91 @load8
+    %t93: f32 = sub %v92, %v41
+    %exp94: f32 = exp %t93
+    %t95: f32 = mul %exp94, %inv
+    store %p89, %t95 @store4
+    %t96: i32 = add[nsw=true] %j86, 256:i32
+  }
+}

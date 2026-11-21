@@ -15,6 +15,22 @@ DECISIONS: dict[str, dict] = {
     "fp.contract": {"level": "kir", "site": "kernel", "kb": "G1",
                     "doc": "fuse `a * b + c` into one fma (`on`: as amdclang does for HIP, one rounding) or keep the "
                            "multiply and the add (`off`: two roundings, the result of the source as written)"},
+    "math.exp": {"level": "kir", "site": "call", "kb": "D4",
+                 "doc": "`exp`: `exact`, the sequence amdclang emits (range reduction in extended precision, `v_exp_f32`, "
+                        "`v_ldexp_f32`, the ends of the range): the same bits as amdclang, within 0.82 units in the last "
+                        "place; or `hw`, `exp2(x * log2 e)`: 2 instructions, up to 61 units away for large |x|",
+                 "ulp": {"exact": 0.82, "hw": 61.0}},
+    "math.tanh": {"level": "kir", "site": "call", "kb": "D4",
+                  "doc": "`tanh`: `exact`, the device library's algorithm as amdclang inlines it (within 1.3 units in the last "
+                         "place)", "ulp": {"exact": 1.3}},
+    "math.sqrt": {"level": "mir", "site": "sqrt", "kb": "D4",
+                  "doc": "square root: `exact`, correctly rounded (`v_sqrt_f32` and a one-step correction, as amdclang); or "
+                         "`hw`, `v_sqrt_f32` alone: within one unit in the last place for operands above 2^-96, wrong below "
+                         "(the machine treats them as denormal)", "ulp": {"exact": 0.5, "hw": 1.0}},
+    "fp.div": {"level": "mir", "site": "div", "kb": "D4",
+               "doc": "floating-point division: `exact`, correctly rounded (amdclang's 11-instruction sequence); or `rcp`, "
+                      "a multiply by the machine's reciprocal (itself within 0.82 units): 2 instructions, within about "
+                      "1.5 units in the last place", "ulp": {"exact": 0.5, "rcp": 1.5}},
     "access.width": {"level": "wir", "site": "load / store", "kb": "A2",
                      "doc": "merge accesses of consecutive 32-bit elements with one base and index into one wide access "
                             "of up to 4 (default, `global_load_dwordx4`), 2, or 1 (no merging) elements per lane, or up to "

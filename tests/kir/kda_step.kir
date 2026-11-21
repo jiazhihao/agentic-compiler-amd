@@ -1,0 +1,154 @@
+kir func kda_step(%S: ptr<f32>, %g: ptr<f32>, %k: ptr<f32>, %v: ptr<f32>, %beta: ptr<f32>, %q: ptr<f32>, %o: ptr<f32>, %dk: i32, %dv: i32, %scale: f32) {
+  %s_q: lds<f32> = shared[name=s_q4, bytes=1024]
+  %s_k: lds<f32> = shared[name=s_k3, bytes=1024]
+  %s_decay: lds<f32> = shared[name=s_decay2, bytes=1024]
+  %bid_x: u32 = bid.x
+  %t: i32 = cast %bid_x
+  %tid_x: u32 = tid.x
+  %i: i32 = cast %tid_x
+  loop @loop0 {
+    carry %i1: i32 = %i, %t35 -> %i1_36
+    %t2: i1 = lt %i1, %dk
+    while %t2
+    %t3: i64 = cast %i1
+    %p: lds<f32> = gep %s_decay, %t3
+    %t4: u64 = cast %t
+    %t5: u64 = cast %dk
+    %t6: u64 = mul %t4, %t5
+    %t7: u64 = cast %i1
+    %t8: u64 = add %t6, %t7
+    %t9: i64 = cast %t8
+    %p10: ptr<f32> = gep %g, %t9
+    %v11: f32 = load %p10 @load0
+    %exp: f32 = exp %v11
+    store %p, %exp @store0
+    %t12: i64 = cast %i1
+    %p13: lds<f32> = gep %s_k, %t12
+    %t14: u64 = cast %t
+    %t15: u64 = cast %dk
+    %t16: u64 = mul %t14, %t15
+    %t17: u64 = cast %i1
+    %t18: u64 = add %t16, %t17
+    %t19: i64 = cast %t18
+    %p20: ptr<f32> = gep %k, %t19
+    %v21: f32 = load %p20 @load1
+    store %p13, %v21 @store1
+    %t22: i64 = cast %i1
+    %p23: lds<f32> = gep %s_q, %t22
+    %t24: u64 = cast %t
+    %t25: u64 = cast %dk
+    %t26: u64 = mul %t24, %t25
+    %t27: u64 = cast %i1
+    %t28: u64 = add %t26, %t27
+    %t29: i64 = cast %t28
+    %p30: ptr<f32> = gep %q, %t29
+    %v31: f32 = load %p30 @load2
+    %t32: f32 = mul %scale, %v31
+    store %p23, %t32 @store2
+    %bdim_x: u32 = bdim.x
+    %t33: u32 = cast %i1
+    %t34: u32 = add %t33, %bdim_x
+    %t35: i32 = cast %t34
+  }
+  barrier
+  %t37: u64 = cast %t
+  %t38: u64 = cast %dk
+  %t39: u64 = mul %t37, %t38
+  %t40: u64 = cast %dv
+  %t41: u64 = mul %t39, %t40
+  %t42: i64 = cast %t41
+  %p43: ptr<f32> = gep %S, %t42
+  %t44: i64 = cast %t
+  %p45: ptr<f32> = gep %beta, %t44
+  %v46: f32 = load %p45 @load3
+  %tid_x47: u32 = tid.x
+  %c: i32 = cast %tid_x47
+  loop @loop1 {
+    carry %c49: i32 = %c, %t127 -> %c49_128
+    %t50: i1 = lt %c49, %dv
+    while %t50
+    loop @loop2 {
+      carry %i51: i32 = 0:i32, %t70 -> %i51_71
+      carry %pred: f32 = 0.0:f32, %t69 -> %pred72
+      %t52: i1 = lt %i51, %dk
+      while %t52
+      %t53: i64 = cast %i51
+      %p54: lds<f32> = gep %s_k, %t53
+      %v55: f32 = load %p54 @load4
+      %t56: u64 = cast %i51
+      %t57: u64 = cast %dv
+      %t58: u64 = mul %t56, %t57
+      %t59: u64 = cast %c49
+      %t60: u64 = add %t58, %t59
+      %t61: i64 = cast %t60
+      %p62: ptr<f32> = gep %p43, %t61
+      %v63: f32 = load %p62 @load5
+      %t64: i64 = cast %i51
+      %p65: lds<f32> = gep %s_decay, %t64
+      %v66: f32 = load %p65 @load6
+      %t67: f32 = mul %v63, %v66
+      %t68: f32 = mul %v55, %t67
+      %t69: f32 = add %pred, %t68
+      %t70: i32 = add[nsw=true] %i51, 1:i32
+    }
+    %t73: u64 = cast %t
+    %t74: u64 = cast %dv
+    %t75: u64 = mul %t73, %t74
+    %t76: u64 = cast %c49
+    %t77: u64 = add %t75, %t76
+    %t78: i64 = cast %t77
+    %p79: ptr<f32> = gep %v, %t78
+    %v80: f32 = load %p79 @load7
+    %u: f32 = sub %v80, %pred72
+    loop @loop3 {
+      carry %i82: i32 = 0:i32, %t114 -> %i82_115
+      carry %out: f32 = 0.0:f32, %t113 -> %out116
+      %t83: i1 = lt %i82, %dk
+      while %t83
+      %t84: u64 = cast %i82
+      %t85: u64 = cast %dv
+      %t86: u64 = mul %t84, %t85
+      %t87: u64 = cast %c49
+      %t88: u64 = add %t86, %t87
+      %t89: i64 = cast %t88
+      %p90: ptr<f32> = gep %p43, %t89
+      %v91: f32 = load %p90 @load8
+      %t92: i64 = cast %i82
+      %p93: lds<f32> = gep %s_decay, %t92
+      %v94: f32 = load %p93 @load9
+      %t95: f32 = mul %v91, %v94
+      %t96: i64 = cast %i82
+      %p97: lds<f32> = gep %s_k, %t96
+      %v98: f32 = load %p97 @load10
+      %t99: f32 = mul %v46, %v98
+      %t100: f32 = mul %t99, %u
+      %s_new: f32 = add %t95, %t100
+      %t102: u64 = cast %i82
+      %t103: u64 = cast %dv
+      %t104: u64 = mul %t102, %t103
+      %t105: u64 = cast %c49
+      %t106: u64 = add %t104, %t105
+      %t107: i64 = cast %t106
+      %p108: ptr<f32> = gep %p43, %t107
+      store %p108, %s_new @store3
+      %t109: i64 = cast %i82
+      %p110: lds<f32> = gep %s_q, %t109
+      %v111: f32 = load %p110 @load11
+      %t112: f32 = mul %v111, %s_new
+      %t113: f32 = add %out, %t112
+      %t114: i32 = add[nsw=true] %i82, 1:i32
+    }
+    %t117: u64 = cast %t
+    %t118: u64 = cast %dv
+    %t119: u64 = mul %t117, %t118
+    %t120: u64 = cast %c49
+    %t121: u64 = add %t119, %t120
+    %t122: i64 = cast %t121
+    %p123: ptr<f32> = gep %o, %t122
+    store %p123, %out116 @store4
+    %bdim_x124: u32 = bdim.x
+    %t125: u32 = cast %c49
+    %t126: u32 = add %t125, %bdim_x124
+    %t127: i32 = cast %t126
+  }
+}

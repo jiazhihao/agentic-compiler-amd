@@ -18,11 +18,11 @@
    "bit_identical": true,
    "speed_over_amdclang": 1.0008,
    "ci95": [
-    0.9932,
-    1.0085
+    0.9922,
+    1.0095
    ],
-   "amdclang_ms": 0.17544,
-   "own_ms": 0.17542,
+   "amdclang_ms": 0.16882,
+   "own_ms": 0.16842,
    "outcome": "parity"
   },
   "cast_bf16": {
@@ -36,24 +36,24 @@
    ],
    "battery": "49/49",
    "bit_identical": true,
-   "speed_over_amdclang": 1.0032,
+   "speed_over_amdclang": 1.0031,
    "ci95": [
-    1.0014,
-    1.0049
+    0.9953,
+    1.0108
    ],
-   "amdclang_ms": 0.15494,
-   "own_ms": 0.15464,
+   "amdclang_ms": 0.15506,
+   "own_ms": 0.15436,
    "outcome": "parity"
   },
   "fa_attention": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "fa_attention.hip: 2 construct(s) outside the supported subset: `ConditionalOperator` as an assignable location at 1334:10; call of `online_softmax_row`: several functions have this name and signature at 14:3"
+   "reason": "fa_attention.hip: 1 construct(s) outside the supported subset: call of `online_softmax_row`: several functions have this name and signature at 14:3"
   },
   "fa_attention_causal": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "fa_attention.hip: 2 construct(s) outside the supported subset: `ConditionalOperator` as an assignable location at 1334:10; call of `online_softmax_row`: several functions have this name and signature at 14:3"
+   "reason": "fa_attention.hip: 1 construct(s) outside the supported subset: call of `online_softmax_row`: several functions have this name and signature at 14:3"
   },
   "fi_fused_add_rmsnorm": {
    "stage": "frontend",
@@ -68,12 +68,12 @@
   "fi_merge_state": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "fi_merge_state.hip: 11 construct(s) outside the supported subset: call of `__builtin_fmaxf`, which has no body in this translation unit at 1341:42; reference to `inf` (VarDecl) at 23:50; reference to `inf` (VarDecl) at 24:50; type `flashinfer::vec_t<float, 4>` at 28:26; type `flashinfer::vec_t<float, 4>` at 28:35; type `flashinfer::vec_t<float, 4>` at 28:44 ..."
+   "reason": "fi_merge_state.hip: 10 construct(s) outside the supported subset: reference to `inf` (VarDecl) at 23:50; reference to `inf` (VarDecl) at 24:50; type `flashinfer::vec_t<float, 4>` at 28:26; type `flashinfer::vec_t<float, 4>` at 28:35; type `flashinfer::vec_t<float, 4>` at 28:44; expression `CXXMemberCallExpr` at 29:3 ..."
   },
   "fi_merge_state_in_place": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "fi_merge_state_in_place.hip: 11 construct(s) outside the supported subset: expression `CXXNullPtrLiteralExpr` at 16:15; call of `__builtin_fmaxf`, which has no body in this translation unit at 1341:42; reference to `inf` (VarDecl) at 26:46; reference to `inf` (VarDecl) at 27:58; type `flashinfer::vec_t<float, 4>` at 31:26; type `flashinfer::vec_t<float, 4>` at 31:33 ..."
+   "reason": "fi_merge_state_in_place.hip: 10 construct(s) outside the supported subset: expression `CXXNullPtrLiteralExpr` at 16:15; reference to `inf` (VarDecl) at 26:46; reference to `inf` (VarDecl) at 27:58; type `flashinfer::vec_t<float, 4>` at 31:26; type `flashinfer::vec_t<float, 4>` at 31:33; expression `CXXMemberCallExpr` at 32:3 ..."
   },
   "fi_merge_states": {
    "stage": "frontend",
@@ -96,9 +96,26 @@
    "reason": "fi_silu_and_mul.hip: 1 construct(s) outside the supported subset: expression `NonTypeTemplateParmDecl` at 16:67"
   },
   "gelu": {
-   "stage": "frontend",
-   "stopped": "frontend",
-   "reason": "gelu.hip: 1 construct(s) outside the supported subset: call of `__ocml_tanh_f32`, which has no body in this translation unit at 728:33"
+   "stage": "battery",
+   "instructions": 73,
+   "amdclang_instructions": 69,
+   "decisions": [
+    "kernel.fp.contract",
+    "tanh0.math.tanh",
+    "kernel.order.loads",
+    "if0.branch.skip_empty",
+    "if1.branch.skip_empty"
+   ],
+   "battery": "49/49",
+   "bit_identical": true,
+   "speed_over_amdclang": 0.9866,
+   "ci95": [
+    0.9827,
+    0.9905
+   ],
+   "amdclang_ms": 0.18618,
+   "own_ms": 0.18868,
+   "outcome": "parity"
   },
   "gemm_bf16": {
    "stage": "battery",
@@ -113,13 +130,13 @@
    ],
    "battery": "77/77",
    "bit_identical": true,
-   "speed_over_amdclang": 0.9998,
+   "speed_over_amdclang": 0.9997,
    "ci95": [
-    0.9995,
+    0.9992,
     1.0002
    ],
-   "amdclang_ms": 14.94055,
-   "own_ms": 14.94454,
+   "amdclang_ms": 14.98827,
+   "own_ms": 14.9924,
    "outcome": "parity",
    "decisions_tried": {
     "tried": [
@@ -128,12 +145,12 @@
        "loop.unroll": 4
       },
       "outcome": "parity",
-      "speed_over_amdclang": 1.0014,
+      "speed_over_amdclang": 1.001,
       "ci95": [
-       1.0011,
+       1.0004,
        1.0016
       ],
-      "own_ms": 14.95644,
+      "own_ms": 14.98396,
       "bit_identical": true,
       "instructions": 94
      },
@@ -144,10 +161,10 @@
       "outcome": "parity",
       "speed_over_amdclang": 0.9999,
       "ci95": [
-       0.9992,
-       1.0007
+       0.9985,
+       1.0013
       ],
-      "own_ms": 14.96566,
+      "own_ms": 14.98441,
       "bit_identical": true,
       "instructions": 122
      },
@@ -156,12 +173,12 @@
        "loop.unroll": 16
       },
       "outcome": "parity",
-      "speed_over_amdclang": 1.0006,
+      "speed_over_amdclang": 1.002,
       "ci95": [
-       0.9992,
-       1.0019
+       1.0015,
+       1.0026
       ],
-      "own_ms": 14.97368,
+      "own_ms": 14.97097,
       "bit_identical": true,
       "instructions": 178
      }
@@ -187,13 +204,13 @@
    ],
    "battery": "105/105",
    "bit_identical": true,
-   "speed_over_amdclang": 0.9067,
+   "speed_over_amdclang": 0.9056,
    "ci95": [
-    0.9059,
-    0.9076
+    0.9047,
+    0.9064
    ],
-   "amdclang_ms": 4.04982,
-   "own_ms": 4.46752,
+   "amdclang_ms": 4.03657,
+   "own_ms": 4.45689,
    "outcome": "loss",
    "decisions_tried": {
     "tried": [
@@ -202,12 +219,12 @@
        "loop.unroll": 4
       },
       "outcome": "win",
-      "speed_over_amdclang": 2.1023,
+      "speed_over_amdclang": 2.0964,
       "ci95": [
-       2.0977,
-       2.1069
+       2.081,
+       2.1119
       ],
-      "own_ms": 1.92261,
+      "own_ms": 1.92776,
       "bit_identical": true,
       "instructions": 99
      },
@@ -216,12 +233,12 @@
        "loop.unroll": 8
       },
       "outcome": "win",
-      "speed_over_amdclang": 2.1261,
+      "speed_over_amdclang": 2.1474,
       "ci95": [
-       2.1193,
-       2.133
+       2.1366,
+       2.1582
       ],
-      "own_ms": 1.90494,
+      "own_ms": 1.88634,
       "bit_identical": true,
       "instructions": 136
      },
@@ -230,12 +247,12 @@
        "loop.unroll": 16
       },
       "outcome": "win",
-      "speed_over_amdclang": 2.1383,
+      "speed_over_amdclang": 2.1441,
       "ci95": [
-       2.1289,
-       2.1478
+       2.1387,
+       2.1496
       ],
-      "own_ms": 1.89445,
+      "own_ms": 1.88548,
       "bit_identical": true,
       "instructions": 210
      }
@@ -245,12 +262,12 @@
       "loop.unroll": 16
      },
      "outcome": "win",
-     "speed_over_amdclang": 2.1383,
+     "speed_over_amdclang": 2.1441,
      "ci95": [
-      2.1289,
-      2.1478
+      2.1387,
+      2.1496
      ],
-     "own_ms": 1.89445,
+     "own_ms": 1.88548,
      "bit_identical": true,
      "instructions": 210
     }
@@ -276,13 +293,13 @@
    "battery": "105/105",
    "bit_identical": false,
    "max_rel_err": 0.8532608695652174,
-   "speed_over_amdclang": 0.7571,
+   "speed_over_amdclang": 0.7572,
    "ci95": [
-    0.7543,
-    0.7598
+    0.7551,
+    0.7594
    ],
-   "amdclang_ms": 0.91595,
-   "own_ms": 1.21333,
+   "amdclang_ms": 0.91662,
+   "own_ms": 1.21314,
    "outcome": "loss",
    "decisions_tried": {
     "tried": [
@@ -291,12 +308,12 @@
        "loop.unroll": 4
       },
       "outcome": "loss",
-      "speed_over_amdclang": 0.762,
+      "speed_over_amdclang": 0.7648,
       "ci95": [
-       0.7602,
-       0.7638
+       0.7633,
+       0.7664
       ],
-      "own_ms": 1.20276,
+      "own_ms": 1.20211,
       "bit_identical": false,
       "instructions": 502
      },
@@ -305,12 +322,12 @@
        "loop.unroll": 8
       },
       "outcome": "loss",
-      "speed_over_amdclang": 0.7648,
+      "speed_over_amdclang": 0.7662,
       "ci95": [
-       0.7624,
-       0.7672
+       0.7641,
+       0.7683
       ],
-      "own_ms": 1.20046,
+      "own_ms": 1.20319,
       "bit_identical": false,
       "instructions": 862
      },
@@ -319,12 +336,12 @@
        "loop.unroll": 16
       },
       "outcome": "loss",
-      "speed_over_amdclang": 0.6277,
+      "speed_over_amdclang": 0.6295,
       "ci95": [
-       0.6258,
-       0.6296
+       0.6265,
+       0.6324
       ],
-      "own_ms": 1.46752,
+      "own_ms": 1.46952,
       "bit_identical": false,
       "instructions": 1582
      }
@@ -333,14 +350,183 @@
    }
   },
   "kda_step": {
-   "stage": "frontend",
-   "stopped": "frontend",
-   "reason": "kda_step.hip: 1 construct(s) outside the supported subset: call of `__builtin_expf`, which has no body in this translation unit at 431:32"
+   "stage": "battery",
+   "instructions": 146,
+   "amdclang_instructions": 294,
+   "decisions": [
+    "kernel.fp.contract",
+    "exp0.math.exp",
+    "loop2.loop.unroll",
+    "loop3.loop.unroll",
+    "load3.load.uniform",
+    "kernel.order.loads",
+    "loop0.loop.inflight",
+    "loop1.loop.inflight",
+    "loop2.loop.inflight",
+    "loop3.loop.inflight"
+   ],
+   "battery": "105/105",
+   "bit_identical": true,
+   "speed_over_amdclang": 0.9059,
+   "ci95": [
+    0.9009,
+    0.9109
+   ],
+   "amdclang_ms": 0.20482,
+   "own_ms": 0.22602,
+   "outcome": "loss",
+   "decisions_tried": {
+    "tried": [
+     {
+      "overrides": {
+       "loop.unroll": 4
+      },
+      "outcome": "loss",
+      "speed_over_amdclang": 0.9766,
+      "ci95": [
+       0.9723,
+       0.9808
+      ],
+      "own_ms": 0.20922,
+      "bit_identical": true,
+      "instructions": 256
+     },
+     {
+      "overrides": {
+       "loop.unroll": 8
+      },
+      "outcome": "parity",
+      "speed_over_amdclang": 0.9951,
+      "ci95": [
+       0.9898,
+       1.0005
+      ],
+      "own_ms": 0.20612,
+      "bit_identical": true,
+      "instructions": 347
+     },
+     {
+      "overrides": {
+       "loop.unroll": 16
+      },
+      "outcome": "parity",
+      "speed_over_amdclang": 1.0021,
+      "ci95": [
+       0.9966,
+       1.0077
+      ],
+      "own_ms": 0.2046,
+      "bit_identical": true,
+      "instructions": 529
+     }
+    ],
+    "best": null
+   }
   },
   "layernorm": {
-   "stage": "frontend",
-   "stopped": "frontend",
-   "reason": "layernorm.hip: 5 construct(s) outside the supported subset: type `(lambda at tests/kernels/layernorm.hip:9:16)` at 9:10; reference to `add` (VarDecl) at 12:39; reference to `mean` (VarDecl) at 14:72; reference to `add` (VarDecl) at 15:53; reference to `mean` (VarDecl) at 16:76"
+   "stage": "battery",
+   "instructions": 356,
+   "amdclang_instructions": 312,
+   "decisions": [
+    "kernel.fp.contract",
+    "loop0.loop.unroll",
+    "loop1.loop.unroll",
+    "loop2.loop.unroll",
+    "kernel.order.loads",
+    "loop0.loop.inflight",
+    "loop1.loop.inflight",
+    "loop2.loop.inflight",
+    "if0.branch.skip_empty",
+    "if1.branch.skip_empty",
+    "if2.branch.skip_empty",
+    "if3.branch.skip_empty",
+    "if4.branch.skip_empty",
+    "if5.branch.skip_empty",
+    "if6.branch.skip_empty",
+    "if7.branch.skip_empty",
+    "div0.fp.div",
+    "if8.branch.skip_empty",
+    "if9.branch.skip_empty",
+    "if10.branch.skip_empty",
+    "if11.branch.skip_empty",
+    "if12.branch.skip_empty",
+    "if13.branch.skip_empty",
+    "if14.branch.skip_empty",
+    "if15.branch.skip_empty",
+    "div1.fp.div",
+    "sqrt0.math.sqrt",
+    "div2.fp.div"
+   ],
+   "battery": "77/77",
+   "bit_identical": true,
+   "speed_over_amdclang": 0.9145,
+   "ci95": [
+    0.9118,
+    0.9172
+   ],
+   "amdclang_ms": 0.45076,
+   "own_ms": 0.49269,
+   "outcome": "loss",
+   "decisions_tried": {
+    "tried": [
+     {
+      "overrides": {
+       "loop.unroll": 4
+      },
+      "outcome": "win",
+      "speed_over_amdclang": 1.5633,
+      "ci95": [
+       1.5563,
+       1.5703
+      ],
+      "own_ms": 0.29564,
+      "bit_identical": true,
+      "instructions": 481
+     },
+     {
+      "overrides": {
+       "loop.unroll": 8
+      },
+      "outcome": "win",
+      "speed_over_amdclang": 1.6365,
+      "ci95": [
+       1.6307,
+       1.6423
+      ],
+      "own_ms": 0.285,
+      "bit_identical": true,
+      "instructions": 621
+     },
+     {
+      "overrides": {
+       "loop.unroll": 16
+      },
+      "outcome": "win",
+      "speed_over_amdclang": 1.7073,
+      "ci95": [
+       1.679,
+       1.7361
+      ],
+      "own_ms": 0.274,
+      "bit_identical": true,
+      "instructions": 901
+     }
+    ],
+    "best": {
+     "overrides": {
+      "loop.unroll": 16
+     },
+     "outcome": "win",
+     "speed_over_amdclang": 1.7073,
+     "ci95": [
+      1.679,
+      1.7361
+     ],
+     "own_ms": 0.274,
+     "bit_identical": true,
+     "instructions": 901
+    }
+   }
   },
   "matvec": {
    "stage": "battery",
@@ -356,13 +542,13 @@
    ],
    "battery": "77/77",
    "bit_identical": true,
-   "speed_over_amdclang": 0.9771,
+   "speed_over_amdclang": 0.9779,
    "ci95": [
-    0.975,
-    0.9791
+    0.9746,
+    0.9812
    ],
-   "amdclang_ms": 0.56095,
-   "own_ms": 0.57399,
+   "amdclang_ms": 0.55185,
+   "own_ms": 0.56493,
    "outcome": "loss",
    "decisions_tried": {
     "tried": [
@@ -371,12 +557,12 @@
        "loop.unroll": 4
       },
       "outcome": "win",
-      "speed_over_amdclang": 2.1796,
+      "speed_over_amdclang": 2.2482,
       "ci95": [
-       2.1059,
-       2.2558
+       2.2142,
+       2.2828
       ],
-      "own_ms": 0.25366,
+      "own_ms": 0.2471,
       "bit_identical": true,
       "instructions": 60
      },
@@ -385,12 +571,12 @@
        "loop.unroll": 8
       },
       "outcome": "win",
-      "speed_over_amdclang": 2.5692,
+      "speed_over_amdclang": 2.5621,
       "ci95": [
-       2.5624,
-       2.576
+       2.5539,
+       2.5703
       ],
-      "own_ms": 0.21708,
+      "own_ms": 0.21686,
       "bit_identical": true,
       "instructions": 66
      },
@@ -399,12 +585,12 @@
        "loop.unroll": 16
       },
       "outcome": "win",
-      "speed_over_amdclang": 2.7705,
+      "speed_over_amdclang": 2.7827,
       "ci95": [
-       2.7569,
-       2.7842
+       2.7735,
+       2.792
       ],
-      "own_ms": 0.20212,
+      "own_ms": 0.20198,
       "bit_identical": true,
       "instructions": 78
      }
@@ -414,12 +600,12 @@
       "loop.unroll": 16
      },
      "outcome": "win",
-     "speed_over_amdclang": 2.7705,
+     "speed_over_amdclang": 2.7827,
      "ci95": [
-      2.7569,
-      2.7842
+      2.7735,
+      2.792
      ],
-     "own_ms": 0.20212,
+     "own_ms": 0.20198,
      "bit_identical": true,
      "instructions": 78
     }
@@ -438,7 +624,7 @@
   "mo_adam": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "mo_adam.hip: 7 construct(s) outside the supported subset: `-` on f64 and i32 at 39:27; `-` on f64 and i32 at 40:27; call of `__builtin_fmaxf`, which has no body in this translation unit at 1341:42; call of `sqrt`: several functions have this name and signature at 70:35; call of `sqrt`: several functions have this name and signature at 74:17; reference to `bias_correction1` (VarDecl) at 77:25 ..."
+   "reason": "mo_adam.hip: 6 construct(s) outside the supported subset: `-` on f64 and i32 at 39:27; `-` on f64 and i32 at 40:27; reference to `bias_correction2` (VarDecl) at 70:63; reference to `bias_correction2` (VarDecl) at 74:41; reference to `bias_correction1` (VarDecl) at 77:25; reference to `step_size` (VarDecl) at 78:28"
   },
   "mo_bn_infer": {
    "stage": "frontend",
@@ -446,9 +632,9 @@
    "reason": "mo_bn_infer.hip: 11 construct(s) outside the supported subset: a local array `float[4]` that is not `__shared__` at 118:17; a local array `float[4]` that is not `__shared__` at 119:17; a local array `float[4]` that is not `__shared__` at 120:17; a local array `float[4]` that is not `__shared__` at 121:17; a local array `float[4]` that is not `__shared__` at 122:17; reference to `mean` (VarDecl) at"
   },
   "mo_glu_fwd": {
-   "stage": "frontend",
-   "stopped": "frontend",
-   "reason": "mo_glu_fwd.hip: 1 construct(s) outside the supported subset: call of `exp`: several functions have this name and signature at 8:71"
+   "stage": "lower",
+   "stopped": "unsupported",
+   "reason": "a uniform address computed from an index"
   },
   "mo_prelu_bwd": {
    "stage": "frontend",
@@ -472,13 +658,13 @@
    ],
    "battery": "77/77",
    "bit_identical": true,
-   "speed_over_amdclang": 0.8005,
+   "speed_over_amdclang": 0.7989,
    "ci95": [
-    0.7973,
-    0.8037
+    0.7922,
+    0.8056
    ],
-   "amdclang_ms": 0.18842,
-   "own_ms": 0.2354,
+   "amdclang_ms": 0.1831,
+   "own_ms": 0.22954,
    "outcome": "loss"
   },
   "mo_t5_layernorm": {
@@ -489,7 +675,7 @@
   "moe_gate_topk": {
    "stage": "frontend",
    "stopped": "frontend",
-   "reason": "moe_gate_topk.hip: 5 construct(s) outside the supported subset: call of `__builtin_fmaxf`, which has no body in this translation unit at 454:44; call of `__builtin_expf`, which has no body in this translation unit at 431:32; a local array `int[16]` that is not `__shared__` at 24:7; reference to `picked` (VarDecl) at 30:45; reference to `picked` (VarDecl) at 36:5"
+   "reason": "moe_gate_topk.hip: 3 construct(s) outside the supported subset: a local array `int[16]` that is not `__shared__` at 24:7; reference to `picked` (VarDecl) at 30:45; reference to `picked` (VarDecl) at 36:5"
   },
   "rb_axpy": {
    "stage": "battery",
@@ -507,13 +693,13 @@
    ],
    "battery": "49/49",
    "bit_identical": true,
-   "speed_over_amdclang": 0.9997,
+   "speed_over_amdclang": 0.9993,
    "ci95": [
-    0.9943,
-    1.005
+    0.9905,
+    1.0082
    ],
-   "amdclang_ms": 0.15774,
-   "own_ms": 0.15746,
+   "amdclang_ms": 0.16116,
+   "own_ms": 0.16176,
    "outcome": "parity"
   },
   "rb_copy": {
@@ -530,13 +716,13 @@
    ],
    "battery": "49/49",
    "bit_identical": true,
-   "speed_over_amdclang": 1.0016,
+   "speed_over_amdclang": 1.0018,
    "ci95": [
-    0.9896,
-    1.0138
+    0.995,
+    1.0085
    ],
-   "amdclang_ms": 0.11114,
-   "own_ms": 0.11126,
+   "amdclang_ms": 0.10944,
+   "own_ms": 0.10928,
    "outcome": "parity"
   },
   "rb_dot": {
@@ -569,13 +755,13 @@
    ],
    "battery": "77/77",
    "bit_identical": true,
-   "speed_over_amdclang": 0.7975,
+   "speed_over_amdclang": 0.797,
    "ci95": [
-    0.7924,
-    0.8026
+    0.7916,
+    0.8025
    ],
-   "amdclang_ms": 0.10474,
-   "own_ms": 0.13116,
+   "amdclang_ms": 0.10498,
+   "own_ms": 0.13172,
    "outcome": "loss",
    "decisions_tried": {
     "tried": [
@@ -584,12 +770,12 @@
        "loop.unroll": 4
       },
       "outcome": "win",
-      "speed_over_amdclang": 1.0301,
+      "speed_over_amdclang": 1.0484,
       "ci95": [
-       1.0239,
-       1.0363
+       1.0436,
+       1.0532
       ],
-      "own_ms": 0.10156,
+      "own_ms": 0.10028,
       "bit_identical": true,
       "instructions": 135
      },
@@ -598,12 +784,12 @@
        "loop.unroll": 8
       },
       "outcome": "win",
-      "speed_over_amdclang": 1.0416,
+      "speed_over_amdclang": 1.0366,
       "ci95": [
-       1.0338,
-       1.0495
+       1.0306,
+       1.0427
       ],
-      "own_ms": 0.10116,
+      "own_ms": 0.10098,
       "bit_identical": true,
       "instructions": 191
      },
@@ -612,29 +798,29 @@
        "loop.unroll": 16
       },
       "outcome": "loss",
-      "speed_over_amdclang": 0.7847,
+      "speed_over_amdclang": 0.7857,
       "ci95": [
-       0.7776,
-       0.7919
+       0.7819,
+       0.7895
       ],
-      "own_ms": 0.1331,
+      "own_ms": 0.13338,
       "bit_identical": true,
       "instructions": 303
      }
     ],
     "best": {
      "overrides": {
-      "loop.unroll": 8
+      "loop.unroll": 4
      },
      "outcome": "win",
-     "speed_over_amdclang": 1.0416,
+     "speed_over_amdclang": 1.0484,
      "ci95": [
-      1.0338,
-      1.0495
+      1.0436,
+      1.0532
      ],
-     "own_ms": 0.10116,
+     "own_ms": 0.10028,
      "bit_identical": true,
-     "instructions": 191
+     "instructions": 135
     }
    }
   },
@@ -654,13 +840,13 @@
    ],
    "battery": "49/49",
    "bit_identical": true,
-   "speed_over_amdclang": 0.9934,
+   "speed_over_amdclang": 0.9897,
    "ci95": [
-    0.9819,
-    1.0051
+    0.978,
+    1.0015
    ],
-   "amdclang_ms": 0.184,
-   "own_ms": 0.18584,
+   "amdclang_ms": 0.18706,
+   "own_ms": 0.18916,
    "outcome": "parity"
   },
   "rb_scal": {
@@ -678,13 +864,13 @@
    ],
    "battery": "49/49",
    "bit_identical": true,
-   "speed_over_amdclang": 1.0066,
+   "speed_over_amdclang": 1.0102,
    "ci95": [
-    0.9971,
-    1.0163
+    0.9926,
+    1.0281
    ],
-   "amdclang_ms": 0.1049,
-   "own_ms": 0.10424,
+   "amdclang_ms": 0.10504,
+   "own_ms": 0.10462,
    "outcome": "parity"
   },
   "rb_swap": {
@@ -703,19 +889,169 @@
    ],
    "battery": "49/49",
    "bit_identical": true,
-   "speed_over_amdclang": 0.9984,
+   "speed_over_amdclang": 0.9963,
    "ci95": [
-    0.9923,
-    1.0046
+    0.9903,
+    1.0024
    ],
-   "amdclang_ms": 0.18048,
-   "own_ms": 0.18006,
+   "amdclang_ms": 0.19316,
+   "own_ms": 0.19388,
    "outcome": "parity"
   },
   "rmsnorm": {
-   "stage": "frontend",
-   "stopped": "frontend",
-   "reason": "rmsnorm.hip: 1 construct(s) outside the supported subset: call of `__builtin_sqrtf`, which has no body in this translation unit at 722:33"
+   "stage": "battery",
+   "instructions": 219,
+   "amdclang_instructions": 195,
+   "decisions": [
+    "kernel.fp.contract",
+    "reduce0.reduce.form",
+    "loop0.loop.unroll",
+    "loop1.loop.unroll",
+    "kernel.order.loads",
+    "loop0.loop.inflight",
+    "loop1.loop.inflight",
+    "if0.branch.skip_empty",
+    "if1.branch.skip_empty",
+    "if2.branch.skip_empty",
+    "if3.branch.skip_empty",
+    "if4.branch.skip_empty",
+    "if5.branch.skip_empty",
+    "if6.branch.skip_empty",
+    "if7.branch.skip_empty",
+    "div0.fp.div",
+    "sqrt0.math.sqrt",
+    "div1.fp.div"
+   ],
+   "battery": "77/77",
+   "bit_identical": true,
+   "speed_over_amdclang": 0.9418,
+   "ci95": [
+    0.9386,
+    0.945
+   ],
+   "amdclang_ms": 0.3581,
+   "own_ms": 0.38074,
+   "outcome": "loss",
+   "decisions_tried": {
+    "tried": [
+     {
+      "overrides": {
+       "loop.unroll": 4
+      },
+      "outcome": "win",
+      "speed_over_amdclang": 1.5547,
+      "ci95": [
+       1.5487,
+       1.5606
+      ],
+      "own_ms": 0.23938,
+      "bit_identical": true,
+      "instructions": 297
+     },
+     {
+      "overrides": {
+       "loop.unroll": 8
+      },
+      "outcome": "win",
+      "speed_over_amdclang": 1.5773,
+      "ci95": [
+       1.5653,
+       1.5893
+      ],
+      "own_ms": 0.23606,
+      "bit_identical": true,
+      "instructions": 385
+     },
+     {
+      "overrides": {
+       "loop.unroll": 16
+      },
+      "outcome": "win",
+      "speed_over_amdclang": 1.5925,
+      "ci95": [
+       1.5859,
+       1.599
+      ],
+      "own_ms": 0.23594,
+      "bit_identical": true,
+      "instructions": 561
+     },
+     {
+      "overrides": {
+       "reduce.form": "dpp"
+      },
+      "outcome": "loss",
+      "speed_over_amdclang": 0.9681,
+      "ci95": [
+       0.9653,
+       0.971
+      ],
+      "own_ms": 0.38673,
+      "bit_identical": false,
+      "instructions": 134
+     },
+     {
+      "overrides": {
+       "reduce.form": "dpp",
+       "loop.unroll": 4
+      },
+      "outcome": "win",
+      "speed_over_amdclang": 1.5995,
+      "ci95": [
+       1.5931,
+       1.6059
+      ],
+      "own_ms": 0.232,
+      "bit_identical": false,
+      "instructions": 212
+     },
+     {
+      "overrides": {
+       "reduce.form": "dpp",
+       "loop.unroll": 8
+      },
+      "outcome": "win",
+      "speed_over_amdclang": 1.5818,
+      "ci95": [
+       1.566,
+       1.5977
+      ],
+      "own_ms": 0.2351,
+      "bit_identical": false,
+      "instructions": 300
+     },
+     {
+      "overrides": {
+       "reduce.form": "dpp",
+       "loop.unroll": 16
+      },
+      "outcome": "win",
+      "speed_over_amdclang": 1.5907,
+      "ci95": [
+       1.5849,
+       1.5966
+      ],
+      "own_ms": 0.23598,
+      "bit_identical": false,
+      "instructions": 476
+     }
+    ],
+    "best": {
+     "overrides": {
+      "reduce.form": "dpp",
+      "loop.unroll": 4
+     },
+     "outcome": "win",
+     "speed_over_amdclang": 1.5995,
+     "ci95": [
+      1.5931,
+      1.6059
+     ],
+     "own_ms": 0.232,
+     "bit_identical": false,
+     "instructions": 212
+    }
+   }
   },
   "row_argmax": {
    "stage": "frontend",
@@ -744,13 +1080,13 @@
    ],
    "battery": "77/77",
    "bit_identical": true,
-   "speed_over_amdclang": 0.9545,
+   "speed_over_amdclang": 0.9456,
    "ci95": [
-    0.9517,
-    0.9572
+    0.9419,
+    0.9493
    ],
-   "amdclang_ms": 0.18346,
-   "own_ms": 0.19216,
+   "amdclang_ms": 0.18112,
+   "own_ms": 0.19128,
    "outcome": "loss",
    "decisions_tried": {
     "tried": [
@@ -759,12 +1095,12 @@
        "loop.unroll": 4
       },
       "outcome": "win",
-      "speed_over_amdclang": 1.2665,
+      "speed_over_amdclang": 1.2831,
       "ci95": [
-       1.2513,
-       1.2819
+       1.2663,
+       1.3002
       ],
-      "own_ms": 0.14274,
+      "own_ms": 0.13812,
       "bit_identical": true,
       "instructions": 187
      },
@@ -773,12 +1109,12 @@
        "loop.unroll": 8
       },
       "outcome": "win",
-      "speed_over_amdclang": 1.2806,
+      "speed_over_amdclang": 1.2574,
       "ci95": [
-       1.2686,
-       1.2927
+       1.2375,
+       1.2776
       ],
-      "own_ms": 0.1418,
+      "own_ms": 0.14436,
       "bit_identical": true,
       "instructions": 211
      },
@@ -787,12 +1123,12 @@
        "loop.unroll": 16
       },
       "outcome": "win",
-      "speed_over_amdclang": 1.2906,
+      "speed_over_amdclang": 1.2805,
       "ci95": [
-       1.2787,
-       1.3026
+       1.2705,
+       1.2905
       ],
-      "own_ms": 0.13976,
+      "own_ms": 0.14298,
       "bit_identical": true,
       "instructions": 259
      },
@@ -801,12 +1137,12 @@
        "reduce.form": "dpp"
       },
       "outcome": "parity",
-      "speed_over_amdclang": 0.9861,
+      "speed_over_amdclang": 0.9959,
       "ci95": [
-       0.9806,
-       0.9917
+       0.9918,
+       0.9999
       ],
-      "own_ms": 0.18382,
+      "own_ms": 0.18436,
       "bit_identical": false,
       "instructions": 71
      },
@@ -816,12 +1152,12 @@
        "loop.unroll": 4
       },
       "outcome": "win",
-      "speed_over_amdclang": 1.2779,
+      "speed_over_amdclang": 1.327,
       "ci95": [
-       1.2651,
-       1.2909
+       1.32,
+       1.3339
       ],
-      "own_ms": 0.1415,
+      "own_ms": 0.13476,
       "bit_identical": false,
       "instructions": 102
      },
@@ -831,12 +1167,12 @@
        "loop.unroll": 8
       },
       "outcome": "win",
-      "speed_over_amdclang": 1.269,
+      "speed_over_amdclang": 1.2881,
       "ci95": [
-       1.2595,
-       1.2785
+       1.2829,
+       1.2933
       ],
-      "own_ms": 0.14274,
+      "own_ms": 0.14204,
       "bit_identical": false,
       "instructions": 126
      },
@@ -846,12 +1182,12 @@
        "loop.unroll": 16
       },
       "outcome": "win",
-      "speed_over_amdclang": 1.2963,
+      "speed_over_amdclang": 1.295,
       "ci95": [
-       1.2848,
-       1.3078
+       1.2775,
+       1.3127
       ],
-      "own_ms": 0.13976,
+      "own_ms": 0.14088,
       "bit_identical": false,
       "instructions": 174
      }
@@ -859,24 +1195,123 @@
     "best": {
      "overrides": {
       "reduce.form": "dpp",
-      "loop.unroll": 16
+      "loop.unroll": 4
      },
      "outcome": "win",
-     "speed_over_amdclang": 1.2963,
+     "speed_over_amdclang": 1.327,
      "ci95": [
-      1.2848,
-      1.3078
+      1.32,
+      1.3339
      ],
-     "own_ms": 0.13976,
+     "own_ms": 0.13476,
      "bit_identical": false,
-     "instructions": 174
+     "instructions": 102
     }
    }
   },
   "softmax": {
-   "stage": "frontend",
-   "stopped": "frontend",
-   "reason": "softmax.hip: 2 construct(s) outside the supported subset: call of `__builtin_fmaxf`, which has no body in this translation unit at 454:44; call of `__builtin_expf`, which has no body in this translation unit at 431:32"
+   "stage": "battery",
+   "instructions": 333,
+   "amdclang_instructions": 383,
+   "decisions": [
+    "kernel.fp.contract",
+    "exp0.math.exp",
+    "exp1.math.exp",
+    "loop0.loop.unroll",
+    "loop1.loop.unroll",
+    "loop2.loop.unroll",
+    "kernel.order.loads",
+    "loop0.loop.inflight",
+    "loop1.loop.inflight",
+    "loop2.loop.inflight",
+    "if0.branch.skip_empty",
+    "if1.branch.skip_empty",
+    "if2.branch.skip_empty",
+    "if3.branch.skip_empty",
+    "if4.branch.skip_empty",
+    "if5.branch.skip_empty",
+    "if6.branch.skip_empty",
+    "if7.branch.skip_empty",
+    "if8.branch.skip_empty",
+    "if9.branch.skip_empty",
+    "if10.branch.skip_empty",
+    "if11.branch.skip_empty",
+    "if12.branch.skip_empty",
+    "if13.branch.skip_empty",
+    "if14.branch.skip_empty",
+    "if15.branch.skip_empty",
+    "div0.fp.div"
+   ],
+   "battery": "77/77",
+   "bit_identical": true,
+   "speed_over_amdclang": 0.8048,
+   "ci95": [
+    0.8021,
+    0.8076
+   ],
+   "amdclang_ms": 0.41799,
+   "own_ms": 0.51943,
+   "outcome": "loss",
+   "decisions_tried": {
+    "tried": [
+     {
+      "overrides": {
+       "loop.unroll": 4
+      },
+      "outcome": "win",
+      "speed_over_amdclang": 1.4875,
+      "ci95": [
+       1.4794,
+       1.4957
+      ],
+      "own_ms": 0.29134,
+      "bit_identical": true,
+      "instructions": 572
+     },
+     {
+      "overrides": {
+       "loop.unroll": 8
+      },
+      "outcome": "win",
+      "speed_over_amdclang": 1.5937,
+      "ci95": [
+       1.5666,
+       1.6213
+      ],
+      "own_ms": 0.2713,
+      "bit_identical": true,
+      "instructions": 804
+     },
+     {
+      "overrides": {
+       "loop.unroll": 16
+      },
+      "outcome": "win",
+      "speed_over_amdclang": 1.7201,
+      "ci95": [
+       1.7051,
+       1.7351
+      ],
+      "own_ms": 0.25258,
+      "bit_identical": true,
+      "instructions": 1268
+     }
+    ],
+    "best": {
+     "overrides": {
+      "loop.unroll": 16
+     },
+     "outcome": "win",
+     "speed_over_amdclang": 1.7201,
+     "ci95": [
+      1.7051,
+      1.7351
+     ],
+     "own_ms": 0.25258,
+     "bit_identical": true,
+     "instructions": 1268
+    }
+   }
   },
   "transpose": {
    "stage": "battery",
@@ -889,13 +1324,13 @@
    ],
    "battery": "77/77",
    "bit_identical": true,
-   "speed_over_amdclang": 0.9976,
+   "speed_over_amdclang": 1.0013,
    "ci95": [
-    0.9918,
-    1.0034
+    0.9962,
+    1.0065
    ],
-   "amdclang_ms": 0.11716,
-   "own_ms": 0.11732,
+   "amdclang_ms": 0.11638,
+   "own_ms": 0.1164,
    "outcome": "parity"
   },
   "vl_fused_add_rms_norm": {
@@ -928,10 +1363,10 @@
  "what": "agc's own lowering from HIP (default plan) against amdclang -O3 on the source as shipped",
  "summary": {
   "kernels": 50,
-  "frontend_ok": 15,
-  "battery_ok": 15,
-  "bit_identical": 14,
-  "geomean_speed_over_amdclang": 0.942,
-  "slowest": 0.7571
+  "frontend_ok": 21,
+  "battery_ok": 20,
+  "bit_identical": 19,
+  "geomean_speed_over_amdclang": 0.933,
+  "slowest": 0.7572
  }
 }

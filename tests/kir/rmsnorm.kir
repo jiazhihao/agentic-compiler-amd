@@ -1,0 +1,91 @@
+kir func rmsnorm(%x: ptr<f32>, %w: ptr<f32>, %y: ptr<f32>, %eps: f32, %rows: i32, %cols: i32) {
+  %red: lds<f32> = shared[name=red2, bytes=1024]
+  %bid_x: u32 = bid.x
+  %t: u64 = cast %bid_x
+  %t0: u64 = cast %cols
+  %t1: u64 = mul %t, %t0
+  %t2: i64 = cast %t1
+  %p: ptr<f32> = gep %x, %t2
+  %bid_x3: u32 = bid.x
+  %t4: u64 = cast %bid_x3
+  %t5: u64 = cast %cols
+  %t6: u64 = mul %t4, %t5
+  %t7: i64 = cast %t6
+  %p8: ptr<f32> = gep %y, %t7
+  %tid_x: u32 = tid.x
+  %j: i32 = cast %tid_x
+  loop @loop0 {
+    carry %j10: i32 = %j, %t19 -> %j10_20
+    carry %ss: f32 = 0.0:f32, %t18 -> %ss21
+    %t11: i1 = lt %j10, %cols
+    while %t11
+    %t12: i64 = cast %j10
+    %p13: ptr<f32> = gep %p, %t12
+    %v: f32 = load %p13 @load0
+    %t14: i64 = cast %j10
+    %p15: ptr<f32> = gep %p, %t14
+    %v16: f32 = load %p15 @load1
+    %t17: f32 = mul %v, %v16
+    %t18: f32 = add %ss, %t17
+    %t19: i32 = add[nsw=true] %j10, 256:i32
+  }
+  %tid_x22: u32 = tid.x
+  %t23: i64 = cast %tid_x22
+  %p24: lds<f32> = gep %red, %t23
+  store %p24, %ss21 @store0
+  barrier
+  loop @loop1 {
+    carry %s: i32 = 128:i32, %t43 -> %s44
+    %t25: i1 = gt %s, 0:i32
+    while %t25
+    %tid_x26: u32 = tid.x
+    %t27: u32 = cast %s
+    %t28: i1 = lt %tid_x26, %t27
+    if %t28 @if0 {
+      %tid_x29: u32 = tid.x
+      %t30: i64 = cast %tid_x29
+      %p31: lds<f32> = gep %red, %t30
+      %tid_x32: u32 = tid.x
+      %t33: i64 = cast %tid_x32
+      %p34: lds<f32> = gep %red, %t33
+      %v35: f32 = load %p34 @load2
+      %tid_x36: u32 = tid.x
+      %t37: u32 = cast %s
+      %t38: u32 = add %tid_x36, %t37
+      %t39: i64 = cast %t38
+      %p40: lds<f32> = gep %red, %t39
+      %v41: f32 = load %p40 @load3
+      %t42: f32 = add %v35, %v41
+      store %p31, %t42 @store1
+    }
+    barrier
+    %t43: i32 = shr %s, 1:i32
+  }
+  %p45: lds<f32> = gep %red, 0:i64
+  %v46: f32 = load %p45 @load4
+  barrier
+  %t47: f32 = cast %cols
+  %t48: f32 = div %v46, %t47 @div0
+  %t49: f32 = add %t48, %eps
+  %sqrt: f32 = sqrt %t49 @sqrt0
+  %scale: f32 = div 1.0:f32, %sqrt @div1
+  %tid_x51: u32 = tid.x
+  %j53: i32 = cast %tid_x51
+  loop @loop2 {
+    carry %j54: i32 = %j53, %t66 -> %j54_67
+    %t55: i1 = lt %j54, %cols
+    while %t55
+    %t56: i64 = cast %j54
+    %p57: ptr<f32> = gep %p8, %t56
+    %t58: i64 = cast %j54
+    %p59: ptr<f32> = gep %p, %t58
+    %v60: f32 = load %p59 @load5
+    %t61: f32 = mul %v60, %scale
+    %t62: i64 = cast %j54
+    %p63: ptr<f32> = gep %w, %t62
+    %v64: f32 = load %p63 @load6
+    %t65: f32 = mul %t61, %v64
+    store %p57, %t65 @store2
+    %t66: i32 = add[nsw=true] %j54, 256:i32
+  }
+}

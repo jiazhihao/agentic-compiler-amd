@@ -53,6 +53,10 @@ result is a new root state; check and time it like any other.
 - `reduce.form: dpp` replaces a tree reduction through shared memory (a barrier per level) by DPP
   inside each wave and one LDS slot per wave; the order of additions changes (tolerance, not
   bit-identity). `order.loads` and `loop.inflight` default to loads first.
+- Numerics are per site, not a flag for the whole file: `math.exp` (`exact` as amdclang, or `hw`),
+  `math.sqrt` and `fp.div` (`exact` correctly rounded, or the machine's 1-instruction forms), next
+  to `fp.contract`. `plan(id)` gives each alternative's measured error and whether the manifest's
+  tolerance admits it (`tests/baselines/math-gfx950.json`).
 - The loop pair is the first thing to try on a kernel whose loop waits for every load:
   `replan(id, {"loop.unroll": 16})` gave `matvec` 2.78x, `gemm_naive` 2.15x and (with 4) `row_sum`
   1.29x over amdclang, bit-identical. A decision that does not exist in the kernel is refused with
